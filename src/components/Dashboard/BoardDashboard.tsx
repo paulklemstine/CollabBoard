@@ -3,13 +3,13 @@ import { CreateBoardForm } from './CreateBoardForm';
 import { BoardCard } from './BoardCard';
 
 interface BoardDashboardProps {
-  user: { uid: string; displayName: string | null; email: string | null };
+  user: { uid: string; displayName: string | null; email: string | null; isAnonymous: boolean };
   onSelectBoard: (boardId: string) => void;
   onSignOut: () => Promise<void>;
 }
 
 export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboardProps) {
-  const { boards, loading, addBoard, removeBoard } = useUserBoards(user.uid);
+  const { boards, loading, addBoard, removeBoard } = useUserBoards(user.uid, user.isAnonymous);
 
   const handleCreateBoard = async (name: string) => {
     const boardId = await addBoard(name);
@@ -76,7 +76,7 @@ export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboar
                 board={board}
                 onSelect={onSelectBoard}
                 onDelete={removeBoard}
-                isOwner={board.createdBy === user.uid}
+                canDelete={board.createdBy === user.uid || board.createdByGuest}
               />
             ))}
           </div>

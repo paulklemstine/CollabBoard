@@ -44,6 +44,7 @@ const mockBoard: BoardMetadata = {
   id: 'board-1',
   name: 'Test Board',
   createdBy: 'user-1',
+  createdByGuest: false,
   createdAt: 1000,
   updatedAt: 1000,
 };

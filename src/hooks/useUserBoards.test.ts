@@ -33,7 +33,7 @@ beforeEach(() => {
 
 describe('useUserBoards', () => {
   it('subscribes to all boards on mount', () => {
-    renderHook(() => useUserBoards('user-1'));
+    renderHook(() => useUserBoards('user-1', false));
 
     expect(boardMetadataService.subscribeToAllBoards).toHaveBeenCalledWith(
       expect.any(Function),
@@ -44,26 +44,27 @@ describe('useUserBoards', () => {
     const unsubscribe = vi.fn();
     vi.mocked(boardMetadataService.subscribeToAllBoards).mockReturnValue(unsubscribe);
 
-    const { unmount } = renderHook(() => useUserBoards('user-1'));
+    const { unmount } = renderHook(() => useUserBoards('user-1', false));
     unmount();
 
     expect(unsubscribe).toHaveBeenCalled();
   });
 
   it('starts with loading true and empty boards', () => {
-    const { result } = renderHook(() => useUserBoards('user-1'));
+    const { result } = renderHook(() => useUserBoards('user-1', false));
 
     expect(result.current.loading).toBe(true);
     expect(result.current.boards).toEqual([]);
   });
 
   it('sets loading false and updates boards when subscription fires', () => {
-    const { result } = renderHook(() => useUserBoards('user-1'));
+    const { result } = renderHook(() => useUserBoards('user-1', false));
 
     const mockBoard: BoardMetadata = {
       id: 'b1',
       name: 'Test',
       createdBy: 'user-1',
+      createdByGuest: false,
       createdAt: 1000,
       updatedAt: 1000,
     };
@@ -76,8 +77,8 @@ describe('useUserBoards', () => {
     expect(result.current.boards).toEqual([mockBoard]);
   });
 
-  it('addBoard creates a board and returns its id', async () => {
-    const { result } = renderHook(() => useUserBoards('user-1'));
+  it('addBoard creates a board with createdByGuest false for regular users', async () => {
+    const { result } = renderHook(() => useUserBoards('user-1', false));
 
     let boardId: string = '';
     await act(async () => {
@@ -90,12 +91,31 @@ describe('useUserBoards', () => {
         id: boardId,
         name: 'My Board',
         createdBy: 'user-1',
+        createdByGuest: false,
+      }),
+    );
+  });
+
+  it('addBoard creates a board with createdByGuest true for guest users', async () => {
+    const { result } = renderHook(() => useUserBoards('guest-1', true));
+
+    let boardId: string = '';
+    await act(async () => {
+      boardId = await result.current.addBoard('Guest Board');
+    });
+
+    expect(boardMetadataService.createBoard).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: boardId,
+        name: 'Guest Board',
+        createdBy: 'guest-1',
+        createdByGuest: true,
       }),
     );
   });
 
   it('removeBoard deletes objects then board metadata', async () => {
-    const { result } = renderHook(() => useUserBoards('user-1'));
+    const { result } = renderHook(() => useUserBoards('user-1', false));
 
     await act(async () => {
       await result.current.removeBoard('board-1');

@@ -4,10 +4,10 @@ interface BoardCardProps {
   board: BoardMetadata;
   onSelect: (boardId: string) => void;
   onDelete: (boardId: string) => void;
-  isOwner: boolean;
+  canDelete: boolean;
 }
 
-export function BoardCard({ board, onSelect, onDelete, isOwner }: BoardCardProps) {
+export function BoardCard({ board, onSelect, onDelete, canDelete }: BoardCardProps) {
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     onDelete(board.id);
@@ -33,7 +33,7 @@ export function BoardCard({ board, onSelect, onDelete, isOwner }: BoardCardProps
           <h3 className="text-lg font-bold text-gray-800 truncate">{board.name}</h3>
           <p className="text-sm text-gray-500 mt-1">Created {formattedDate}</p>
         </div>
-        {isOwner && (
+        {canDelete && (
           <button
             onClick={handleDelete}
             className="opacity-0 group-hover:opacity-100 ml-2 p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all duration-200"

@@ -17,6 +17,7 @@ const mockUser = {
   uid: 'user-1',
   displayName: 'Test User',
   email: 'test@example.com',
+  isAnonymous: false,
 };
 
 const mockAddBoard = vi.fn().mockResolvedValue('new-board-id');
@@ -86,8 +87,8 @@ describe('BoardDashboard', () => {
 
   it('renders board cards when boards exist', () => {
     const boards: BoardMetadata[] = [
-      { id: 'b1', name: 'Board One', createdBy: 'user-1', createdAt: 1000, updatedAt: 1000 },
-      { id: 'b2', name: 'Board Two', createdBy: 'user-1', createdAt: 2000, updatedAt: 2000 },
+      { id: 'b1', name: 'Board One', createdBy: 'user-1', createdByGuest: false, createdAt: 1000, updatedAt: 1000 },
+      { id: 'b2', name: 'Board Two', createdBy: 'user-1', createdByGuest: false, createdAt: 2000, updatedAt: 2000 },
     ];
     vi.mocked(useUserBoardsModule.useUserBoards).mockReturnValue({
       boards,
@@ -106,7 +107,7 @@ describe('BoardDashboard', () => {
 
   it('calls onSelectBoard when a board card is clicked', async () => {
     const boards: BoardMetadata[] = [
-      { id: 'b1', name: 'Board One', createdBy: 'user-1', createdAt: 1000, updatedAt: 1000 },
+      { id: 'b1', name: 'Board One', createdBy: 'user-1', createdByGuest: false, createdAt: 1000, updatedAt: 1000 },
     ];
     vi.mocked(useUserBoardsModule.useUserBoards).mockReturnValue({
       boards,
@@ -149,10 +150,11 @@ describe('BoardDashboard', () => {
     expect(screen.getByRole('button', { name: /create board/i })).toBeInTheDocument();
   });
 
-  it('shows delete button only for boards owned by current user', () => {
+  it('shows delete button only for owned boards and guest-created boards', () => {
     const boards: BoardMetadata[] = [
-      { id: 'b1', name: 'My Board', createdBy: 'user-1', createdAt: 1000, updatedAt: 1000 },
-      { id: 'b2', name: 'Other Board', createdBy: 'user-2', createdAt: 2000, updatedAt: 2000 },
+      { id: 'b1', name: 'My Board', createdBy: 'user-1', createdByGuest: false, createdAt: 1000, updatedAt: 1000 },
+      { id: 'b2', name: 'Other Board', createdBy: 'user-2', createdByGuest: false, createdAt: 2000, updatedAt: 2000 },
+      { id: 'b3', name: 'Guest Board', createdBy: 'guest-1', createdByGuest: true, createdAt: 3000, updatedAt: 3000 },
     ];
     vi.mocked(useUserBoardsModule.useUserBoards).mockReturnValue({
       boards,
@@ -167,5 +169,6 @@ describe('BoardDashboard', () => {
 
     expect(screen.getByLabelText(/delete my board/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/delete other board/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/delete guest board/i)).toBeInTheDocument();
   });
 });

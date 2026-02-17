@@ -7,7 +7,7 @@ import {
 } from '../services/boardMetadataService';
 import type { BoardMetadata } from '../types/board';
 
-export function useUserBoards(userId: string) {
+export function useUserBoards(userId: string, isGuest: boolean) {
   const [boards, setBoards] = useState<BoardMetadata[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -27,13 +27,14 @@ export function useUserBoards(userId: string) {
         id,
         name,
         createdBy: userId,
+        createdByGuest: isGuest,
         createdAt: now,
         updatedAt: now,
       };
       await createBoard(board);
       return id;
     },
-    [userId],
+    [userId, isGuest],
   );
 
   const removeBoard = useCallback(async (boardId: string): Promise<void> => {

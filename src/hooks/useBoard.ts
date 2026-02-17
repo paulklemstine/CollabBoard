@@ -219,7 +219,7 @@ export function useBoard(boardId: string, userId: string) {
       const frames = objectsRef.current.filter(
         (o): o is Frame => o.type === 'frame'
       );
-      const containingFrame = findContainingFrame(draggedObj, frames);
+      const containingFrame = findContainingFrame(draggedObj, frames, objectsRef.current);
       setHoveredFrameId(containingFrame?.id ?? null);
     },
     [boardId]
@@ -239,7 +239,7 @@ export function useBoard(boardId: string, userId: string) {
       const frames = objectsRef.current.filter(
         (o): o is Frame => o.type === 'frame'
       );
-      const containingFrame = findContainingFrame(draggedObj, frames);
+      const containingFrame = findContainingFrame(draggedObj, frames, objectsRef.current);
       const newParentId = containingFrame?.id ?? '';
 
       updateObject(boardId, objectId, { x, y, parentId: newParentId });
@@ -248,11 +248,11 @@ export function useBoard(boardId: string, userId: string) {
     [boardId]
   );
 
-  /** Called during frame drag — moves frame, tracks offset for children locally */
+  /** Called during frame drag — moves frame, tracks offset for children locally, detects containment */
   const handleFrameDragMove = useCallback(
     (frameId: string, newX: number, newY: number) => {
       const frame = objectsRef.current.find((o) => o.id === frameId);
-      if (!frame) return;
+      if (!frame || frame.type !== 'frame') return;
 
       // Record the original position on first move
       if (!frameDragStartRef.current) {
@@ -267,15 +267,42 @@ export function useBoard(boardId: string, userId: string) {
 
       // Track offset locally — children apply this visually without Firestore round-trip
       setFrameDragOffset({ frameId, dx, dy });
+
+      // Detect hover over other frames for frame-in-frame nesting
+      const draggedFrame = { ...frame, x: newX, y: newY };
+      const otherFrames = objectsRef.current.filter(
+        (o): o is Frame => o.type === 'frame' && o.id !== frameId
+      );
+      const containingFrame = findContainingFrame(draggedFrame, otherFrames, objectsRef.current);
+      setHoveredFrameId(containingFrame?.id ?? null);
     },
     [boardId]
   );
 
-  /** Called on frame drag end — persist final child positions, clear offset */
+  /** Called on frame drag end — persist final child positions, set parentId, clear offset */
   const handleFrameDragEnd = useCallback(
     (frameId: string, newX: number, newY: number) => {
-      updateObject(boardId, frameId, { x: newX, y: newY });
+      const frame = objectsRef.current.find((o) => o.id === frameId);
+      if (!frame || frame.type !== 'frame') {
+        updateObject(boardId, frameId, { x: newX, y: newY });
+        frameDragStartRef.current = null;
+        setFrameDragOffset(null);
+        setHoveredFrameId(null);
+        return;
+      }
 
+      // Detect containment for frame-in-frame nesting
+      const draggedFrame = { ...frame, x: newX, y: newY };
+      const otherFrames = objectsRef.current.filter(
+        (o): o is Frame => o.type === 'frame' && o.id !== frameId
+      );
+      const containingFrame = findContainingFrame(draggedFrame, otherFrames, objectsRef.current);
+      const newParentId = containingFrame?.id ?? '';
+
+      // Update frame position and parentId
+      updateObject(boardId, frameId, { x: newX, y: newY, parentId: newParentId });
+
+      // Move all children with the frame
       if (frameDragStartRef.current) {
         const dx = newX - frameDragStartRef.current.x;
         const dy = newY - frameDragStartRef.current.y;
@@ -291,6 +318,7 @@ export function useBoard(boardId: string, userId: string) {
 
       frameDragStartRef.current = null;
       setFrameDragOffset(null);
+      setHoveredFrameId(null);
     },
     [boardId]
   );

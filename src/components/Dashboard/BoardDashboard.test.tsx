@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BoardDashboard } from './BoardDashboard';
@@ -25,12 +25,17 @@ const mockRemoveBoard = vi.fn().mockResolvedValue(undefined);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.useFakeTimers();
   vi.mocked(useUserBoardsModule.useUserBoards).mockReturnValue({
     boards: [],
     loading: false,
     addBoard: mockAddBoard,
     removeBoard: mockRemoveBoard,
   });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe('BoardDashboard', () => {
@@ -87,8 +92,8 @@ describe('BoardDashboard', () => {
 
   it('renders board cards when boards exist', () => {
     const boards: BoardMetadata[] = [
-      { id: 'b1', name: 'Board One', createdBy: 'user-1', createdByGuest: false, createdAt: 1000, updatedAt: 1000 },
-      { id: 'b2', name: 'Board Two', createdBy: 'user-1', createdByGuest: false, createdAt: 2000, updatedAt: 2000 },
+      { id: 'b1', name: 'Board One', createdBy: 'user-1', createdByName: 'Test User', createdByGuest: false, createdAt: 1000, updatedAt: 1000 },
+      { id: 'b2', name: 'Board Two', createdBy: 'user-1', createdByName: 'Test User', createdByGuest: false, createdAt: 2000, updatedAt: 2000 },
     ];
     vi.mocked(useUserBoardsModule.useUserBoards).mockReturnValue({
       boards,
@@ -107,7 +112,7 @@ describe('BoardDashboard', () => {
 
   it('calls onSelectBoard when a board card is clicked', async () => {
     const boards: BoardMetadata[] = [
-      { id: 'b1', name: 'Board One', createdBy: 'user-1', createdByGuest: false, createdAt: 1000, updatedAt: 1000 },
+      { id: 'b1', name: 'Board One', createdBy: 'user-1', createdByName: 'Test User', createdByGuest: false, createdAt: 1000, updatedAt: 1000 },
     ];
     vi.mocked(useUserBoardsModule.useUserBoards).mockReturnValue({
       boards,
@@ -152,9 +157,9 @@ describe('BoardDashboard', () => {
 
   it('shows delete button only for owned boards and guest-created boards', () => {
     const boards: BoardMetadata[] = [
-      { id: 'b1', name: 'My Board', createdBy: 'user-1', createdByGuest: false, createdAt: 1000, updatedAt: 1000 },
-      { id: 'b2', name: 'Other Board', createdBy: 'user-2', createdByGuest: false, createdAt: 2000, updatedAt: 2000 },
-      { id: 'b3', name: 'Guest Board', createdBy: 'guest-1', createdByGuest: true, createdAt: 3000, updatedAt: 3000 },
+      { id: 'b1', name: 'My Board', createdBy: 'user-1', createdByName: 'Test User', createdByGuest: false, createdAt: 1000, updatedAt: 1000 },
+      { id: 'b2', name: 'Other Board', createdBy: 'user-2', createdByName: 'Other User', createdByGuest: false, createdAt: 2000, updatedAt: 2000 },
+      { id: 'b3', name: 'Guest Board', createdBy: 'guest-1', createdByName: 'Guest 5678', createdByGuest: true, createdAt: 3000, updatedAt: 3000 },
     ];
     vi.mocked(useUserBoardsModule.useUserBoards).mockReturnValue({
       boards,
@@ -170,5 +175,17 @@ describe('BoardDashboard', () => {
     expect(screen.getByLabelText(/delete my board/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/delete other board/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText(/delete guest board/i)).toBeInTheDocument();
+  });
+
+  it('sets up a delayed timer on mount to trigger re-render', () => {
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
+
+    render(
+      <BoardDashboard user={mockUser} onSelectBoard={vi.fn()} onSignOut={vi.fn()} />,
+    );
+
+    // Should set up a timeout for delayed refresh
+    expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 500);
+    setTimeoutSpy.mockRestore();
   });
 });

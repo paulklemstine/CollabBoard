@@ -33,7 +33,7 @@ beforeEach(() => {
 
 describe('useUserBoards', () => {
   it('subscribes to all boards on mount', () => {
-    renderHook(() => useUserBoards('user-1', false));
+    renderHook(() => useUserBoards('user-1', false, 'Test User'));
 
     expect(boardMetadataService.subscribeToAllBoards).toHaveBeenCalledWith(
       expect.any(Function),
@@ -44,26 +44,27 @@ describe('useUserBoards', () => {
     const unsubscribe = vi.fn();
     vi.mocked(boardMetadataService.subscribeToAllBoards).mockReturnValue(unsubscribe);
 
-    const { unmount } = renderHook(() => useUserBoards('user-1', false));
+    const { unmount } = renderHook(() => useUserBoards('user-1', false, 'Test User'));
     unmount();
 
     expect(unsubscribe).toHaveBeenCalled();
   });
 
   it('starts with loading true and empty boards', () => {
-    const { result } = renderHook(() => useUserBoards('user-1', false));
+    const { result } = renderHook(() => useUserBoards('user-1', false, 'Test User'));
 
     expect(result.current.loading).toBe(true);
     expect(result.current.boards).toEqual([]);
   });
 
   it('sets loading false and updates boards when subscription fires', () => {
-    const { result } = renderHook(() => useUserBoards('user-1', false));
+    const { result } = renderHook(() => useUserBoards('user-1', false, 'Test User'));
 
     const mockBoard: BoardMetadata = {
       id: 'b1',
       name: 'Test',
       createdBy: 'user-1',
+      createdByName: 'Test User',
       createdByGuest: false,
       createdAt: 1000,
       updatedAt: 1000,
@@ -78,7 +79,7 @@ describe('useUserBoards', () => {
   });
 
   it('addBoard creates a board with createdByGuest false for regular users', async () => {
-    const { result } = renderHook(() => useUserBoards('user-1', false));
+    const { result } = renderHook(() => useUserBoards('user-1', false, 'Test User'));
 
     let boardId: string = '';
     await act(async () => {
@@ -97,7 +98,7 @@ describe('useUserBoards', () => {
   });
 
   it('addBoard creates a board with createdByGuest true for guest users', async () => {
-    const { result } = renderHook(() => useUserBoards('guest-1', true));
+    const { result } = renderHook(() => useUserBoards('guest-1', true, 'Guest 1234'));
 
     let boardId: string = '';
     await act(async () => {
@@ -115,7 +116,7 @@ describe('useUserBoards', () => {
   });
 
   it('removeBoard deletes objects then board metadata', async () => {
-    const { result } = renderHook(() => useUserBoards('user-1', false));
+    const { result } = renderHook(() => useUserBoards('user-1', false, 'Test User'));
 
     await act(async () => {
       await result.current.removeBoard('board-1');

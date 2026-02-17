@@ -2,6 +2,7 @@ export interface BoardMetadata {
   id: string;
   name: string;
   createdBy: string;
+  createdByName: string;
   createdByGuest: boolean;
   createdAt: number;
   updatedAt: number;

@@ -31,7 +31,9 @@ export function BoardCard({ board, onSelect, onDelete, canDelete }: BoardCardPro
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <h3 className="text-lg font-bold text-gray-800 truncate">{board.name}</h3>
-          <p className="text-sm text-gray-500 mt-1">Created {formattedDate}</p>
+          <p className="text-sm text-gray-500 mt-1">
+            By {board.createdByName || 'Unknown'} &middot; {formattedDate}
+          </p>
         </div>
         {canDelete && (
           <button

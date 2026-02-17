@@ -12,6 +12,7 @@ const mockBoard: BoardMetadata = {
   id: 'board-1',
   name: 'Test Board',
   createdBy: 'user-1',
+  createdByName: 'Test User',
   createdByGuest: false,
   createdAt: 1700000000000,
   updatedAt: 1700000000000,
@@ -24,10 +25,10 @@ describe('BoardCard', () => {
     expect(screen.getByText('Test Board')).toBeInTheDocument();
   });
 
-  it('renders formatted creation date', () => {
+  it('renders creator name and formatted creation date', () => {
     render(<BoardCard board={mockBoard} onSelect={vi.fn()} onDelete={vi.fn()} canDelete />);
 
-    expect(screen.getByText(/Created/)).toBeInTheDocument();
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
   });
 
   it('calls onSelect with board id when clicked', async () => {

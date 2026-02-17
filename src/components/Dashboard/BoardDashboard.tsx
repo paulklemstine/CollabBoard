@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useUserBoards } from '../../hooks/useUserBoards';
 import { CreateBoardForm } from './CreateBoardForm';
 import { BoardCard } from './BoardCard';
@@ -9,7 +10,20 @@ interface BoardDashboardProps {
 }
 
 export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboardProps) {
-  const { boards, loading, addBoard, removeBoard } = useUserBoards(user.uid, user.isAnonymous);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const { boards, loading, addBoard, removeBoard } = useUserBoards(
+    user.uid,
+    user.isAnonymous,
+    user.displayName || user.email?.split('@')[0] || 'User',
+  );
+
+  // Delayed refresh to update display name after anonymous auth
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setRefreshKey(prev => prev + 1);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleCreateBoard = async (name: string) => {
     const boardId = await addBoard(name);
@@ -39,7 +53,7 @@ export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboar
               <h1 className="text-2xl font-extrabold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 bg-clip-text text-transparent">
                 CollabBoard
               </h1>
-              <p className="text-sm text-white/70 font-medium">
+              <p className="text-sm text-white/70 font-medium" key={refreshKey}>
                 Welcome, {user.displayName || user.email?.split('@')[0] || 'User'}
               </p>
             </div>

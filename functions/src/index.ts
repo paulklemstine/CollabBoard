@@ -28,17 +28,21 @@ const tools = [
   },
   {
     name: 'createShape',
-    description: 'Create a shape (rectangle, circle, or line) on the whiteboard. IMPORTANT: Set parentId to attach it to a frame - without parentId, it will be independent and not move with any frame.',
+    description: 'Create a shape (rectangle, circle, or line) on the whiteboard. For lines, use fromX/fromY/toX/toY to specify endpoints — the server computes position, length, and rotation automatically.',
     input_schema: {
       type: 'object' as const,
       properties: {
         shapeType: { type: 'string', enum: ['rect', 'circle', 'line'], description: 'The type of shape' },
-        x: { type: 'number', description: 'X position in ABSOLUTE coordinates (default: 0)' },
-        y: { type: 'number', description: 'Y position in ABSOLUTE coordinates (default: 0)' },
-        width: { type: 'number', description: 'Width in pixels (default: 120)' },
-        height: { type: 'number', description: 'Height in pixels (default: 120)' },
-        color: { type: 'string', description: 'Fill color as hex string (default: #dbeafe)' },
-        parentId: { type: 'string', description: 'CRITICAL: ID of a frame to attach this shape to. Without this, the shape will NOT move with any frame. Get the frame ID from the createFrame response.' },
+        x: { type: 'number', description: 'X position (for rect/circle). Not needed for lines if using fromX/fromY/toX/toY.' },
+        y: { type: 'number', description: 'Y position (for rect/circle). Not needed for lines if using fromX/fromY/toX/toY.' },
+        width: { type: 'number', description: 'Width in pixels (for rect/circle, default: 120). Not needed for lines.' },
+        height: { type: 'number', description: 'Height in pixels (for rect/circle, default: 120). Not needed for lines.' },
+        color: { type: 'string', description: 'Fill/stroke color as hex string (default: #dbeafe)' },
+        fromX: { type: 'number', description: 'Line start X coordinate. Use this for lines instead of x/width/rotation.' },
+        fromY: { type: 'number', description: 'Line start Y coordinate.' },
+        toX: { type: 'number', description: 'Line end X coordinate.' },
+        toY: { type: 'number', description: 'Line end Y coordinate.' },
+        parentId: { type: 'string', description: 'ID of a frame to attach this shape to.' },
       },
       required: ['shapeType'],
     },
@@ -141,7 +145,11 @@ You can create and manipulate objects on the whiteboard using the provided tools
 
 ## Available Object Types
 - **Sticky Notes**: Text notes with customizable colors. Default size: 200x200px.
-- **Shapes**: Rectangles, circles, and lines. Default size: 120x120px.
+- **Shapes**: Rectangles and circles. Default size: 120x120px.
+- **Lines**: Created via createShape with shapeType "line". Use fromX/fromY/toX/toY to specify start and end points — the server automatically computes position, length, and rotation.
+  - Example: Horizontal line from (100, 200) to (300, 200): fromX=100, fromY=200, toX=300, toY=200
+  - Example: Vertical line from (200, 100) to (200, 300): fromX=200, fromY=100, toX=200, toY=300
+  - Example: Diagonal line: fromX=100, fromY=100, toX=300, toY=300
 - **Frames**: Grouping containers with titles. Default size: 400x300px.
 - **Connectors**: Lines connecting two objects. Styles: straight or curved.
 
@@ -171,12 +179,10 @@ You can create and manipulate objects on the whiteboard using the provided tools
 - Frames can also be nested inside other frames using parentId.
 
 **Example: Creating a frame with children**
-```
-1. createFrame(title: "Ideas", x: 0, y: 0, width: 400, height: 300) → returns {"id": "frame-xyz"}
-2. createStickyNote(text: "Idea 1", x: 20, y: 60, parentId: "frame-xyz")
-3. createStickyNote(text: "Idea 2", x: 240, y: 60, parentId: "frame-xyz")
-Result: Two sticky notes that move with the "Ideas" frame when dragged.
-```
+  1. createFrame(title: "Ideas", x: 0, y: 0, width: 400, height: 300) → returns {"id": "frame-xyz"}
+  2. createStickyNote(text: "Idea 1", x: 20, y: 60, parentId: "frame-xyz")
+  3. createStickyNote(text: "Idea 2", x: 240, y: 60, parentId: "frame-xyz")
+  Result: Two sticky notes that move with the "Ideas" frame when dragged.
 
 ## Layout Guidelines
 - When creating multiple objects, space them with 20-40px gaps.
@@ -224,6 +230,11 @@ interface ToolInput {
   newText?: string;
   newColor?: string;
   parentId?: string;
+  rotation?: number;
+  fromX?: number;
+  fromY?: number;
+  toX?: number;
+  toY?: number;
 }
 
 async function executeTool(
@@ -259,22 +270,45 @@ async function executeTool(
 
     case 'createShape': {
       const docRef = objectsRef.doc();
+      const isLine = input.shapeType === 'line';
+
+      let shapeX = input.x ?? 0;
+      let shapeY = input.y ?? 0;
+      let shapeWidth = input.width ?? (isLine ? 200 : 120);
+      let shapeHeight = isLine ? 4 : (input.height ?? 120);
+      let shapeRotation = input.rotation ?? 0;
+
+      // For lines with endpoint coordinates, compute position/length/rotation
+      if (isLine && input.fromX != null && input.fromY != null && input.toX != null && input.toY != null) {
+        const dx = input.toX - input.fromX;
+        const dy = input.toY - input.fromY;
+        const length = Math.sqrt(dx * dx + dy * dy);
+        const angleDeg = Math.atan2(dy, dx) * (180 / Math.PI);
+        const centerX = (input.fromX + input.toX) / 2;
+        const centerY = (input.fromY + input.toY) / 2;
+        shapeWidth = length;
+        shapeHeight = 4;
+        shapeRotation = angleDeg;
+        shapeX = centerX - length / 2;
+        shapeY = centerY - 2;
+      }
+
       const data: Record<string, unknown> = {
         type: 'shape',
         shapeType: input.shapeType ?? 'rect',
-        x: input.x ?? 0,
-        y: input.y ?? 0,
-        width: input.width ?? 120,
-        height: input.height ?? 120,
+        x: shapeX,
+        y: shapeY,
+        width: shapeWidth,
+        height: shapeHeight,
         color: input.color ?? '#dbeafe',
-        rotation: 0,
+        rotation: shapeRotation,
         createdBy: userId,
         updatedAt: now,
         parentId: input.parentId ?? '',
       };
       await docRef.set(data);
       objectsCreated.push(docRef.id);
-      return JSON.stringify({ id: docRef.id, type: 'shape' });
+      return JSON.stringify({ id: docRef.id, type: 'shape', shapeType: input.shapeType });
     }
 
     case 'createFrame': {

@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { Group, Rect, Text } from 'react-konva';
-import type Konva from 'konva';
+import Konva from 'konva';
 import type { StickyNote as StickyNoteType } from '../../types/board';
 
 const DRAG_THROTTLE_MS = 50;
@@ -19,10 +19,11 @@ interface StickyNoteProps {
   onConnectorHoverEnter?: (id: string) => void;
   onConnectorHoverLeave?: () => void;
   isConnectorHighlighted?: boolean;
+  isNew?: boolean;
   dragOffset?: { x: number; y: number };
 }
 
-export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange, onDelete, onClick, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, dragOffset }: StickyNoteProps) {
+export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange, onDelete, onClick, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, dragOffset }: StickyNoteProps) {
   const textRef = useRef<Konva.Text>(null);
   const [isEditing, setIsEditing] = useState(false);
   const lastDragUpdate = useRef(0);
@@ -34,6 +35,7 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
   const [isResizing, setIsResizing] = useState(false);
   const [localWidth, setLocalWidth] = useState(note.width);
   const [localHeight, setLocalHeight] = useState(note.height);
+  const flashOverlayRef = useRef<Konva.Rect>(null);
 
   useEffect(() => {
     if (!isResizing) {
@@ -41,6 +43,37 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
       setLocalHeight(note.height);
     }
   }, [note.width, note.height, isResizing]);
+
+  useEffect(() => {
+    if (!isNew || !flashOverlayRef.current) return;
+    const node = flashOverlayRef.current;
+    let destroyed = false;
+
+    const pulse = (count: number) => {
+      if (count >= 3 || destroyed) return;
+      const tweenIn = new Konva.Tween({
+        node,
+        duration: 0.33,
+        opacity: 0.45,
+        easing: Konva.Easings.EaseInOut,
+        onFinish: () => {
+          if (destroyed) return;
+          const tweenOut = new Konva.Tween({
+            node,
+            duration: 0.33,
+            opacity: 0,
+            easing: Konva.Easings.EaseInOut,
+            onFinish: () => pulse(count + 1),
+          });
+          tweenOut.play();
+        },
+      });
+      tweenIn.play();
+    };
+    pulse(0);
+
+    return () => { destroyed = true; };
+  }, [isNew]);
 
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -171,6 +204,18 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
         stroke={isConnectorHighlighted ? '#818cf8' : (isMouseHovered ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.3)')}
         strokeWidth={isConnectorHighlighted ? 4 : (isMouseHovered ? 2 : 1.5)}
       />
+      {/* Flash overlay for new objects */}
+      {isNew && (
+        <Rect
+          ref={flashOverlayRef}
+          width={localWidth}
+          height={localHeight}
+          fill="#fbbf24"
+          opacity={0}
+          cornerRadius={14}
+          listening={false}
+        />
+      )}
       {/* Decorative tape strip at top center */}
       <Rect
         x={localWidth / 2 - 24}

@@ -146,6 +146,7 @@ function BoardView({
     handleObjectHover,
     updateCursorPosition,
     hoveredFrameId,
+    newObjectIds,
     frameDragOffset,
     handleDragMove,
     handleDragEnd,
@@ -166,10 +167,14 @@ function BoardView({
   // Note: cursor position during drag is handled by Board's onMouseMove,
   // which correctly uses the pointer position (not the object position).
 
-  const stickyNotes = objects.filter((o): o is StickyNote => o.type === 'sticky');
-  const shapes = objects.filter((o): o is Shape => o.type === 'shape');
-  const frames = objects.filter((o): o is Frame => o.type === 'frame');
-  const connectors = objects.filter((o): o is Connector => o.type === 'connector');
+  const stickyNotes = objects.filter((o): o is StickyNote => o.type === 'sticky')
+    .sort((a, b) => a.updatedAt - b.updatedAt);
+  const shapes = objects.filter((o): o is Shape => o.type === 'shape')
+    .sort((a, b) => a.updatedAt - b.updatedAt);
+  const frames = objects.filter((o): o is Frame => o.type === 'frame')
+    .sort((a, b) => a.updatedAt - b.updatedAt);
+  const connectors = objects.filter((o): o is Connector => o.type === 'connector')
+    .sort((a, b) => a.updatedAt - b.updatedAt);
 
   const objectClick = connectMode ? handleObjectClickForConnect : undefined;
   const objectHoverEnter = connectMode ? (id: string) => handleObjectHover(id) : undefined;
@@ -216,6 +221,7 @@ function BoardView({
               onConnectorHoverEnter={objectHoverEnter}
               onConnectorHoverLeave={objectHoverLeave}
               isConnectorHighlighted={connectMode && (connectingFrom === frame.id || hoveredObjectId === frame.id)}
+              isNew={newObjectIds.has(frame.id)}
             />
           ))}
           {shapes.map((shape) => (
@@ -232,6 +238,7 @@ function BoardView({
               onConnectorHoverEnter={objectHoverEnter}
               onConnectorHoverLeave={objectHoverLeave}
               isConnectorHighlighted={connectMode && (connectingFrom === shape.id || hoveredObjectId === shape.id)}
+              isNew={newObjectIds.has(shape.id)}
             />
           ))}
           {stickyNotes.map((note) => (
@@ -249,6 +256,7 @@ function BoardView({
               onConnectorHoverEnter={objectHoverEnter}
               onConnectorHoverLeave={objectHoverLeave}
               isConnectorHighlighted={connectMode && (connectingFrom === note.id || hoveredObjectId === note.id)}
+              isNew={newObjectIds.has(note.id)}
             />
           ))}
         </Board>

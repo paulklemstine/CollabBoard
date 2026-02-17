@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { Group, Rect, Circle, Line, Text } from 'react-konva';
-import type Konva from 'konva';
+import Konva from 'konva';
 import type { Shape } from '../../types/board';
 
 const DRAG_THROTTLE_MS = 50;
@@ -18,10 +18,11 @@ interface ShapeComponentProps {
   onConnectorHoverEnter?: (id: string) => void;
   onConnectorHoverLeave?: () => void;
   isConnectorHighlighted?: boolean;
+  isNew?: boolean;
   dragOffset?: { x: number; y: number };
 }
 
-export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, dragOffset }: ShapeComponentProps) {
+export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, dragOffset }: ShapeComponentProps) {
   const lastDragUpdate = useRef(0);
   const lastResizeUpdate = useRef(0);
   const [isMouseHovered, setIsMouseHovered] = useState(false);
@@ -31,6 +32,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
   const [isResizing, setIsResizing] = useState(false);
   const [localWidth, setLocalWidth] = useState(shape.width);
   const [localHeight, setLocalHeight] = useState(shape.height);
+  const flashOverlayRef = useRef<Konva.Rect>(null);
 
   useEffect(() => {
     if (!isResizing) {
@@ -38,6 +40,37 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
       setLocalHeight(shape.height);
     }
   }, [shape.width, shape.height, isResizing]);
+
+  useEffect(() => {
+    if (!isNew || !flashOverlayRef.current) return;
+    const node = flashOverlayRef.current;
+    let destroyed = false;
+
+    const pulse = (count: number) => {
+      if (count >= 3 || destroyed) return;
+      const tweenIn = new Konva.Tween({
+        node,
+        duration: 0.33,
+        opacity: 0.45,
+        easing: Konva.Easings.EaseInOut,
+        onFinish: () => {
+          if (destroyed) return;
+          const tweenOut = new Konva.Tween({
+            node,
+            duration: 0.33,
+            opacity: 0,
+            easing: Konva.Easings.EaseInOut,
+            onFinish: () => pulse(count + 1),
+          });
+          tweenOut.play();
+        },
+      });
+      tweenIn.play();
+    };
+    pulse(0);
+
+    return () => { destroyed = true; };
+  }, [isNew]);
 
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -189,6 +222,18 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
       }}
     >
       {renderShape()}
+      {/* Flash overlay for new objects */}
+      {isNew && (
+        <Rect
+          ref={flashOverlayRef}
+          width={localWidth}
+          height={localHeight}
+          fill="#fbbf24"
+          opacity={0}
+          cornerRadius={shape.shapeType === 'circle' ? localWidth / 2 : 16}
+          listening={false}
+        />
+      )}
       {/* Delete button */}
       <Rect
         x={localWidth - 26}

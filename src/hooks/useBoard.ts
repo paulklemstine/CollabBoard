@@ -18,6 +18,7 @@ export function useBoard(boardId: string, userId: string) {
   const [hoveredObjectId, setHoveredObjectId] = useState<string | null>(null);
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
   const [hoveredFrameId, setHoveredFrameId] = useState<string | null>(null);
+  const [newObjectIds, setNewObjectIds] = useState<Set<string>>(new Set());
   const [frameDragOffset, setFrameDragOffset] = useState<{ frameId: string; dx: number; dy: number } | null>(null);
   const frameDragStartRef = useRef<{ x: number; y: number } | null>(null);
 
@@ -29,6 +30,17 @@ export function useBoard(boardId: string, userId: string) {
     const unsubscribe = subscribeToBoard(boardId, setObjects);
     return unsubscribe;
   }, [boardId]);
+
+  const trackNewObject = useCallback((id: string) => {
+    setNewObjectIds(prev => new Set(prev).add(id));
+    setTimeout(() => {
+      setNewObjectIds(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }, 2000);
+  }, []);
 
   const addStickyNote = useCallback(
     (x?: number, y?: number, color?: string) => {
@@ -50,8 +62,9 @@ export function useBoard(boardId: string, userId: string) {
         color: color ?? STICKY_COLORS[Math.floor(Math.random() * STICKY_COLORS.length)],
       };
       addObject(boardId, note);
+      trackNewObject(note.id);
     },
-    [boardId, userId]
+    [boardId, userId, trackNewObject]
   );
 
   const addShape = useCallback(
@@ -76,17 +89,21 @@ export function useBoard(boardId: string, userId: string) {
         color,
       };
       addObject(boardId, shape);
+      trackNewObject(shape.id);
     },
-    [boardId, userId]
+    [boardId, userId, trackNewObject]
   );
 
   const addFrame = useCallback(
-    (x: number = 100, y: number = 100) => {
+    (x?: number, y?: number) => {
+      const defaultX = window.innerWidth / 2 - 200; // Center horizontally (frame is 400px wide)
+      const defaultY = window.innerHeight - 300 - 170; // Above toolbar (300px height + 170px for toolbar space)
+
       const frame: Frame = {
         id: crypto.randomUUID(),
         type: 'frame',
-        x,
-        y,
+        x: x ?? defaultX,
+        y: y ?? defaultY,
         width: 400,
         height: 300,
         rotation: 0,
@@ -95,8 +112,9 @@ export function useBoard(boardId: string, userId: string) {
         title: '',
       };
       addObject(boardId, frame);
+      trackNewObject(frame.id);
     },
-    [boardId, userId]
+    [boardId, userId, trackNewObject]
   );
 
   const addSticker = useCallback(
@@ -353,6 +371,7 @@ export function useBoard(boardId: string, userId: string) {
     frameDragOffset,
     handleDragMove,
     handleDragEnd,
+    newObjectIds,
     handleFrameDragMove,
     handleFrameDragEnd,
   };

@@ -20,9 +20,10 @@ interface FrameComponentProps {
   onConnectorHoverEnter?: (id: string) => void;
   onConnectorHoverLeave?: () => void;
   isConnectorHighlighted?: boolean;
+  isNew?: boolean;
 }
 
-export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitleChange, onClick, isHovered, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted }: FrameComponentProps) {
+export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitleChange, onClick, isHovered, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew }: FrameComponentProps) {
   const lastDragUpdate = useRef(0);
   const lastResizeUpdate = useRef(0);
   const titleRef = useRef<Konva.Text>(null);
@@ -36,6 +37,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
   const [isResizing, setIsResizing] = useState(false);
   const [localWidth, setLocalWidth] = useState(frame.width);
   const [localHeight, setLocalHeight] = useState(frame.height);
+  const flashOverlayRef = useRef<Konva.Rect>(null);
 
   useEffect(() => {
     if (!isResizing) {
@@ -43,6 +45,37 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
       setLocalHeight(frame.height);
     }
   }, [frame.width, frame.height, isResizing]);
+
+  useEffect(() => {
+    if (!isNew || !flashOverlayRef.current) return;
+    const node = flashOverlayRef.current;
+    let destroyed = false;
+
+    const pulse = (count: number) => {
+      if (count >= 3 || destroyed) return;
+      const tweenIn = new Konva.Tween({
+        node,
+        duration: 0.33,
+        opacity: 0.45,
+        easing: Konva.Easings.EaseInOut,
+        onFinish: () => {
+          if (destroyed) return;
+          const tweenOut = new Konva.Tween({
+            node,
+            duration: 0.33,
+            opacity: 0,
+            easing: Konva.Easings.EaseInOut,
+            onFinish: () => pulse(count + 1),
+          });
+          tweenOut.play();
+        },
+      });
+      tweenIn.play();
+    };
+    pulse(0);
+
+    return () => { destroyed = true; };
+  }, [isNew]);
 
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -227,6 +260,18 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
         fill="rgba(250, 245, 255, 0.12)"
         cornerRadius={16}
       />
+      {/* Flash overlay for new objects */}
+      {isNew && (
+        <Rect
+          ref={flashOverlayRef}
+          width={localWidth}
+          height={localHeight}
+          fill="#fbbf24"
+          opacity={0}
+          cornerRadius={16}
+          listening={false}
+        />
+      )}
       {/* Title background with vibrant rainbow gradient */}
       <Rect
         x={0}

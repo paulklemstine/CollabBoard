@@ -8,7 +8,7 @@ const COLORS = [
   '#8b5cf6', '#ef4444', '#14b8a6', '#f97316', '#06b6d4',
 ];
 
-function pickColor(uid: string): string {
+export function pickColor(uid: string): string {
   let hash = 0;
   for (let i = 0; i < uid.length; i++) {
     hash = uid.charCodeAt(i) + ((hash << 5) - hash);

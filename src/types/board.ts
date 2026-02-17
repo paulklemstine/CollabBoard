@@ -1,6 +1,6 @@
 export interface BoardObject {
   id: string;
-  type: 'sticky' | 'shape' | 'frame';
+  type: 'sticky' | 'shape' | 'frame' | 'sticker' | 'connector';
   x: number;
   y: number;
   width: number;
@@ -29,8 +29,13 @@ export interface Frame extends BoardObject {
   title: string;
 }
 
-export interface Connector {
-  id: string;
+export interface Sticker extends BoardObject {
+  type: 'sticker';
+  emoji: string;
+}
+
+export interface Connector extends BoardObject {
+  type: 'connector';
   fromId: string;
   toId: string;
   style: 'straight' | 'curved';

@@ -1,18 +1,33 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { Group, Rect, Text } from 'react-konva';
 import type Konva from 'konva';
 import type { StickyNote as StickyNoteType } from '../../types/board';
 
+const DRAG_THROTTLE_MS = 50;
+
 interface StickyNoteProps {
   note: StickyNoteType;
+  onDragMove: (id: string, x: number, y: number) => void;
   onDragEnd: (id: string, x: number, y: number) => void;
   onTextChange: (id: string, text: string) => void;
   onDelete: (id: string) => void;
+  onClick?: (id: string) => void;
 }
 
-export function StickyNoteComponent({ note, onDragEnd, onTextChange, onDelete }: StickyNoteProps) {
+export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange, onDelete, onClick }: StickyNoteProps) {
   const textRef = useRef<Konva.Text>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const lastDragUpdate = useRef(0);
+
+  const handleDragMove = useCallback(
+    (e: Konva.KonvaEventObject<DragEvent>) => {
+      const now = Date.now();
+      if (now - lastDragUpdate.current < DRAG_THROTTLE_MS) return;
+      lastDragUpdate.current = now;
+      onDragMove(note.id, e.target.x(), e.target.y());
+    },
+    [note.id, onDragMove]
+  );
 
   useEffect(() => {
     if (!isEditing) return;
@@ -46,7 +61,17 @@ export function StickyNoteComponent({ note, onDragEnd, onTextChange, onDelete }:
     document.body.appendChild(textarea);
     textarea.focus();
 
+    let debounceTimer: ReturnType<typeof setTimeout>;
+
+    const handleInput = () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        onTextChange(note.id, textarea.value);
+      }, 300);
+    };
+
     const handleBlur = () => {
+      clearTimeout(debounceTimer);
       onTextChange(note.id, textarea.value);
       setIsEditing(false);
       textarea.remove();
@@ -58,10 +83,13 @@ export function StickyNoteComponent({ note, onDragEnd, onTextChange, onDelete }:
       }
     };
 
+    textarea.addEventListener('input', handleInput);
     textarea.addEventListener('blur', handleBlur);
     textarea.addEventListener('keydown', handleKeyDown);
 
     return () => {
+      clearTimeout(debounceTimer);
+      textarea.removeEventListener('input', handleInput);
       textarea.removeEventListener('blur', handleBlur);
       textarea.removeEventListener('keydown', handleKeyDown);
       if (textarea.parentNode) textarea.remove();
@@ -73,9 +101,12 @@ export function StickyNoteComponent({ note, onDragEnd, onTextChange, onDelete }:
       x={note.x}
       y={note.y}
       draggable
+      onDragMove={handleDragMove}
       onDragEnd={(e) => {
         onDragEnd(note.id, e.target.x(), e.target.y());
       }}
+      onClick={() => onClick?.(note.id)}
+      onTap={() => onClick?.(note.id)}
       onDblClick={() => setIsEditing(true)}
       onDblTap={() => setIsEditing(true)}
     >
@@ -106,19 +137,32 @@ export function StickyNoteComponent({ note, onDragEnd, onTextChange, onDelete }:
         fill="#999"
         listening={false}
       />
-      <Text
-        ref={textRef}
-        x={10}
-        y={10}
-        width={note.width - 20}
-        height={note.height - 20}
-        text={note.text || (isEditing ? '' : 'Double-click to edit')}
-        fontSize={14}
-        fontFamily="sans-serif"
-        fill={note.text ? '#333' : '#999'}
-        lineHeight={1.4}
-        listening={false}
-      />
+      {!isEditing && (
+        <Text
+          ref={textRef}
+          x={10}
+          y={10}
+          width={note.width - 20}
+          height={note.height - 20}
+          text={note.text || 'Double-click to edit'}
+          fontSize={14}
+          fontFamily="sans-serif"
+          fill={note.text ? '#333' : '#999'}
+          lineHeight={1.4}
+          listening={false}
+        />
+      )}
+      {isEditing && (
+        <Text
+          ref={textRef}
+          x={10}
+          y={10}
+          width={0}
+          height={0}
+          text=""
+          listening={false}
+        />
+      )}
     </Group>
   );
 }

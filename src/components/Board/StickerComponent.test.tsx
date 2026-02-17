@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from '@testing-library/react';
-import { StickyNoteComponent } from './StickyNote';
-import type { StickyNote } from '../../types/board';
+import { StickerComponent } from './StickerComponent';
+import type { Sticker } from '../../types/board';
 
 vi.mock('../../services/firebase', () => ({
   db: {},
@@ -11,34 +11,30 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-const mockNote: StickyNote = {
-  id: 'note-1',
-  type: 'sticky',
-  x: 100,
-  y: 200,
-  width: 200,
-  height: 200,
+const mockSticker: Sticker = {
+  id: 'sticker-1',
+  type: 'sticker',
+  x: 150,
+  y: 250,
+  width: 56,
+  height: 56,
   rotation: 0,
   createdBy: 'user-1',
   updatedAt: 1000,
-  text: 'Hello',
-  color: '#fef08a',
+  emoji: '👍',
 };
 
-// react-konva components render to canvas, so we test that it renders without crashing
-// and that the component accepts the correct props
-describe('StickyNoteComponent', () => {
-  it('renders without crashing inside a Konva Stage', async () => {
+describe('StickerComponent', () => {
+  it('renders without crashing', async () => {
     const { Stage, Layer } = await import('react-konva');
 
     const { container } = render(
       <Stage width={800} height={600}>
         <Layer>
-          <StickyNoteComponent
-            note={mockNote}
+          <StickerComponent
+            sticker={mockSticker}
             onDragMove={vi.fn()}
             onDragEnd={vi.fn()}
-            onTextChange={vi.fn()}
             onDelete={vi.fn()}
           />
         </Layer>
@@ -48,18 +44,17 @@ describe('StickyNoteComponent', () => {
     expect(container.querySelector('.konvajs-content')).toBeInTheDocument();
   });
 
-  it('renders with empty text showing placeholder', async () => {
+  it('renders with different emoji', async () => {
     const { Stage, Layer } = await import('react-konva');
-    const emptyNote = { ...mockNote, text: '' };
+    const fireSticker = { ...mockSticker, emoji: '🔥' };
 
     const { container } = render(
       <Stage width={800} height={600}>
         <Layer>
-          <StickyNoteComponent
-            note={emptyNote}
+          <StickerComponent
+            sticker={fireSticker}
             onDragMove={vi.fn()}
             onDragEnd={vi.fn()}
-            onTextChange={vi.fn()}
             onDelete={vi.fn()}
           />
         </Layer>

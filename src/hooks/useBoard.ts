@@ -6,12 +6,14 @@ import {
   subscribeToBoard,
   type AnyBoardObject,
 } from '../services/boardService';
-import type { StickyNote } from '../types/board';
+import type { StickyNote, Shape, ShapeType, Frame, Sticker, Connector } from '../types/board';
 
 const STICKY_COLORS = ['#fef08a', '#fde68a', '#bbf7d0', '#bfdbfe', '#e9d5ff', '#fecaca'];
 
 export function useBoard(boardId: string, userId: string) {
   const [objects, setObjects] = useState<AnyBoardObject[]>([]);
+  const [connectMode, setConnectMode] = useState(false);
+  const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = subscribeToBoard(boardId, setObjects);
@@ -38,6 +40,64 @@ export function useBoard(boardId: string, userId: string) {
     [boardId, userId]
   );
 
+  const addShape = useCallback(
+    (shapeType: ShapeType, color: string, x: number = 300, y: number = 300) => {
+      const shape: Shape = {
+        id: crypto.randomUUID(),
+        type: 'shape',
+        x,
+        y,
+        width: shapeType === 'line' ? 200 : 120,
+        height: shapeType === 'line' ? 4 : 120,
+        rotation: 0,
+        createdBy: userId,
+        updatedAt: Date.now(),
+        shapeType,
+        color,
+      };
+      addObject(boardId, shape);
+    },
+    [boardId, userId]
+  );
+
+  const addFrame = useCallback(
+    (x: number = 100, y: number = 100) => {
+      const frame: Frame = {
+        id: crypto.randomUUID(),
+        type: 'frame',
+        x,
+        y,
+        width: 400,
+        height: 300,
+        rotation: 0,
+        createdBy: userId,
+        updatedAt: Date.now(),
+        title: '',
+      };
+      addObject(boardId, frame);
+    },
+    [boardId, userId]
+  );
+
+  const addSticker = useCallback(
+    (emoji: string, x: number = 250, y: number = 250) => {
+      const sticker: Sticker = {
+        id: crypto.randomUUID(),
+        type: 'sticker',
+        x,
+        y,
+        width: 56,
+        height: 56,
+        rotation: 0,
+        createdBy: userId,
+        updatedAt: Date.now(),
+        emoji,
+      };
+      addObject(boardId, sticker);
+    },
+    [boardId, userId]
+  );
+
   const moveObject = useCallback(
     (objectId: string, x: number, y: number) => {
       updateObject(boardId, objectId, { x, y });
@@ -52,12 +112,90 @@ export function useBoard(boardId: string, userId: string) {
     [boardId]
   );
 
-  const removeObject = useCallback(
-    (objectId: string) => {
-      deleteObject(boardId, objectId);
+  const updateTitle = useCallback(
+    (objectId: string, title: string) => {
+      updateObject(boardId, objectId, { title } as Partial<Frame>);
     },
     [boardId]
   );
 
-  return { objects, addStickyNote, moveObject, updateText, removeObject };
+  const removeObject = useCallback(
+    (objectId: string) => {
+      // Auto-delete connectors that reference the removed object
+      const orphanedConnectors = objects.filter(
+        (o): o is Connector =>
+          o.type === 'connector' && (o.fromId === objectId || o.toId === objectId)
+      );
+      for (const connector of orphanedConnectors) {
+        deleteObject(boardId, connector.id);
+      }
+      deleteObject(boardId, objectId);
+    },
+    [boardId, objects]
+  );
+
+  const toggleConnectMode = useCallback(() => {
+    setConnectMode((prev) => {
+      if (prev) {
+        setConnectingFrom(null);
+      }
+      return !prev;
+    });
+  }, []);
+
+  const handleObjectClickForConnect = useCallback(
+    (objectId: string) => {
+      if (!connectMode) return;
+
+      // Don't allow connecting to/from connectors
+      const obj = objects.find((o) => o.id === objectId);
+      if (obj?.type === 'connector') return;
+
+      if (!connectingFrom) {
+        setConnectingFrom(objectId);
+      } else {
+        if (objectId === connectingFrom) return; // Can't connect to self
+        const connector: Connector = {
+          id: crypto.randomUUID(),
+          type: 'connector',
+          x: 0,
+          y: 0,
+          width: 0,
+          height: 0,
+          rotation: 0,
+          createdBy: userId,
+          updatedAt: Date.now(),
+          fromId: connectingFrom,
+          toId: objectId,
+          style: 'straight',
+        };
+        addObject(boardId, connector);
+        setConnectingFrom(null);
+        setConnectMode(false);
+      }
+    },
+    [connectMode, connectingFrom, objects, boardId, userId]
+  );
+
+  const cancelConnecting = useCallback(() => {
+    setConnectMode(false);
+    setConnectingFrom(null);
+  }, []);
+
+  return {
+    objects,
+    addStickyNote,
+    addShape,
+    addFrame,
+    addSticker,
+    moveObject,
+    updateText,
+    updateTitle,
+    removeObject,
+    connectMode,
+    connectingFrom,
+    toggleConnectMode,
+    handleObjectClickForConnect,
+    cancelConnecting,
+  };
 }

@@ -8,9 +8,9 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { StickyNote, Shape, Frame } from '../types/board';
+import type { StickyNote, Shape, Frame, Sticker, Connector } from '../types/board';
 
-export type AnyBoardObject = StickyNote | Shape | Frame;
+export type AnyBoardObject = StickyNote | Shape | Frame | Sticker | Connector;
 
 function objectsCollection(boardId: string) {
   return collection(db, 'boards', boardId, 'objects');

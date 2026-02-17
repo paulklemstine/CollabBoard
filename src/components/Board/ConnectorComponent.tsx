@@ -1,4 +1,4 @@
-import { Arrow, Line } from 'react-konva';
+import { Arrow } from 'react-konva';
 import type { Connector } from '../../types/board';
 import type { AnyBoardObject } from '../../services/boardService';
 

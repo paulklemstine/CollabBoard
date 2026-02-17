@@ -35,7 +35,6 @@ describe('Toolbar', () => {
 
     expect(screen.getByText('Rect')).toBeInTheDocument();
     expect(screen.getByText('Circle')).toBeInTheDocument();
-    expect(screen.getByText('Line')).toBeInTheDocument();
   });
 
   it('calls onAddShape with correct args when rect is clicked', async () => {

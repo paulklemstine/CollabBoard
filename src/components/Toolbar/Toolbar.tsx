@@ -70,13 +70,6 @@ export function Toolbar({
       >
         Circle
       </button>
-      <button
-        onClick={() => onAddShape('line', selectedColor)}
-        className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-sm font-medium transition-colors"
-        title="Add line"
-      >
-        Line
-      </button>
 
       <div className="w-px h-8 bg-gray-200" />
 

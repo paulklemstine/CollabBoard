@@ -103,7 +103,7 @@ export function ConnectorComponent({ connector, objects, onDelete }: ConnectorCo
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         />
-        {isHovered && onDelete && (
+        {onDelete && (
           <Group>
             <Circle
               x={cpX}
@@ -168,7 +168,7 @@ export function ConnectorComponent({ connector, objects, onDelete }: ConnectorCo
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       />
-      {isHovered && onDelete && (
+      {onDelete && (
         <Group>
           <Circle
             x={midX}

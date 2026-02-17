@@ -24,6 +24,7 @@ CollabBoard is a real-time collaborative whiteboard application that allows mult
 - **Real-time sync**: Sub-100ms updates for objects, sub-50ms for cursors
 - **Conflict resolution**: Last-write-wins at object-level granularity
 - **Scalability**: Support 500+ objects and 5+ concurrent users per board
+- **Multi-board**: Users can create, manage, and share multiple boards via URL
 - **Performance**: Maintain 60 FPS during pan/zoom operations
 - **Developer experience**: TypeScript strict mode, comprehensive testing, TDD workflow
 
@@ -48,10 +49,11 @@ CollabBoard is a real-time collaborative whiteboard application that allows mult
     ┌────────────▼──────────┐   ┌──────────▼───────────────┐
     │   Firebase Firestore  │   │  Firebase Realtime DB    │
     │  (Board Objects)      │   │  (Cursors + Presence)    │
-    │  • Sticky Notes       │   │  • Cursor positions      │
-    │  • Shapes             │   │  • User presence         │
-    │  • Frames             │   │  • onDisconnect() hooks  │
-    │  • Stickers           │   │  • <50ms latency         │
+    │  • Board Metadata     │   │  • Cursor positions      │
+    │  • Sticky Notes       │   │  • User presence         │
+    │  • Shapes             │   │  • onDisconnect() hooks  │
+    │  • Frames             │   │  • <50ms latency         │
+    │  • Stickers           │   │                          │
     │  • Connectors         │   │                          │
     └───────────────────────┘   └──────────────────────────┘
                  │                          │
@@ -60,6 +62,7 @@ CollabBoard is a real-time collaborative whiteboard application that allows mult
                     ┌─────────▼──────────┐
                     │  Firebase Auth     │
                     │  • Google Sign-In  │
+                    │  • Email/Password  │
                     │  • Anonymous Auth  │
                     └────────────────────┘
                               │
@@ -184,7 +187,13 @@ src/components/Board/
 ```
 firestore/
 └── boards/
-    └── {boardId}/                    # e.g., "default-board"
+    └── {boardId}/                    # UUID generated on creation
+        ├── id: string
+        ├── name: string              # Board display name
+        ├── createdBy: string         # User UID of board creator
+        ├── createdByGuest: boolean   # Whether creator was anonymous
+        ├── createdAt: number         # Timestamp
+        ├── updatedAt: number         # Timestamp
         └── objects/                  # subcollection
             ├── {objectId}            # e.g., UUID
             │   ├── id: string
@@ -200,6 +209,19 @@ firestore/
             │   └── ... (type-specific fields)
             └── ...
 ```
+
+#### Board Metadata (`BoardMetadata`)
+```typescript
+{
+  id: string
+  name: string              // User-chosen board name
+  createdBy: string         // UID of creator
+  createdByGuest: boolean   // True if created by anonymous user
+  createdAt: number
+  updatedAt: number
+}
+```
+Board metadata lives at the `boards/{boardId}` document level. Any authenticated user can read any board (enabling URL sharing). Only the creator can update/delete, except guest-created boards which any authenticated user can delete.
 
 #### Object Types
 
@@ -306,19 +328,27 @@ rtdb/
 ### Component Hierarchy
 
 ```
-App.tsx
-├── AuthPanel (top-left)
-│   └── Google Sign-In / Anonymous Login
-├── BoardView (main content)
-│   ├── Board (Konva Stage wrapper)
-│   │   ├── FrameComponent (z-index: bottom)
-│   │   ├── ConnectorComponent
-│   │   ├── ShapeComponent
-│   │   ├── StickyNoteComponent
-│   │   └── StickerComponent (z-index: top)
-│   ├── CursorsOverlay (SVG overlay for cursors)
-│   ├── PresencePanel (top-right, online users)
-│   └── Toolbar (bottom-center, add objects)
+App.tsx (useRouter for hash-based routing)
+├── Loading spinner
+├── AuthPanel (login screen: Google, Email/Password, Guest)
+├── BoardDashboard (route: /#/)
+│   ├── CreateBoardForm
+│   └── BoardCard (one per board)
+└── BoardView (route: /#/board/{boardId})
+    ├── Board (Konva Stage wrapper, native DOM mousemove listener)
+    │   ├── FrameComponent (z-index: bottom)
+    │   ├── ConnectorComponent
+    │   ├── PreviewConnector (live preview during connector creation)
+    │   ├── ShapeComponent
+    │   ├── StickyNoteComponent
+    │   └── StickerComponent (z-index: top)
+    ├── CursorsOverlay (SVG overlay, world→screen coordinate transform)
+    ├── PresencePanel (top-right, online users)
+    ├── Toolbar (bottom-center)
+    │   ├── ColorDrawer (sticky note color picker)
+    │   └── ShapeDrawer (shape type picker)
+    ├── AuthPanel (top-left, signed-in state with sign-out)
+    └── Board name header
 ```
 
 ### State Management Strategy
@@ -326,22 +356,36 @@ App.tsx
 **No Redux or Zustand** — Custom hooks manage all state:
 
 1. **useAuth** ([src/hooks/useAuth.ts](src/hooks/useAuth.ts))
-   - Listens to Firebase Auth state
-   - Returns `{ user, loading }`
+   - Listens to Firebase Auth state via `onAuthStateChanged`
+   - Provides `refreshUser` callback to force re-render after `updateProfile` mutations
+   - Returns `{ user, loading, refreshUser }`
 
-2. **useBoard** ([src/hooks/useBoard.ts](src/hooks/useBoard.ts))
+2. **useRouter** ([src/hooks/useRouter.ts](src/hooks/useRouter.ts))
+   - Hash-based routing (no dependencies)
+   - Parses `/#/board/{boardId}` → `{ page: 'board', boardId }`
+   - Empty hash → `{ page: 'dashboard' }`
+   - Listens to `hashchange` events for browser back/forward
+   - Returns `{ route, navigateTo }`
+
+3. **useUserBoards** ([src/hooks/useUserBoards.ts](src/hooks/useUserBoards.ts))
+   - Subscribes to Firestore `boards` collection filtered by `createdBy == userId`
+   - Provides `addBoard(name)` and `removeBoard(boardId)` operations
+   - Returns `{ boards, loading, addBoard, removeBoard }`
+
+4. **useBoard** ([src/hooks/useBoard.ts](src/hooks/useBoard.ts))
    - Subscribes to Firestore `boards/{boardId}/objects`
    - Manages object state (sticky notes, shapes, frames, etc.)
    - Provides CRUD operations: `addStickyNote`, `moveObject`, `updateText`, `removeObject`
    - Handles frame containment logic (parent-child relationships)
    - Manages connector mode state
 
-3. **useCursors** ([src/hooks/useCursors.ts](src/hooks/useCursors.ts))
+5. **useCursors** ([src/hooks/useCursors.ts](src/hooks/useCursors.ts))
    - Subscribes to RTDB `boards/{boardId}/cursors`
    - Throttles cursor updates (100ms)
+   - Filters stale cursors (3s timeout)
    - Returns `{ cursors, updateCursor }`
 
-4. **usePresence** ([src/hooks/usePresence.ts](src/hooks/usePresence.ts))
+6. **usePresence** ([src/hooks/usePresence.ts](src/hooks/usePresence.ts))
    - Subscribes to RTDB `boards/{boardId}/presence`
    - Sets user online on mount, removes on unmount
    - Uses `onDisconnect()` for automatic cleanup
@@ -416,9 +460,22 @@ User Interaction
 
 ### Firebase Services
 
-#### 1. Firestore (Board Objects)
+#### 1. Firestore (Board Metadata + Objects)
 
-**Service Layer**: [src/services/boardService.ts](src/services/boardService.ts)
+**Board Metadata Service**: [src/services/boardMetadataService.ts](src/services/boardMetadataService.ts)
+
+```typescript
+// Board CRUD
+createBoard(board: BoardMetadata): Promise<void>
+deleteBoard(boardId: string): Promise<void>
+deleteBoardObjects(boardId: string): Promise<void>
+
+// Subscriptions
+subscribeToUserBoards(userId, callback): Unsubscribe     // Dashboard: user's boards
+subscribeToBoardMetadata(boardId, callback): Unsubscribe  // BoardView: deletion detection
+```
+
+**Board Objects Service**: [src/services/boardService.ts](src/services/boardService.ts)
 
 ```typescript
 // CRUD operations
@@ -452,14 +509,22 @@ onSnapshot(collection(db, 'boards', boardId, 'objects'), (snapshot) => {
 **Service Layer**: [src/services/authService.ts](src/services/authService.ts)
 
 ```typescript
-signInWithGoogle(): Promise<void>
-signInAnonymously(): Promise<void>
-signOut(): Promise<void>
+signInWithGoogle(): Promise<UserCredential>
+signInAsGuest(): Promise<UserCredential>    // Anonymous + auto-generated "Guest XXXX" name
+signUpWithEmail(name, email, password): Promise<UserCredential>  // Creates account + sets displayName
+signInWithEmail(email, password): Promise<UserCredential>
+signOutUser(): Promise<void>
 ```
 
-**Anonymous Display Names**:
-- Generated from adjective + animal (e.g., "Happy Penguin", "Brave Tiger")
-- Ensures all users have a readable name for cursors/presence
+**Authentication Methods**:
+- **Google sign-in**: One-click OAuth popup, provides display name automatically
+- **Email/password**: Sign up with name + email + password; sign in with email + password
+- **Anonymous auth**: Auto-generates "Guest XXXX" display name for quick access
+
+**Display Name Handling**:
+- Email sign-up calls `updateProfile` to set display name, then `user.reload()` to ensure consistency
+- `useAuth` provides `refreshUser` to force re-render after profile mutations (since `onAuthStateChanged` doesn't re-fire)
+- Fallback chain: `displayName || email?.split('@')[0] || 'User'`
 
 #### 4. Cloud Functions (AI Agent)
 
@@ -534,6 +599,25 @@ set(userPresenceRef, { ...userData, online: false })
 - Automatically removes presence when client disconnects (network failure, tab close, etc.)
 - Prevents "ghost users" in presence list
 
+### Cursor Coordinate System
+
+**Problem**: Cursors are stored in world coordinates (the infinite canvas) but must be rendered in screen coordinates (browser viewport pixels). When users have different pan/zoom levels, the same world coordinate maps to different screen positions.
+
+**Solution**: Two-step approach:
+1. **Store in world coordinates**: All cursor positions are stored in Firebase RTDB as world coordinates
+2. **Convert locally**: Each client converts world→screen using its own viewport transform
+
+```typescript
+// Board.tsx reports its transform after every pan/zoom
+export interface StageTransform { x: number; y: number; scale: number }
+
+// CursorsOverlay converts world → screen
+const screenX = cursor.x * stageTransform.scale + stageTransform.x;
+const screenY = cursor.y * stageTransform.scale + stageTransform.y;
+```
+
+**Native DOM Events for Drag**: Konva's Stage `onMouseMove` is suppressed during child element drags. To ensure cursor updates during drag operations, Board.tsx uses a native DOM `mousemove` listener on the stage container instead of Konva events.
+
 ### Cursor Throttling
 
 **Problem**: Sending cursor position on every `mousemove` event (60+ times/sec) is wasteful.
@@ -565,15 +649,27 @@ const updateCursor = useCallback((x, y) => {
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /boards/{boardId}/{document=**} {
-      // Only authenticated users can read/write
+    match /boards/{boardId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.createdBy == request.auth.uid;
+      allow update: if request.auth != null
+                    && resource.data.createdBy == request.auth.uid;
+      allow delete: if request.auth != null
+                    && (resource.data.createdBy == request.auth.uid
+                        || resource.data.createdByGuest == true);
+    }
+    match /boards/{boardId}/objects/{objectId} {
       allow read, write: if request.auth != null;
     }
   }
 }
 ```
 
-**Current Model**: Simple authentication check
+**Current Model**:
+- **Board metadata**: Only the creator can update/delete their boards. Exception: guest-created boards can be deleted by any authenticated user.
+- **Board objects**: Any authenticated user can read/write objects (enabling open collaboration via shared URLs)
+- **Read access**: Any authenticated user can read any board metadata (enables URL-based sharing)
 
 **Future Improvements**:
 - Board-level permissions (owner, collaborators, viewers)
@@ -642,7 +738,12 @@ Read/write allowed
 **Anonymous Auth**:
 - Users can sign in anonymously (no account required)
 - Still get a unique `uid` and JWT token
-- Display name auto-generated (e.g., "Happy Penguin")
+- Display name auto-generated (e.g., "Guest 4821")
+
+**Email/Password Auth**:
+- Users provide name, email, and password during sign-up
+- `updateProfile` sets the display name after account creation
+- `refreshUser` callback forces React to re-render with the updated profile
 
 ---
 
@@ -750,12 +851,14 @@ Result: 3 sticky notes appear on board
 
 ### Scalability Roadmap
 
-**Current**: 1 board, 5 users, 500 objects
+**Current**: Multiple boards, 5 users, 500 objects per board
 
-**Phase 1** (MVP+):
-- Multiple boards per user
-- Board list UI
-- Board metadata (name, created date, owner)
+**Phase 1** (MVP+): **COMPLETE**
+- ~~Multiple boards per user~~ ✅
+- ~~Board list UI (dashboard)~~ ✅
+- ~~Board metadata (name, created date, owner)~~ ✅
+- ~~Hash-based routing with shareable URLs~~ ✅
+- ~~Board deletion detection (force navigation)~~ ✅
 
 **Phase 2** (Team Features):
 - Workspaces (collections of boards)
@@ -786,10 +889,10 @@ CollabBoard/
 ├── src/
 │   ├── components/
 │   │   ├── Auth/
-│   │   │   ├── AuthPanel.tsx
+│   │   │   ├── AuthPanel.tsx           # Login/signup (Google, Email, Guest)
 │   │   │   └── AuthPanel.test.tsx
 │   │   ├── Board/
-│   │   │   ├── Board.tsx
+│   │   │   ├── Board.tsx               # Konva Stage with native DOM mousemove
 │   │   │   ├── Board.test.tsx
 │   │   │   ├── StickyNote.tsx
 │   │   │   ├── StickyNote.test.tsx
@@ -799,59 +902,86 @@ CollabBoard/
 │   │   │   ├── FrameComponent.test.tsx
 │   │   │   ├── ConnectorComponent.tsx
 │   │   │   ├── ConnectorComponent.test.tsx
+│   │   │   ├── PreviewConnector.tsx     # Live connector preview during creation
 │   │   │   ├── StickerComponent.tsx
-│   │   │   └── StickerComponent.test.tsx
+│   │   │   ├── StickerComponent.test.tsx
+│   │   │   ├── ZoomControls.tsx
+│   │   │   └── ZoomControls.test.tsx
 │   │   ├── Cursors/
 │   │   │   ├── Cursor.tsx
 │   │   │   ├── Cursor.test.tsx
-│   │   │   ├── CursorsOverlay.tsx
+│   │   │   ├── CursorsOverlay.tsx      # World→screen coordinate transform
 │   │   │   └── CursorsOverlay.test.tsx
+│   │   ├── Dashboard/
+│   │   │   ├── BoardDashboard.tsx      # Board list + create form
+│   │   │   ├── BoardDashboard.test.tsx
+│   │   │   ├── BoardCard.tsx           # Individual board card
+│   │   │   ├── BoardCard.test.tsx
+│   │   │   ├── CreateBoardForm.tsx     # Board name input
+│   │   │   └── CreateBoardForm.test.tsx
 │   │   ├── Presence/
 │   │   │   ├── PresencePanel.tsx
 │   │   │   └── PresencePanel.test.tsx
 │   │   └── Toolbar/
 │   │       ├── Toolbar.tsx
 │   │       ├── Toolbar.test.tsx
+│   │       ├── ColorDrawer.tsx         # Sticky note color picker
+│   │       ├── ShapeDrawer.tsx         # Shape type picker
 │   │       ├── ColorPicker.tsx
-│   │       └── ColorPicker.test.tsx
+│   │       ├── ColorPicker.test.tsx
+│   │       └── FancyColorPicker.tsx
 │   ├── hooks/
-│   │   ├── useAuth.ts
+│   │   ├── useAuth.ts              # Auth state + refreshUser
 │   │   ├── useAuth.test.ts
-│   │   ├── useBoard.ts
+│   │   ├── useBoard.ts             # Board objects + connector mode
 │   │   ├── useBoard.test.ts
-│   │   ├── useCursors.ts
+│   │   ├── useCursors.ts           # Cursor sync + timeout
 │   │   ├── useCursors.test.ts
-│   │   ├── usePresence.ts
-│   │   └── usePresence.test.ts
+│   │   ├── usePresence.ts          # Presence + heartbeat
+│   │   ├── usePresence.test.ts
+│   │   ├── useRouter.ts            # Hash-based routing
+│   │   ├── useRouter.test.ts
+│   │   ├── useUserBoards.ts        # Board list CRUD
+│   │   └── useUserBoards.test.ts
 │   ├── services/
-│   │   ├── firebase.ts
-│   │   ├── authService.ts
+│   │   ├── firebase.ts             # Firebase config + init
+│   │   ├── authService.ts          # Google, Email, Guest, Sign-out
 │   │   ├── authService.test.ts
-│   │   ├── boardService.ts
-│   │   └── boardService.test.ts
-│   │
+│   │   ├── boardService.ts         # Board objects CRUD
+│   │   ├── boardService.test.ts
+│   │   ├── boardMetadataService.ts  # Board metadata CRUD + subscriptions
+│   │   └── boardMetadataService.test.ts
 │   ├── types/
-│   │   └── board.ts
+│   │   └── board.ts                # BoardMetadata, BoardObject, StickyNote, etc.
 │   ├── utils/
-│   │   ├── containment.ts
+│   │   ├── authErrors.ts           # Firebase auth error translation
+│   │   ├── authErrors.test.ts
+│   │   ├── containment.ts          # Frame containment logic
 │   │   └── containment.test.ts
 │   ├── test/
-│   │   └── setup.ts
-│   ├── App.tsx
+│   │   ├── setup.ts
+│   │   └── stress.test.ts          # Performance stress tests
+│   ├── App.tsx                     # Root: routing, board view, dashboard
 │   └── main.tsx
-├── functions/                  # Cloud Functions (future)
+├── functions/                      # Cloud Functions (AI agent - planned)
 │   ├── src/
 │   │   └── aiAgent.ts
 │   └── package.json
-├── public/                     # Static assets
+├── docs/                           # Project documentation
+│   ├── AI_DEVELOPMENT_LOG.md       # Engineering diary
+│   ├── AI_COST_ANALYSIS.md         # Cost analysis
+│   ├── ARCHITECTURE.md             # This file
+│   ├── PRESENCE_HEARTBEAT.md       # Presence/cursor timeout docs
+│   ├── SETUP.md                    # Setup guide
+│   ├── PRD.md                      # Product requirements
+│   └── PRE-SEARCH.md               # Architecture decisions
+├── public/                         # Static assets
 ├── firebase.json
 ├── firestore.rules
 ├── database.rules.json
 ├── vite.config.ts
 ├── tsconfig.json
-├── CLAUDE.md                   # Project instructions
-├── SETUP.md                    # Setup guide
-├── ARCHITECTURE.md             # This file
+├── CLAUDE.md                       # Project instructions
 └── package.json
 ```
 
@@ -903,6 +1033,6 @@ CollabBoard/
 
 ---
 
-**Document Version**: 1.0
-**Last Updated**: 2026-02-16
+**Document Version**: 2.0
+**Last Updated**: 2026-02-17
 **Maintained By**: CollabBoard Team

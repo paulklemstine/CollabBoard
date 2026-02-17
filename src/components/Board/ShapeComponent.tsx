@@ -1,9 +1,11 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { Group, Rect, Circle, Line, Text } from 'react-konva';
 import type Konva from 'konva';
 import type { Shape } from '../../types/board';
 
 const DRAG_THROTTLE_MS = 50;
+const MIN_WIDTH = 40;
+const MIN_HEIGHT = 40;
 
 interface ShapeComponentProps {
   shape: Shape;
@@ -11,10 +13,25 @@ interface ShapeComponentProps {
   onDragEnd: (id: string, x: number, y: number) => void;
   onDelete: (id: string) => void;
   onClick?: (id: string) => void;
+  onResize?: (id: string, width: number, height: number) => void;
 }
 
-export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick }: ShapeComponentProps) {
+export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick, onResize }: ShapeComponentProps) {
   const lastDragUpdate = useRef(0);
+  const lastResizeUpdate = useRef(0);
+  const [isMouseHovered, setIsMouseHovered] = useState(false);
+  const [isResizeHovered, setIsResizeHovered] = useState(false);
+  const [isDeleteHovered, setIsDeleteHovered] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [localWidth, setLocalWidth] = useState(shape.width);
+  const [localHeight, setLocalHeight] = useState(shape.height);
+
+  useEffect(() => {
+    if (!isResizing) {
+      setLocalWidth(shape.width);
+      setLocalHeight(shape.height);
+    }
+  }, [shape.width, shape.height, isResizing]);
 
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -31,31 +48,100 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
       case 'rect':
         return (
           <Rect
-            width={shape.width}
-            height={shape.height}
+            width={localWidth}
+            height={localHeight}
             fill={shape.color}
-            cornerRadius={2}
+            cornerRadius={8}
+            shadowColor={shape.color}
+            shadowBlur={isMouseHovered ? 24 : 16}
+            shadowOpacity={isMouseHovered ? 0.5 : 0.3}
+            shadowOffsetY={4}
+            stroke={isMouseHovered ? 'rgba(255,255,255,0.8)' : undefined}
+            strokeWidth={isMouseHovered ? 1 : 0}
           />
         );
       case 'circle':
         return (
           <Circle
-            x={shape.width / 2}
-            y={shape.height / 2}
-            radius={Math.min(shape.width, shape.height) / 2}
+            x={localWidth / 2}
+            y={localHeight / 2}
+            radius={Math.min(localWidth, localHeight) / 2}
             fill={shape.color}
+            shadowColor={shape.color}
+            shadowBlur={isMouseHovered ? 24 : 16}
+            shadowOpacity={isMouseHovered ? 0.5 : 0.3}
+            shadowOffsetY={4}
+            stroke={isMouseHovered ? 'rgba(255,255,255,0.8)' : undefined}
+            strokeWidth={isMouseHovered ? 1 : 0}
           />
         );
       case 'line':
         return (
           <Line
-            points={[0, shape.height / 2, shape.width, shape.height / 2]}
+            points={[0, localHeight / 2, localWidth, localHeight / 2]}
             stroke={shape.color}
-            strokeWidth={3}
+            strokeWidth={4}
+            lineCap="round"
+            shadowColor={shape.color}
+            shadowBlur={isMouseHovered ? 14 : 8}
+            shadowOpacity={isMouseHovered ? 0.6 : 0.4}
           />
         );
     }
   };
+
+  const handleResizeDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
+    e.cancelBubble = true;
+    let newWidth = Math.max(MIN_WIDTH, e.target.x() + 6);
+    let newHeight: number;
+
+    if (shape.shapeType === 'circle') {
+      newHeight = newWidth; // enforce square for circles
+    } else if (shape.shapeType === 'line') {
+      newHeight = localHeight; // lock height for lines
+    } else {
+      newHeight = Math.max(MIN_HEIGHT, e.target.y() + 6);
+    }
+
+    setLocalWidth(newWidth);
+    setLocalHeight(newHeight);
+
+    const now = Date.now();
+    if (now - lastResizeUpdate.current >= DRAG_THROTTLE_MS && onResize) {
+      lastResizeUpdate.current = now;
+      onResize(shape.id, newWidth, newHeight);
+    }
+  };
+
+  const handleResizeDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
+    e.cancelBubble = true;
+    let newWidth = Math.max(MIN_WIDTH, e.target.x() + 6);
+    let newHeight: number;
+
+    if (shape.shapeType === 'circle') {
+      newHeight = newWidth;
+    } else if (shape.shapeType === 'line') {
+      newHeight = localHeight;
+    } else {
+      newHeight = Math.max(MIN_HEIGHT, e.target.y() + 6);
+    }
+
+    setLocalWidth(newWidth);
+    setLocalHeight(newHeight);
+    onResize?.(shape.id, newWidth, newHeight);
+    setIsResizing(false);
+
+    // For line shapes, position handle on right edge
+    if (shape.shapeType === 'line') {
+      e.target.position({ x: newWidth - 6, y: localHeight / 2 - 6 });
+    } else {
+      e.target.position({ x: newWidth - 6, y: newHeight - 6 });
+    }
+  };
+
+  // Handle position for line shapes: right edge, vertically centered
+  const handleX = localWidth - 6;
+  const handleY = shape.shapeType === 'line' ? localHeight / 2 - 6 : localHeight - 6;
 
   return (
     <Group
@@ -63,20 +149,37 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
       y={shape.y}
       draggable
       onDragMove={handleDragMove}
+      onDragStart={(e) => {
+        const stage = e.target.getStage();
+        if (stage) stage.container().style.cursor = 'grabbing';
+      }}
       onDragEnd={(e) => {
+        const stage = e.target.getStage();
+        if (stage) stage.container().style.cursor = isMouseHovered ? 'grab' : 'default';
         onDragEnd(shape.id, e.target.x(), e.target.y());
       }}
       onClick={() => onClick?.(shape.id)}
       onTap={() => onClick?.(shape.id)}
+      onMouseEnter={(e) => {
+        setIsMouseHovered(true);
+        const stage = e.target.getStage();
+        if (stage) stage.container().style.cursor = 'grab';
+      }}
+      onMouseLeave={(e) => {
+        setIsMouseHovered(false);
+        const stage = e.target.getStage();
+        if (stage) stage.container().style.cursor = 'default';
+      }}
     >
       {renderShape()}
       {/* Delete button */}
       <Rect
-        x={shape.width - 24}
-        y={4}
-        width={20}
-        height={20}
-        fill="transparent"
+        x={localWidth - 26}
+        y={2}
+        width={22}
+        height={22}
+        fill={isDeleteHovered ? 'rgba(239,68,68,0.15)' : 'rgba(0,0,0,0.08)'}
+        cornerRadius={6}
         onClick={(e) => {
           e.cancelBubble = true;
           onDelete(shape.id);
@@ -85,15 +188,55 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
           e.cancelBubble = true;
           onDelete(shape.id);
         }}
+        onMouseEnter={(e) => {
+          setIsDeleteHovered(true);
+          const stage = e.target.getStage();
+          if (stage) stage.container().style.cursor = 'pointer';
+        }}
+        onMouseLeave={(e) => {
+          setIsDeleteHovered(false);
+          const stage = e.target.getStage();
+          if (stage) stage.container().style.cursor = 'grab';
+        }}
       />
       <Text
-        x={shape.width - 20}
-        y={4}
-        text="x"
-        fontSize={14}
-        fill="#999"
+        x={localWidth - 21}
+        y={5}
+        text={'\u00d7'}
+        fontSize={16}
+        fontStyle="bold"
+        fill={isDeleteHovered ? '#ef4444' : '#666'}
         listening={false}
       />
+      {/* Resize handle */}
+      {onResize && (
+        <Rect
+          x={handleX}
+          y={handleY}
+          width={12}
+          height={12}
+          fill={isResizeHovered ? '#3b82f6' : '#94a3b8'}
+          opacity={isResizeHovered ? 1 : 0.4}
+          cornerRadius={2}
+          draggable
+          onMouseEnter={(e) => {
+            setIsResizeHovered(true);
+            const stage = e.target.getStage();
+            if (stage) stage.container().style.cursor = 'nwse-resize';
+          }}
+          onMouseLeave={(e) => {
+            setIsResizeHovered(false);
+            const stage = e.target.getStage();
+            if (stage) stage.container().style.cursor = 'grab';
+          }}
+          onDragStart={(e) => {
+            e.cancelBubble = true;
+            setIsResizing(true);
+          }}
+          onDragMove={handleResizeDragMove}
+          onDragEnd={handleResizeDragEnd}
+        />
+      )}
     </Group>
   );
 }

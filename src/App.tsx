@@ -22,15 +22,22 @@ function App() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-lg">Loading...</div>
+      <div className="flex items-center justify-center h-screen bg-gradient-animate">
+        <div className="flex flex-col items-center gap-4 animate-bounce-in">
+          <div
+            className="w-14 h-14 rounded-full border-4 border-white/30 border-t-white animate-spin-loader"
+          />
+          <span className="text-white/90 font-semibold text-sm tracking-wide">
+            Loading your board...
+          </span>
+        </div>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
+      <div className="flex items-center justify-center h-screen bg-gradient-animate">
         <AuthPanel user={null} />
       </div>
     );
@@ -60,6 +67,7 @@ function BoardView({ user }: { user: { uid: string; displayName: string | null; 
     addFrame,
     addSticker,
     moveObject,
+    resizeObject,
     updateText,
     updateTitle,
     removeObject,
@@ -89,7 +97,7 @@ function BoardView({ user }: { user: { uid: string; displayName: string | null; 
   const objectClick = connectMode ? handleObjectClickForConnect : undefined;
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden">
+    <div className="relative w-screen h-screen overflow-hidden board-dots">
       <div className="absolute inset-0 z-0">
         <Board boardId={BOARD_ID} onMouseMove={handleMouseMove}>
           {/* Render order: Frames → Connectors → Shapes → Sticky Notes → Stickers */}
@@ -103,6 +111,7 @@ function BoardView({ user }: { user: { uid: string; displayName: string | null; 
               onTitleChange={updateTitle}
               onClick={objectClick}
               isHovered={hoveredFrameId === frame.id}
+              onResize={resizeObject}
             />
           ))}
           {connectors.map((connector) => (
@@ -120,6 +129,7 @@ function BoardView({ user }: { user: { uid: string; displayName: string | null; 
               onDragEnd={handleDragEnd}
               onDelete={removeObject}
               onClick={objectClick}
+              onResize={resizeObject}
             />
           ))}
           {stickyNotes.map((note) => (
@@ -131,6 +141,7 @@ function BoardView({ user }: { user: { uid: string; displayName: string | null; 
               onTextChange={updateText}
               onDelete={removeObject}
               onClick={objectClick}
+              onResize={resizeObject}
             />
           ))}
           {stickers.map((sticker) => (
@@ -141,6 +152,7 @@ function BoardView({ user }: { user: { uid: string; displayName: string | null; 
               onDragEnd={handleDragEnd}
               onDelete={removeObject}
               onClick={objectClick}
+              onResize={resizeObject}
             />
           ))}
         </Board>

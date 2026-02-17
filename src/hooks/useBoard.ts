@@ -111,6 +111,13 @@ export function useBoard(boardId: string, userId: string) {
     [boardId]
   );
 
+  const resizeObject = useCallback(
+    (objectId: string, width: number, height: number) => {
+      updateObject(boardId, objectId, { width, height });
+    },
+    [boardId]
+  );
+
   /** Called during drag of non-frame objects — updates position + detects hover over frames */
   const handleDragMove = useCallback(
     (objectId: string, x: number, y: number) => {
@@ -268,6 +275,7 @@ export function useBoard(boardId: string, userId: string) {
     addFrame,
     addSticker,
     moveObject,
+    resizeObject,
     updateText,
     updateTitle,
     removeObject,

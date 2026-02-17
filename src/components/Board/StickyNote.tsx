@@ -4,6 +4,8 @@ import type Konva from 'konva';
 import type { StickyNote as StickyNoteType } from '../../types/board';
 
 const DRAG_THROTTLE_MS = 50;
+const MIN_WIDTH = 100;
+const MIN_HEIGHT = 100;
 
 interface StickyNoteProps {
   note: StickyNoteType;
@@ -12,12 +14,27 @@ interface StickyNoteProps {
   onTextChange: (id: string, text: string) => void;
   onDelete: (id: string) => void;
   onClick?: (id: string) => void;
+  onResize?: (id: string, width: number, height: number) => void;
 }
 
-export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange, onDelete, onClick }: StickyNoteProps) {
+export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange, onDelete, onClick, onResize }: StickyNoteProps) {
   const textRef = useRef<Konva.Text>(null);
   const [isEditing, setIsEditing] = useState(false);
   const lastDragUpdate = useRef(0);
+  const lastResizeUpdate = useRef(0);
+  const [isMouseHovered, setIsMouseHovered] = useState(false);
+  const [isResizeHovered, setIsResizeHovered] = useState(false);
+  const [isDeleteHovered, setIsDeleteHovered] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [localWidth, setLocalWidth] = useState(note.width);
+  const [localHeight, setLocalHeight] = useState(note.height);
+
+  useEffect(() => {
+    if (!isResizing) {
+      setLocalWidth(note.width);
+      setLocalHeight(note.height);
+    }
+  }, [note.width, note.height, isResizing]);
 
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -44,10 +61,10 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
 
     textarea.value = note.text;
     textarea.style.position = 'absolute';
-    textarea.style.top = `${stageBox.top + textPosition.y * scale}px`;
-    textarea.style.left = `${stageBox.left + textPosition.x * scale}px`;
-    textarea.style.width = `${(note.width - 20) * scale}px`;
-    textarea.style.height = `${(note.height - 20) * scale}px`;
+    textarea.style.top = `${stageBox.top + textPosition.y}px`;
+    textarea.style.left = `${stageBox.left + textPosition.x}px`;
+    textarea.style.width = `${(localWidth - 20) * scale}px`;
+    textarea.style.height = `${(localHeight - 20) * scale}px`;
     textarea.style.fontSize = `${14 * scale}px`;
     textarea.style.fontFamily = 'sans-serif';
     textarea.style.padding = '4px';
@@ -94,7 +111,7 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
       textarea.removeEventListener('keydown', handleKeyDown);
       if (textarea.parentNode) textarea.remove();
     };
-  }, [isEditing, note.id, note.text, note.width, note.height, onTextChange]);
+  }, [isEditing, note.id, note.text, localWidth, localHeight, onTextChange]);
 
   return (
     <Group
@@ -102,39 +119,88 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
       y={note.y}
       draggable
       onDragMove={handleDragMove}
+      onDragStart={(e) => {
+        const stage = e.target.getStage();
+        if (stage) stage.container().style.cursor = 'grabbing';
+      }}
       onDragEnd={(e) => {
+        const stage = e.target.getStage();
+        if (stage) stage.container().style.cursor = isMouseHovered ? 'grab' : 'default';
         onDragEnd(note.id, e.target.x(), e.target.y());
       }}
       onClick={() => onClick?.(note.id)}
       onTap={() => onClick?.(note.id)}
       onDblClick={() => setIsEditing(true)}
       onDblTap={() => setIsEditing(true)}
+      onMouseEnter={(e) => {
+        setIsMouseHovered(true);
+        const stage = e.target.getStage();
+        if (stage) stage.container().style.cursor = 'grab';
+      }}
+      onMouseLeave={(e) => {
+        setIsMouseHovered(false);
+        const stage = e.target.getStage();
+        if (stage) stage.container().style.cursor = 'default';
+      }}
     >
+      {/* Main note body */}
       <Rect
-        width={note.width}
-        height={note.height}
+        width={localWidth}
+        height={localHeight}
         fill={note.color}
-        cornerRadius={4}
-        shadowColor="rgba(0,0,0,0.15)"
-        shadowBlur={8}
-        shadowOffsetY={2}
+        cornerRadius={6}
+        shadowColor="rgba(0,0,0,0.12)"
+        shadowBlur={isMouseHovered ? 24 : 16}
+        shadowOffsetY={isMouseHovered ? 6 : 4}
+        shadowOffsetX={0}
+        stroke={isMouseHovered ? 'rgba(0,0,0,0.08)' : undefined}
+        strokeWidth={isMouseHovered ? 1 : 0}
+      />
+      {/* Subtle top accent stripe */}
+      <Rect
+        width={localWidth}
+        height={4}
+        fill={note.color}
+        cornerRadius={[6, 6, 0, 0]}
+        opacity={0.6}
+      />
+      {/* Folded corner effect */}
+      <Rect
+        x={localWidth - 18}
+        y={localHeight - 18}
+        width={18}
+        height={18}
+        fill="rgba(0,0,0,0.06)"
+        cornerRadius={[6, 0, 6, 0]}
       />
       {/* Delete button area (top-right corner) */}
       <Rect
-        x={note.width - 24}
+        x={localWidth - 28}
         y={4}
-        width={20}
-        height={20}
-        fill="transparent"
+        width={24}
+        height={24}
+        fill={isDeleteHovered ? 'rgba(239,68,68,0.15)' : 'rgba(0,0,0,0.05)'}
+        cornerRadius={6}
         onClick={() => onDelete(note.id)}
         onTap={() => onDelete(note.id)}
+        onMouseEnter={(e) => {
+          setIsDeleteHovered(true);
+          const stage = e.target.getStage();
+          if (stage) stage.container().style.cursor = 'pointer';
+        }}
+        onMouseLeave={(e) => {
+          setIsDeleteHovered(false);
+          const stage = e.target.getStage();
+          if (stage) stage.container().style.cursor = 'grab';
+        }}
       />
       <Text
-        x={note.width - 20}
-        y={4}
-        text="x"
-        fontSize={14}
-        fill="#999"
+        x={localWidth - 22}
+        y={7}
+        text={'\u00d7'}
+        fontSize={16}
+        fontStyle="bold"
+        fill={isDeleteHovered ? '#ef4444' : '#666'}
         listening={false}
       />
       {!isEditing && (
@@ -142,12 +208,12 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
           ref={textRef}
           x={10}
           y={10}
-          width={note.width - 20}
-          height={note.height - 20}
+          width={localWidth - 20}
+          height={localHeight - 20}
           text={note.text || 'Double-click to edit'}
           fontSize={14}
-          fontFamily="sans-serif"
-          fill={note.text ? '#333' : '#999'}
+          fontFamily="'Inter', sans-serif"
+          fill={note.text ? '#1e293b' : '#94a3b8'}
           lineHeight={1.4}
           listening={false}
         />
@@ -161,6 +227,56 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
           height={0}
           text=""
           listening={false}
+        />
+      )}
+      {/* Resize handle */}
+      {!isEditing && onResize && (
+        <Rect
+          x={localWidth - 6}
+          y={localHeight - 6}
+          width={12}
+          height={12}
+          fill={isResizeHovered ? '#3b82f6' : '#94a3b8'}
+          opacity={isResizeHovered ? 1 : 0.4}
+          cornerRadius={2}
+          draggable
+          onMouseEnter={(e) => {
+            setIsResizeHovered(true);
+            const stage = e.target.getStage();
+            if (stage) stage.container().style.cursor = 'nwse-resize';
+          }}
+          onMouseLeave={(e) => {
+            setIsResizeHovered(false);
+            const stage = e.target.getStage();
+            if (stage) stage.container().style.cursor = 'grab';
+          }}
+          onDragStart={(e) => {
+            e.cancelBubble = true;
+            setIsResizing(true);
+          }}
+          onDragMove={(e) => {
+            e.cancelBubble = true;
+            const newWidth = Math.max(MIN_WIDTH, e.target.x() + 6);
+            const newHeight = Math.max(MIN_HEIGHT, e.target.y() + 6);
+            setLocalWidth(newWidth);
+            setLocalHeight(newHeight);
+            const now = Date.now();
+            if (now - lastResizeUpdate.current >= DRAG_THROTTLE_MS) {
+              lastResizeUpdate.current = now;
+              onResize(note.id, newWidth, newHeight);
+            }
+          }}
+          onDragEnd={(e) => {
+            e.cancelBubble = true;
+            const newWidth = Math.max(MIN_WIDTH, e.target.x() + 6);
+            const newHeight = Math.max(MIN_HEIGHT, e.target.y() + 6);
+            setLocalWidth(newWidth);
+            setLocalHeight(newHeight);
+            onResize(note.id, newWidth, newHeight);
+            setIsResizing(false);
+            // Reset handle position to bottom-right of new size
+            e.target.position({ x: newWidth - 6, y: newHeight - 6 });
+          }}
         />
       )}
     </Group>

@@ -9,7 +9,7 @@ import {
 import type { StickyNote, Shape, ShapeType, Frame, Sticker, Connector } from '../types/board';
 import { findContainingFrame, getChildrenOfFrame } from '../utils/containment';
 
-const STICKY_COLORS = ['#fef08a', '#fde68a', '#bbf7d0', '#bfdbfe', '#e9d5ff', '#fecaca'];
+const STICKY_COLORS = ['#fef9c3', '#fef3c7', '#dcfce7', '#dbeafe', '#f3e8ff', '#ffe4e6', '#fed7aa', '#e0e7ff'];
 
 export function useBoard(boardId: string, userId: string) {
   const [objects, setObjects] = useState<AnyBoardObject[]>([]);

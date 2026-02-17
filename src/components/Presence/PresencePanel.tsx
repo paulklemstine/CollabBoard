@@ -6,7 +6,7 @@ interface PresencePanelProps {
 
 export function PresencePanel({ users }: PresencePanelProps) {
   return (
-    <div className="absolute top-4 right-4 glass rounded-2xl shadow-xl p-3.5 z-50 animate-float-up">
+    <div className="absolute top-4 right-4 glass-playful rounded-2xl shadow-xl p-3.5 z-50 animate-float-up">
       <div className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2.5 flex items-center gap-1.5">
         <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse-glow" style={{ color: '#34d399' }} />
         {users.length} Online

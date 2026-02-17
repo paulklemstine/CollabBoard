@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { Group, Text, Rect } from 'react-konva';
-import type Konva from 'konva';
+import Konva from 'konva';
 import type { Sticker } from '../../types/board';
 
 const DRAG_THROTTLE_MS = 50;
@@ -19,6 +19,8 @@ interface StickerComponentProps {
 }
 
 export function StickerComponent({ sticker, onDragMove, onDragEnd, onDelete, onClick, onResize, dragOffset }: StickerComponentProps) {
+  const groupRef = useRef<Konva.Group>(null);
+  const hoverTweenRef = useRef<Konva.Tween | null>(null);
   const lastDragUpdate = useRef(0);
   const lastResizeUpdate = useRef(0);
   const [isMouseHovered, setIsMouseHovered] = useState(false);
@@ -35,6 +37,43 @@ export function StickerComponent({ sticker, onDragMove, onDragEnd, onDelete, onC
     }
   }, [sticker.width, sticker.height, isResizing]);
 
+  // Elastic bounce on hover
+  useEffect(() => {
+    const group = groupRef.current;
+    if (!group) return;
+
+    if (hoverTweenRef.current) {
+      hoverTweenRef.current.destroy();
+      hoverTweenRef.current = null;
+    }
+
+    if (isMouseHovered) {
+      hoverTweenRef.current = new Konva.Tween({
+        node: group,
+        duration: 0.3,
+        scaleX: 1.15,
+        scaleY: 1.15,
+        easing: Konva.Easings.ElasticEaseOut,
+      });
+      hoverTweenRef.current.play();
+    } else {
+      hoverTweenRef.current = new Konva.Tween({
+        node: group,
+        duration: 0.2,
+        scaleX: 1,
+        scaleY: 1,
+        easing: Konva.Easings.EaseInOut,
+      });
+      hoverTweenRef.current.play();
+    }
+
+    return () => {
+      if (hoverTweenRef.current) {
+        hoverTweenRef.current.destroy();
+      }
+    };
+  }, [isMouseHovered]);
+
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
       const now = Date.now();
@@ -50,11 +89,14 @@ export function StickerComponent({ sticker, onDragMove, onDragEnd, onDelete, onC
 
   return (
     <Group
+      ref={groupRef}
       x={sticker.x + (dragOffset?.x ?? 0)}
       y={sticker.y + (dragOffset?.y ?? 0)}
       draggable
       onDragMove={handleDragMove}
       onDragStart={(e) => {
+        hoverTweenRef.current?.destroy();
+        hoverTweenRef.current = null;
         const stage = e.target.getStage();
         if (stage) stage.container().style.cursor = 'grabbing';
       }}
@@ -76,25 +118,26 @@ export function StickerComponent({ sticker, onDragMove, onDragEnd, onDelete, onC
         if (stage) stage.container().style.cursor = 'default';
       }}
     >
-      {/* Hit area with subtle background glow */}
+      {/* Hit area with playful colored glow */}
       <Rect
-        width={localWidth + 8}
-        height={localHeight + 8}
-        x={-4}
-        y={-4}
-        fill={isMouseHovered ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.4)'}
-        cornerRadius={12}
-        shadowColor="rgba(0,0,0,0.08)"
-        shadowBlur={isMouseHovered ? 14 : 8}
-        shadowOffsetY={2}
+        width={localWidth + 12}
+        height={localHeight + 12}
+        x={-6}
+        y={-6}
+        fill={isMouseHovered ? 'rgba(251, 191, 36, 0.2)' : 'rgba(255,255,255,0.35)'}
+        cornerRadius={16}
+        shadowColor={isMouseHovered ? '#fbbf24' : 'rgba(0,0,0,0.06)'}
+        shadowBlur={isMouseHovered ? 24 : 10}
+        shadowOffsetY={isMouseHovered ? 4 : 2}
+        shadowOpacity={isMouseHovered ? 0.5 : 0.3}
       />
       <Text
         text={sticker.emoji}
         fontSize={fontSize}
         listening={false}
-        shadowColor="rgba(0,0,0,0.15)"
-        shadowBlur={4}
-        shadowOffsetY={2}
+        shadowColor="rgba(0,0,0,0.2)"
+        shadowBlur={isMouseHovered ? 8 : 5}
+        shadowOffsetY={isMouseHovered ? 4 : 2}
       />
       {/* Delete button */}
       <Rect

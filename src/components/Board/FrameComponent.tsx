@@ -64,38 +64,38 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
       // Containment hover — strongest visual
       tweenRef.current = new Konva.Tween({
         node: rect,
-        duration: 0.2,
-        stroke: '#3b82f6',
-        strokeWidth: 3,
-        fill: 'rgba(59, 130, 246, 0.08)',
-        shadowColor: '#3b82f6',
-        shadowBlur: 12,
-        shadowOpacity: 0.4,
+        duration: 0.25,
+        stroke: '#a78bfa',
+        strokeWidth: 3.5,
+        fill: 'rgba(167, 139, 250, 0.1)',
+        shadowColor: '#a78bfa',
+        shadowBlur: 16,
+        shadowOpacity: 0.5,
         easing: Konva.Easings.EaseInOut,
       });
       tweenRef.current.play();
     } else if (isMouseHovered) {
-      // Mouse hover — subtle darkened stroke
+      // Mouse hover — warm purple
       tweenRef.current = new Konva.Tween({
         node: rect,
         duration: 0.15,
-        stroke: '#64748b',
-        strokeWidth: 2.5,
-        fill: 'rgba(241, 245, 249, 0.25)',
-        shadowColor: 'rgba(0,0,0,0.1)',
-        shadowBlur: 6,
-        shadowOpacity: 0.3,
+        stroke: '#c084fc',
+        strokeWidth: 3,
+        fill: 'rgba(250, 245, 255, 0.2)',
+        shadowColor: 'rgba(168, 85, 247, 0.2)',
+        shadowBlur: 10,
+        shadowOpacity: 0.4,
         easing: Konva.Easings.EaseInOut,
       });
       tweenRef.current.play();
     } else {
-      // Default
+      // Default — violet base
       tweenRef.current = new Konva.Tween({
         node: rect,
         duration: 0.15,
-        stroke: '#94a3b8',
-        strokeWidth: 2,
-        fill: 'rgba(241, 245, 249, 0.15)',
+        stroke: '#a78bfa',
+        strokeWidth: 2.5,
+        fill: 'rgba(250, 245, 255, 0.12)',
         shadowColor: 'transparent',
         shadowBlur: 0,
         shadowOpacity: 0,
@@ -209,52 +209,58 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
         ref={borderRef}
         width={localWidth}
         height={localHeight}
-        stroke="#94a3b8"
-        strokeWidth={2}
-        dash={[8, 4]}
-        fill="rgba(241, 245, 249, 0.15)"
-        cornerRadius={12}
+        stroke="#a78bfa"
+        strokeWidth={2.5}
+        dash={[12, 6]}
+        fill="rgba(250, 245, 255, 0.12)"
+        cornerRadius={16}
       />
-      {/* Title background with gradient accent */}
+      {/* Title background with vibrant rainbow gradient */}
       <Rect
         x={0}
-        y={-32}
+        y={-36}
         width={localWidth}
-        height={32}
+        height={36}
         fillLinearGradientStartPoint={{ x: 0, y: 0 }}
         fillLinearGradientEndPoint={{ x: localWidth, y: 0 }}
-        fillLinearGradientColorStops={[0, 'rgba(99, 102, 241, 0.12)', 0.5, 'rgba(168, 85, 247, 0.08)', 1, 'rgba(236, 72, 153, 0.06)']}
-        cornerRadius={[12, 12, 0, 0]}
+        fillLinearGradientColorStops={[
+          0, 'rgba(251, 146, 60, 0.18)',
+          0.25, 'rgba(251, 113, 133, 0.16)',
+          0.5, 'rgba(168, 85, 247, 0.16)',
+          0.75, 'rgba(96, 165, 250, 0.14)',
+          1, 'rgba(74, 222, 128, 0.12)'
+        ]}
+        cornerRadius={[16, 16, 0, 0]}
       />
-      {/* Left accent bar */}
+      {/* Left accent bar — rainbow */}
       <Rect
         x={0}
-        y={-32}
-        width={3}
-        height={32}
+        y={-36}
+        width={4}
+        height={36}
         fillLinearGradientStartPoint={{ x: 0, y: 0 }}
-        fillLinearGradientEndPoint={{ x: 0, y: 32 }}
-        fillLinearGradientColorStops={[0, '#6366f1', 1, '#a855f7']}
-        cornerRadius={[12, 0, 0, 0]}
+        fillLinearGradientEndPoint={{ x: 0, y: 36 }}
+        fillLinearGradientColorStops={[0, '#f472b6', 0.33, '#a78bfa', 0.66, '#60a5fa', 1, '#34d399']}
+        cornerRadius={[16, 0, 0, 0]}
       />
       {/* Title text */}
       <Text
         ref={titleRef}
-        x={14}
-        y={-24}
+        x={16}
+        y={-28}
         text={frame.title || 'Untitled Frame'}
-        fontSize={13}
+        fontSize={14}
         fontFamily="'Inter', sans-serif"
-        fontStyle="600"
-        fill={frame.title ? '#334155' : '#94a3b8'}
+        fontStyle="700"
+        fill={frame.title ? '#581c87' : '#a78bfa'}
         listening={false}
       />
       {/* Double-click area for title editing */}
       <Rect
         x={0}
-        y={-32}
+        y={-36}
         width={localWidth - 30}
-        height={32}
+        height={36}
         fill="transparent"
         onDblClick={() => setIsEditing(true)}
         onDblTap={() => setIsEditing(true)}
@@ -262,11 +268,11 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
       {/* Delete button */}
       <Rect
         x={localWidth - 28}
-        y={-28}
+        y={-32}
         width={22}
         height={22}
-        fill={isDeleteHovered ? 'rgba(239,68,68,0.15)' : 'rgba(0,0,0,0.05)'}
-        cornerRadius={6}
+        fill={isDeleteHovered ? 'rgba(239,68,68,0.25)' : 'rgba(0,0,0,0.05)'}
+        cornerRadius={8}
         onClick={(e) => {
           e.cancelBubble = true;
           onDelete(frame.id);
@@ -288,7 +294,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
       />
       <Text
         x={localWidth - 23}
-        y={-25}
+        y={-29}
         text={'\u00d7'}
         fontSize={16}
         fontStyle="bold"

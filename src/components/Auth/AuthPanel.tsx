@@ -58,7 +58,7 @@ export function AuthPanel({ user }: AuthPanelProps) {
 
   if (user) {
     return (
-      <div className="glass rounded-2xl shadow-lg animate-float-up">
+      <div className="glass-playful rounded-2xl shadow-lg animate-float-up">
         <div className="flex items-center gap-3 px-4 py-2.5">
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-md"
@@ -83,7 +83,7 @@ export function AuthPanel({ user }: AuthPanelProps) {
   }
 
   return (
-    <div className="glass rounded-3xl shadow-2xl p-10 max-w-sm w-full animate-bounce-in">
+    <div className="glass-playful rounded-3xl shadow-2xl p-10 max-w-sm w-full animate-bounce-in">
       <div className="flex flex-col items-center gap-6">
         {/* Logo / Brand */}
         <div

@@ -81,16 +81,17 @@ export function ConnectorComponent({ connector, objects }: ConnectorComponentPro
       <Arrow
         points={[from.x, from.y, cpX, cpY, to.x, to.y]}
         tension={0.5}
-        stroke="#818cf8"
-        strokeWidth={2.5}
-        fill="#818cf8"
-        pointerLength={12}
-        pointerWidth={10}
-        shadowColor="#6366f1"
-        shadowBlur={8}
-        shadowOpacity={0.3}
+        stroke="#f472b6"
+        strokeWidth={3.5}
+        fill="#f472b6"
+        pointerLength={16}
+        pointerWidth={14}
+        shadowColor="#ec4899"
+        shadowBlur={12}
+        shadowOpacity={0.4}
         lineCap="round"
         lineJoin="round"
+        dash={[12, 6]}
         listening={false}
       />
     );
@@ -100,13 +101,13 @@ export function ConnectorComponent({ connector, objects }: ConnectorComponentPro
     <Arrow
       points={[from.x, from.y, to.x, to.y]}
       stroke="#818cf8"
-      strokeWidth={2.5}
+      strokeWidth={3.5}
       fill="#818cf8"
-      pointerLength={12}
-      pointerWidth={10}
+      pointerLength={16}
+      pointerWidth={14}
       shadowColor="#6366f1"
-      shadowBlur={8}
-      shadowOpacity={0.3}
+      shadowBlur={12}
+      shadowOpacity={0.4}
       lineCap="round"
       lineJoin="round"
       listening={false}

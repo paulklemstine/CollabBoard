@@ -1,4 +1,4 @@
-const COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#64748b'];
+const COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4'];
 
 interface ColorPickerProps {
   selectedColor: string;
@@ -12,12 +12,13 @@ export function ColorPicker({ selectedColor, onSelectColor }: ColorPickerProps) 
         <button
           key={color}
           onClick={() => onSelectColor(color)}
-          className="w-6 h-6 rounded-full transition-all duration-200 hover:scale-125"
+          className="w-7 h-7 rounded-full transition-all duration-200 hover:scale-130"
           style={{
             backgroundColor: color,
             boxShadow: selectedColor === color
-              ? `0 0 0 2px white, 0 0 0 4px ${color}, 0 0 12px ${color}50`
-              : `0 1px 3px ${color}40`,
+              ? `0 0 0 2.5px white, 0 0 0 5px ${color}, 0 0 16px ${color}60`
+              : `0 2px 6px ${color}30, inset 0 -1px 2px rgba(0,0,0,0.1)`,
+            border: '2px solid rgba(255,255,255,0.6)',
           }}
           title={color}
         />

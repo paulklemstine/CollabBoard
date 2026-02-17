@@ -149,30 +149,36 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
         width={localWidth}
         height={localHeight}
         fill={note.color}
-        cornerRadius={6}
-        shadowColor="rgba(0,0,0,0.12)"
-        shadowBlur={isMouseHovered ? 24 : 16}
-        shadowOffsetY={isMouseHovered ? 6 : 4}
-        shadowOffsetX={0}
-        stroke={isMouseHovered ? 'rgba(0,0,0,0.08)' : undefined}
-        strokeWidth={isMouseHovered ? 1 : 0}
+        cornerRadius={14}
+        shadowColor={note.color}
+        shadowBlur={isMouseHovered ? 28 : 18}
+        shadowOffsetY={isMouseHovered ? 10 : 6}
+        shadowOffsetX={isMouseHovered ? 2 : 0}
+        shadowOpacity={isMouseHovered ? 0.45 : 0.3}
+        stroke={isMouseHovered ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.3)'}
+        strokeWidth={isMouseHovered ? 2 : 1.5}
       />
-      {/* Subtle top accent stripe */}
+      {/* Decorative tape strip at top center */}
       <Rect
-        width={localWidth}
-        height={4}
-        fill={note.color}
-        cornerRadius={[6, 6, 0, 0]}
-        opacity={0.6}
+        x={localWidth / 2 - 24}
+        y={-6}
+        width={48}
+        height={14}
+        fill="rgba(255, 255, 255, 0.55)"
+        cornerRadius={3}
+        shadowColor="rgba(0,0,0,0.06)"
+        shadowBlur={4}
+        shadowOffsetY={1}
+        rotation={-1}
       />
       {/* Folded corner effect */}
       <Rect
-        x={localWidth - 18}
-        y={localHeight - 18}
-        width={18}
-        height={18}
-        fill="rgba(0,0,0,0.06)"
-        cornerRadius={[6, 0, 6, 0]}
+        x={localWidth - 22}
+        y={localHeight - 22}
+        width={22}
+        height={22}
+        fill="rgba(0,0,0,0.08)"
+        cornerRadius={[8, 0, 8, 0]}
       />
       {/* Delete button area (top-right corner) */}
       <Rect
@@ -180,8 +186,8 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
         y={4}
         width={24}
         height={24}
-        fill={isDeleteHovered ? 'rgba(239,68,68,0.15)' : 'rgba(0,0,0,0.05)'}
-        cornerRadius={6}
+        fill={isDeleteHovered ? 'rgba(239,68,68,0.25)' : 'rgba(0,0,0,0.04)'}
+        cornerRadius={8}
         onClick={() => onDelete(note.id)}
         onTap={() => onDelete(note.id)}
         onMouseEnter={(e) => {
@@ -212,7 +218,7 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
           width={localWidth - 20}
           height={localHeight - 20}
           text={note.text || 'Double-click to edit'}
-          fontSize={14}
+          fontSize={15}
           fontFamily="'Inter', sans-serif"
           fill={note.text ? '#1e293b' : '#94a3b8'}
           lineHeight={1.4}

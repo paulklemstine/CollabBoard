@@ -52,13 +52,13 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
             width={localWidth}
             height={localHeight}
             fill={shape.color}
-            cornerRadius={8}
+            cornerRadius={16}
             shadowColor={shape.color}
-            shadowBlur={isMouseHovered ? 24 : 16}
-            shadowOpacity={isMouseHovered ? 0.5 : 0.3}
-            shadowOffsetY={4}
-            stroke={isMouseHovered ? 'rgba(255,255,255,0.8)' : undefined}
-            strokeWidth={isMouseHovered ? 1 : 0}
+            shadowBlur={isMouseHovered ? 30 : 18}
+            shadowOpacity={isMouseHovered ? 0.55 : 0.35}
+            shadowOffsetY={isMouseHovered ? 8 : 4}
+            stroke={isMouseHovered ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)'}
+            strokeWidth={isMouseHovered ? 2.5 : 1.5}
           />
         );
       case 'circle':
@@ -69,11 +69,11 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
             radius={Math.min(localWidth, localHeight) / 2}
             fill={shape.color}
             shadowColor={shape.color}
-            shadowBlur={isMouseHovered ? 24 : 16}
-            shadowOpacity={isMouseHovered ? 0.5 : 0.3}
-            shadowOffsetY={4}
-            stroke={isMouseHovered ? 'rgba(255,255,255,0.8)' : undefined}
-            strokeWidth={isMouseHovered ? 1 : 0}
+            shadowBlur={isMouseHovered ? 32 : 20}
+            shadowOpacity={isMouseHovered ? 0.55 : 0.35}
+            shadowOffsetY={isMouseHovered ? 6 : 3}
+            stroke={isMouseHovered ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.3)'}
+            strokeWidth={isMouseHovered ? 2.5 : 1.5}
           />
         );
       case 'line':
@@ -81,11 +81,11 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
           <Line
             points={[0, localHeight / 2, localWidth, localHeight / 2]}
             stroke={shape.color}
-            strokeWidth={4}
+            strokeWidth={6}
             lineCap="round"
             shadowColor={shape.color}
-            shadowBlur={isMouseHovered ? 14 : 8}
-            shadowOpacity={isMouseHovered ? 0.6 : 0.4}
+            shadowBlur={isMouseHovered ? 18 : 10}
+            shadowOpacity={isMouseHovered ? 0.65 : 0.45}
           />
         );
     }

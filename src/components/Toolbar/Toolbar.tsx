@@ -37,21 +37,30 @@ export function Toolbar({
       style={{
         position: 'fixed',
         bottom: 24,
-        left: '50%',
-        transform: 'translateX(-50%)',
+        left: 0,
+        right: 0,
         zIndex: 1000,
+        pointerEvents: 'none',
+        display: 'flex',
+        justifyContent: 'center',
+      }}
+    >
+    <div
+      style={{
         pointerEvents: 'auto',
         maxWidth: 'calc(100vw - 32px)',
         overflowX: 'auto',
+        boxShadow: '0 8px 32px rgba(139, 92, 246, 0.12), 0 4px 16px rgba(236, 72, 153, 0.08), 0 2px 8px rgba(0,0,0,0.06)',
       }}
-      className="flex gap-1.5 glass rounded-2xl shadow-2xl p-2 items-center animate-float-up toolbar-scroll"
+      className="flex gap-1.5 glass-playful rounded-2xl p-2.5 items-center animate-float-up toolbar-scroll"
     >
       {/* Sticky Note */}
       <button
         onClick={() => onAddStickyNote(selectedColor)}
-        className="btn-lift flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold text-amber-800 transition-all duration-200"
+        className="btn-lift flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold text-amber-900 transition-all duration-200"
         style={{
-          background: 'linear-gradient(135deg, #fde68a 0%, #fbbf24 100%)',
+          background: 'linear-gradient(135deg, #fde68a 0%, #fbbf24 50%, #f59e0b 100%)',
+          boxShadow: '0 2px 10px rgba(251, 191, 36, 0.3)',
         }}
         title="Add sticky note"
       >
@@ -61,7 +70,7 @@ export function Toolbar({
         Sticky
       </button>
 
-      <div className="w-px h-8 bg-gray-200/60 mx-0.5" />
+      <div className="w-px h-8 mx-0.5" style={{ background: 'linear-gradient(to bottom, rgba(251,146,60,0.2), rgba(168,85,247,0.3), rgba(96,165,250,0.2))' }} />
 
       {/* Color Picker */}
       <ColorPicker selectedColor={selectedColor} onSelectColor={setSelectedColor} />
@@ -69,7 +78,7 @@ export function Toolbar({
       {/* Shape buttons */}
       <button
         onClick={() => onAddShape('rect', selectedColor)}
-        className="btn-lift px-3 py-2 rounded-xl text-sm font-semibold text-gray-600 bg-white/50 hover:bg-white/80 transition-all duration-200"
+        className="btn-lift px-3 py-2.5 rounded-xl text-sm font-semibold text-indigo-600 bg-indigo-50/80 hover:bg-indigo-100 transition-all duration-200"
         title="Add rectangle"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -78,7 +87,7 @@ export function Toolbar({
       </button>
       <button
         onClick={() => onAddShape('circle', selectedColor)}
-        className="btn-lift px-3 py-2 rounded-xl text-sm font-semibold text-gray-600 bg-white/50 hover:bg-white/80 transition-all duration-200"
+        className="btn-lift px-3 py-2.5 rounded-xl text-sm font-semibold text-pink-600 bg-pink-50/80 hover:bg-pink-100 transition-all duration-200"
         title="Add circle"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -86,14 +95,15 @@ export function Toolbar({
         </svg>
       </button>
 
-      <div className="w-px h-8 bg-gray-200/60 mx-0.5" />
+      <div className="w-px h-8 mx-0.5" style={{ background: 'linear-gradient(to bottom, rgba(251,146,60,0.2), rgba(168,85,247,0.3), rgba(96,165,250,0.2))' }} />
 
       {/* Frame */}
       <button
         onClick={() => onAddFrame()}
-        className="btn-lift px-3.5 py-2 rounded-xl text-sm font-semibold text-blue-700 transition-all duration-200"
+        className="btn-lift px-3.5 py-2.5 rounded-xl text-sm font-bold text-violet-700 transition-all duration-200"
         style={{
-          background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
+          background: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 50%, #c4b5fd 100%)',
+          boxShadow: '0 2px 10px rgba(167, 139, 250, 0.25)',
         }}
         title="Add frame"
       >
@@ -102,15 +112,16 @@ export function Toolbar({
         </svg>
       </button>
 
-      <div className="w-px h-8 bg-gray-200/60 mx-0.5" />
+      <div className="w-px h-8 mx-0.5" style={{ background: 'linear-gradient(to bottom, rgba(251,146,60,0.2), rgba(168,85,247,0.3), rgba(96,165,250,0.2))' }} />
 
       {/* Sticker */}
       <div className="relative">
         <button
           onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-          className="btn-lift px-3.5 py-2 rounded-xl text-sm font-semibold text-orange-700 transition-all duration-200"
+          className="btn-lift px-3.5 py-2.5 rounded-xl text-sm font-bold text-rose-700 transition-all duration-200"
           style={{
-            background: 'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)',
+            background: 'linear-gradient(135deg, #ffe4e6 0%, #fecdd3 50%, #fda4af 100%)',
+            boxShadow: '0 2px 10px rgba(251, 113, 133, 0.25)',
           }}
           title="Add sticker"
         >
@@ -119,7 +130,7 @@ export function Toolbar({
           </span>
         </button>
         {showEmojiPicker && (
-          <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 glass rounded-2xl shadow-2xl p-2 flex gap-1 animate-bounce-in">
+          <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 glass-playful rounded-2xl shadow-2xl p-2.5 flex gap-1.5 animate-bounce-in">
             {EMOJI_OPTIONS.map((emoji) => (
               <button
                 key={emoji}
@@ -136,7 +147,7 @@ export function Toolbar({
         )}
       </div>
 
-      <div className="w-px h-8 bg-gray-200/60 mx-0.5" />
+      <div className="w-px h-8 mx-0.5" style={{ background: 'linear-gradient(to bottom, rgba(251,146,60,0.2), rgba(168,85,247,0.3), rgba(96,165,250,0.2))' }} />
 
       {/* Connect */}
       <button
@@ -147,7 +158,8 @@ export function Toolbar({
             : 'text-gray-600 bg-white/50 hover:bg-white/80'
         }`}
         style={connectMode ? {
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          background: 'linear-gradient(135deg, #818cf8 0%, #a78bfa 50%, #c084fc 100%)',
+          boxShadow: '0 4px 16px rgba(139, 92, 246, 0.4)',
         } : undefined}
         title="Connect objects"
       >
@@ -160,6 +172,7 @@ export function Toolbar({
           {connectLabel}
         </div>
       </button>
+    </div>
     </div>
   );
 }

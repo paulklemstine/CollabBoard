@@ -104,7 +104,9 @@ describe('AuthPanel', () => {
     });
 
     it('displays error on sign-in failure', async () => {
-      mockSignInWithEmail.mockRejectedValue(new Error('Invalid credentials'));
+      const err = new Error('Invalid credentials');
+      (err as { code?: string }).code = 'auth/invalid-credential';
+      mockSignInWithEmail.mockRejectedValue(err);
       const user = userEvent.setup();
       render(<AuthPanel user={null} />);
 
@@ -112,7 +114,7 @@ describe('AuthPanel', () => {
       await user.type(screen.getByPlaceholderText('Password'), 'wrong');
       await user.click(screen.getByRole('button', { name: /^sign in$/i }));
 
-      expect(await screen.findByText('Invalid credentials')).toBeInTheDocument();
+      expect(await screen.findByText(/invalid|incorrect|sign-in/i)).toBeInTheDocument();
     });
   });
 

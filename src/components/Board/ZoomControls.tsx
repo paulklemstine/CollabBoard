@@ -17,11 +17,11 @@ export function ZoomControls({ scale, onZoomIn, onZoomOut, onResetZoom }: ZoomCo
         zIndex: 1000,
         pointerEvents: 'auto',
       }}
-      className="flex items-center gap-0.5 glass rounded-xl shadow-lg p-1 animate-float-up"
+      className="flex items-center gap-0.5 glass-playful rounded-xl shadow-lg p-1.5 animate-float-up"
     >
       <button
         onClick={onZoomOut}
-        className="btn-lift w-8 h-8 flex items-center justify-center rounded-lg text-gray-600 hover:bg-white/60 transition-colors text-lg font-bold"
+        className="btn-lift w-8 h-8 flex items-center justify-center rounded-lg text-violet-600 hover:bg-violet-50/60 transition-colors text-lg font-bold"
         title="Zoom out"
         aria-label="Zoom out"
       >
@@ -29,7 +29,7 @@ export function ZoomControls({ scale, onZoomIn, onZoomOut, onResetZoom }: ZoomCo
       </button>
       <button
         onClick={onResetZoom}
-        className="btn-lift px-2 h-8 flex items-center justify-center rounded-lg text-gray-600 hover:bg-white/60 transition-colors text-xs font-semibold min-w-[3rem]"
+        className="btn-lift px-2 h-8 flex items-center justify-center rounded-lg text-violet-600 hover:bg-violet-50/60 transition-colors text-xs font-semibold min-w-[3rem]"
         title="Reset zoom"
         aria-label="Reset zoom"
       >
@@ -37,7 +37,7 @@ export function ZoomControls({ scale, onZoomIn, onZoomOut, onResetZoom }: ZoomCo
       </button>
       <button
         onClick={onZoomIn}
-        className="btn-lift w-8 h-8 flex items-center justify-center rounded-lg text-gray-600 hover:bg-white/60 transition-colors text-lg font-bold"
+        className="btn-lift w-8 h-8 flex items-center justify-center rounded-lg text-violet-600 hover:bg-violet-50/60 transition-colors text-lg font-bold"
         title="Zoom in"
         aria-label="Zoom in"
       >

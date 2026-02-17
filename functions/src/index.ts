@@ -13,45 +13,48 @@ const anthropicApiKey = defineSecret('ANTHROPIC_API_KEY');
 const tools = [
   {
     name: 'createStickyNote',
-    description: 'Create a sticky note on the whiteboard. Returns the created object ID.',
+    description: 'Create a sticky note on the whiteboard. Returns the created object ID. IMPORTANT: Set parentId to attach it to a frame - without parentId, it will be independent and not move with any frame.',
     input_schema: {
       type: 'object' as const,
       properties: {
         text: { type: 'string', description: 'The text content of the sticky note' },
-        x: { type: 'number', description: 'X position on the canvas (default: 0)' },
-        y: { type: 'number', description: 'Y position on the canvas (default: 0)' },
+        x: { type: 'number', description: 'X position on the canvas in ABSOLUTE coordinates (default: 0)' },
+        y: { type: 'number', description: 'Y position on the canvas in ABSOLUTE coordinates (default: 0)' },
         color: { type: 'string', description: 'Background color as hex string (default: #fef9c3)' },
+        parentId: { type: 'string', description: 'CRITICAL: ID of a frame to attach this sticky note to. Without this, the note will NOT move with any frame. Get the frame ID from the createFrame response.' },
       },
       required: ['text'],
     },
   },
   {
     name: 'createShape',
-    description: 'Create a shape (rectangle, circle, or line) on the whiteboard.',
+    description: 'Create a shape (rectangle, circle, or line) on the whiteboard. IMPORTANT: Set parentId to attach it to a frame - without parentId, it will be independent and not move with any frame.',
     input_schema: {
       type: 'object' as const,
       properties: {
         shapeType: { type: 'string', enum: ['rect', 'circle', 'line'], description: 'The type of shape' },
-        x: { type: 'number', description: 'X position (default: 0)' },
-        y: { type: 'number', description: 'Y position (default: 0)' },
+        x: { type: 'number', description: 'X position in ABSOLUTE coordinates (default: 0)' },
+        y: { type: 'number', description: 'Y position in ABSOLUTE coordinates (default: 0)' },
         width: { type: 'number', description: 'Width in pixels (default: 120)' },
         height: { type: 'number', description: 'Height in pixels (default: 120)' },
         color: { type: 'string', description: 'Fill color as hex string (default: #dbeafe)' },
+        parentId: { type: 'string', description: 'CRITICAL: ID of a frame to attach this shape to. Without this, the shape will NOT move with any frame. Get the frame ID from the createFrame response.' },
       },
       required: ['shapeType'],
     },
   },
   {
     name: 'createFrame',
-    description: 'Create a frame (grouping container) on the whiteboard. Frames visually group objects.',
+    description: 'Create a frame (grouping container) on the whiteboard. Returns the frame ID - save this to use as parentId when creating children. Frames visually group objects and can be nested inside other frames.',
     input_schema: {
       type: 'object' as const,
       properties: {
         title: { type: 'string', description: 'Title text displayed on the frame' },
-        x: { type: 'number', description: 'X position (default: 0)' },
-        y: { type: 'number', description: 'Y position (default: 0)' },
+        x: { type: 'number', description: 'X position in ABSOLUTE coordinates (default: 0)' },
+        y: { type: 'number', description: 'Y position in ABSOLUTE coordinates (default: 0)' },
         width: { type: 'number', description: 'Width in pixels (default: 400)' },
         height: { type: 'number', description: 'Height in pixels (default: 300)' },
+        parentId: { type: 'string', description: 'ID of a parent frame to nest this frame inside.' },
       },
       required: ['title'],
     },
@@ -148,11 +151,38 @@ You can create and manipulate objects on the whiteboard using the provided tools
 - (0, 0) is approximately the top-left of the initial viewport.
 - The visible viewport is roughly 1200x800px centered around the origin.
 
+## Frame Containment (Parent-Child Relationships)
+- **CRITICAL: Objects MUST have parentId set to attach to frames.**
+  - Without parentId, objects are independent and won't move with the frame!
+  - To make a sticky note or shape a child of a frame, you MUST set the \`parentId\` parameter to the frame's ID.
+- When an object has a parentId, it becomes a child of that frame — it moves with the frame when dragged, and inherits the frame's rotation.
+- **Workflow: ALWAYS create the frame first, get its ID from the tool response, then create children with that ID as parentId.**
+  - Step 1: Call createFrame, receive { "id": "frame-abc123", "type": "frame" }
+  - Step 2: Call createStickyNote with parentId: "frame-abc123"
+  - Step 3: Call createStickyNote again with parentId: "frame-abc123" for more children
+- **CRITICAL: All coordinates are ABSOLUTE canvas positions, NOT relative to the parent frame.**
+  - To position a child inside a frame at (frameX, frameY) with size (frameW, frameH):
+    - Child x must be: frameX + margin (e.g., frameX + 20)
+    - Child y must be: frameY + margin + titleBarHeight (e.g., frameY + 60, accounting for 36px title bar)
+    - Ensure: frameX ≤ childX ≤ frameX + frameW - childWidth
+    - Ensure: frameY + titleBarHeight ≤ childY ≤ frameY + frameH - childHeight
+  - Example: Frame at (100, 100, 400×300) → child at (120, 160, parentId: frameId) places it inside
+  - Example: Frame at (0, 0, 400×300) → children at (20, 60, parentId: frameId), (240, 60, parentId: frameId)
+- Frames can also be nested inside other frames using parentId.
+
+**Example: Creating a frame with children**
+```
+1. createFrame(title: "Ideas", x: 0, y: 0, width: 400, height: 300) → returns {"id": "frame-xyz"}
+2. createStickyNote(text: "Idea 1", x: 20, y: 60, parentId: "frame-xyz")
+3. createStickyNote(text: "Idea 2", x: 240, y: 60, parentId: "frame-xyz")
+Result: Two sticky notes that move with the "Ideas" frame when dragged.
+```
+
 ## Layout Guidelines
 - When creating multiple objects, space them with 20-40px gaps.
 - For templates (e.g., SWOT analysis, retrospective boards):
   - Create frames as quadrants/sections first
-  - Then add sticky notes inside each frame at appropriate positions
+  - Then add sticky notes inside each frame at appropriate positions, using parentId to make them children of the frame
   - Use consistent spacing and alignment
 - For grids, use consistent row/column spacing (e.g., 220px for sticky notes, 140px for shapes).
 
@@ -193,6 +223,7 @@ interface ToolInput {
   objectId?: string;
   newText?: string;
   newColor?: string;
+  parentId?: string;
 }
 
 async function executeTool(
@@ -208,7 +239,7 @@ async function executeTool(
   switch (toolName) {
     case 'createStickyNote': {
       const docRef = objectsRef.doc();
-      const data = {
+      const data: Record<string, unknown> = {
         type: 'sticky',
         text: input.text ?? '',
         x: input.x ?? 0,
@@ -219,6 +250,7 @@ async function executeTool(
         rotation: 0,
         createdBy: userId,
         updatedAt: now,
+        parentId: input.parentId ?? '',
       };
       await docRef.set(data);
       objectsCreated.push(docRef.id);
@@ -227,7 +259,7 @@ async function executeTool(
 
     case 'createShape': {
       const docRef = objectsRef.doc();
-      const data = {
+      const data: Record<string, unknown> = {
         type: 'shape',
         shapeType: input.shapeType ?? 'rect',
         x: input.x ?? 0,
@@ -238,6 +270,7 @@ async function executeTool(
         rotation: 0,
         createdBy: userId,
         updatedAt: now,
+        parentId: input.parentId ?? '',
       };
       await docRef.set(data);
       objectsCreated.push(docRef.id);
@@ -246,7 +279,7 @@ async function executeTool(
 
     case 'createFrame': {
       const docRef = objectsRef.doc();
-      const data = {
+      const data: Record<string, unknown> = {
         type: 'frame',
         title: input.title ?? 'Frame',
         x: input.x ?? 0,
@@ -256,6 +289,7 @@ async function executeTool(
         rotation: 0,
         createdBy: userId,
         updatedAt: now,
+        parentId: input.parentId ?? '',
       };
       await docRef.set(data);
       objectsCreated.push(docRef.id);

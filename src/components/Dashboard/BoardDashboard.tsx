@@ -96,10 +96,6 @@ export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboar
           </div>
         )}
 
-        {/* Disclaimer */}
-        <p className="text-center text-white/60 text-sm mt-12 mb-4">
-          * In this demo, all boards are viewable by every user. Guest users may not delete boards.
-        </p>
       </div>
     </div>
   );

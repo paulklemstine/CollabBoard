@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { ColorPicker, COLORS } from './ColorPicker';
+import { COLORS } from './ColorPicker';
+import { ColorDrawer } from './ColorDrawer';
+import { ShapeDrawer } from './ShapeDrawer';
 import type { ShapeType } from '../../types/board';
 
 interface ToolbarProps {
@@ -20,8 +22,6 @@ export function Toolbar({
   onToggleConnectMode,
 }: ToolbarProps) {
   const [selectedColor, setSelectedColor] = useState(COLORS[0]);
-  const [showCustomColorPicker, setShowCustomColorPicker] = useState(false);
-  const [customColor, setCustomColor] = useState('#000000');
 
   const connectLabel = connectMode
     ? connectingFrom
@@ -69,85 +69,13 @@ export function Toolbar({
 
       <div className="w-px h-8 mx-0.5" style={{ background: 'linear-gradient(to bottom, rgba(251,146,60,0.2), rgba(168,85,247,0.3), rgba(96,165,250,0.2))' }} />
 
-      {/* Color Picker */}
-      <ColorPicker selectedColor={selectedColor} onSelectColor={setSelectedColor} />
-
-      {/* Shape buttons */}
-      <button
-        onClick={() => onAddShape('rect', selectedColor)}
-        className="btn-lift px-3 py-2.5 rounded-xl text-sm font-semibold text-indigo-600 bg-indigo-50/80 hover:bg-indigo-100 transition-all duration-200"
-        title="Add rectangle"
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <rect x="3" y="3" width="18" height="18" rx="2" />
-        </svg>
-      </button>
-      <button
-        onClick={() => onAddShape('circle', selectedColor)}
-        className="btn-lift px-3 py-2.5 rounded-xl text-sm font-semibold text-pink-600 bg-pink-50/80 hover:bg-pink-100 transition-all duration-200"
-        title="Add circle"
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <circle cx="12" cy="12" r="10" />
-        </svg>
-      </button>
+      {/* Color Drawer */}
+      <ColorDrawer selectedColor={selectedColor} onSelectColor={setSelectedColor} />
 
       <div className="w-px h-8 mx-0.5" style={{ background: 'linear-gradient(to bottom, rgba(251,146,60,0.2), rgba(168,85,247,0.3), rgba(96,165,250,0.2))' }} />
 
-      {/* Frame */}
-      <button
-        onClick={() => onAddFrame()}
-        className="btn-lift px-3.5 py-2.5 rounded-xl text-sm font-bold text-violet-700 transition-all duration-200"
-        style={{
-          background: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 50%, #c4b5fd 100%)',
-          boxShadow: '0 2px 10px rgba(167, 139, 250, 0.25)',
-        }}
-        title="Add frame"
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <rect x="3" y="3" width="18" height="18" rx="2" strokeDasharray="6 3" />
-        </svg>
-      </button>
-
-      <div className="w-px h-8 mx-0.5" style={{ background: 'linear-gradient(to bottom, rgba(251,146,60,0.2), rgba(168,85,247,0.3), rgba(96,165,250,0.2))' }} />
-
-      {/* Custom Color Picker */}
-      <div className="relative">
-        <button
-          onClick={() => setShowCustomColorPicker(!showCustomColorPicker)}
-          className="btn-lift px-3.5 py-2.5 rounded-xl text-sm font-bold text-gray-700 transition-all duration-200"
-          style={{
-            background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 50%, #d1d5db 100%)',
-            boxShadow: '0 2px 10px rgba(107, 114, 128, 0.25)',
-          }}
-          title="Custom color"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/>
-            <circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/>
-            <circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/>
-            <circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/>
-            <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>
-          </svg>
-        </button>
-        {showCustomColorPicker && (
-          <div
-            className="absolute bottom-full mb-12 left-1/2 -translate-x-1/2 glass-playful rounded-2xl shadow-2xl p-4 animate-bounce-in"
-            style={{ zIndex: 1001 }}
-          >
-            <input
-              type="color"
-              value={customColor}
-              onChange={(e) => {
-                setCustomColor(e.target.value);
-                setSelectedColor(e.target.value);
-              }}
-              className="w-32 h-32 cursor-pointer rounded-lg border-2 border-white/50"
-              style={{ colorScheme: 'light' }}
-            />
-          </div>
-        )}
-      </div>
+      {/* Shape Drawer */}
+      <ShapeDrawer selectedColor={selectedColor} onAddShape={onAddShape} onAddFrame={onAddFrame} />
 
       <div className="w-px h-8 mx-0.5" style={{ background: 'linear-gradient(to bottom, rgba(251,146,60,0.2), rgba(168,85,247,0.3), rgba(96,165,250,0.2))' }} />
 

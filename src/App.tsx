@@ -14,11 +14,10 @@ import { StickyNoteComponent } from './components/Board/StickyNote';
 import { ShapeComponent } from './components/Board/ShapeComponent';
 import { FrameComponent } from './components/Board/FrameComponent';
 import { ConnectorComponent } from './components/Board/ConnectorComponent';
-import { StickerComponent } from './components/Board/StickerComponent';
 import { CursorsOverlay } from './components/Cursors/CursorsOverlay';
 import { PresencePanel } from './components/Presence/PresencePanel';
 import { Toolbar } from './components/Toolbar/Toolbar';
-import type { StickyNote, Shape, Frame, Sticker, Connector } from './types/board';
+import type { StickyNote, Shape, Frame, Connector } from './types/board';
 
 function App() {
   const { user, loading } = useAuth();
@@ -106,7 +105,6 @@ function BoardView({
     addStickyNote,
     addShape,
     addFrame,
-    addSticker,
     moveObject,
     resizeObject,
     updateText,
@@ -151,7 +149,6 @@ function BoardView({
   const stickyNotes = objects.filter((o): o is StickyNote => o.type === 'sticky');
   const shapes = objects.filter((o): o is Shape => o.type === 'shape');
   const frames = objects.filter((o): o is Frame => o.type === 'frame');
-  const stickers = objects.filter((o): o is Sticker => o.type === 'sticker');
   const connectors = objects.filter((o): o is Connector => o.type === 'connector');
 
   const objectClick = connectMode ? handleObjectClickForConnect : undefined;
@@ -206,18 +203,6 @@ function BoardView({
               dragOffset={frameDragOffset && note.parentId === frameDragOffset.frameId ? { x: frameDragOffset.dx, y: frameDragOffset.dy } : undefined}
             />
           ))}
-          {stickers.map((sticker) => (
-            <StickerComponent
-              key={sticker.id}
-              sticker={sticker}
-              onDragMove={handleDragMoveWithCursor}
-              onDragEnd={handleDragEnd}
-              onDelete={removeObject}
-              onClick={objectClick}
-              onResize={resizeObject}
-              dragOffset={frameDragOffset && sticker.parentId === frameDragOffset.frameId ? { x: frameDragOffset.dx, y: frameDragOffset.dy } : undefined}
-            />
-          ))}
         </Board>
       </div>
       <CursorsOverlay cursors={cursors} />
@@ -226,7 +211,6 @@ function BoardView({
         onAddStickyNote={(color) => addStickyNote(undefined, undefined, color)}
         onAddShape={addShape}
         onAddFrame={addFrame}
-        onAddSticker={addSticker}
         connectMode={connectMode}
         connectingFrom={connectingFrom}
         onToggleConnectMode={toggleConnectMode}

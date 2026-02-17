@@ -2,13 +2,10 @@ import { useState } from 'react';
 import { ColorPicker, COLORS } from './ColorPicker';
 import type { ShapeType } from '../../types/board';
 
-const EMOJI_OPTIONS = ['\ud83d\udc4d', '\u2764\ufe0f', '\u2b50', '\ud83d\udd25', '\u2705', '\u274c', '\u2753', '\ud83d\udca1'];
-
 interface ToolbarProps {
   onAddStickyNote: (color: string) => void;
   onAddShape: (shapeType: ShapeType, color: string) => void;
   onAddFrame: () => void;
-  onAddSticker: (emoji: string) => void;
   connectMode: boolean;
   connectingFrom: string | null;
   onToggleConnectMode: () => void;
@@ -18,13 +15,13 @@ export function Toolbar({
   onAddStickyNote,
   onAddShape,
   onAddFrame,
-  onAddSticker,
   connectMode,
   connectingFrom,
   onToggleConnectMode,
 }: ToolbarProps) {
   const [selectedColor, setSelectedColor] = useState(COLORS[0]);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showCustomColorPicker, setShowCustomColorPicker] = useState(false);
+  const [customColor, setCustomColor] = useState('#000000');
 
   const connectLabel = connectMode
     ? connectingFrom
@@ -114,38 +111,40 @@ export function Toolbar({
 
       <div className="w-px h-8 mx-0.5" style={{ background: 'linear-gradient(to bottom, rgba(251,146,60,0.2), rgba(168,85,247,0.3), rgba(96,165,250,0.2))' }} />
 
-      {/* Sticker */}
+      {/* Custom Color Picker */}
       <div className="relative">
         <button
-          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-          className="btn-lift px-3.5 py-2.5 rounded-xl text-sm font-bold text-rose-700 transition-all duration-200"
+          onClick={() => setShowCustomColorPicker(!showCustomColorPicker)}
+          className="btn-lift px-3.5 py-2.5 rounded-xl text-sm font-bold text-gray-700 transition-all duration-200"
           style={{
-            background: 'linear-gradient(135deg, #ffe4e6 0%, #fecdd3 50%, #fda4af 100%)',
-            boxShadow: '0 2px 10px rgba(251, 113, 133, 0.25)',
+            background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 50%, #d1d5db 100%)',
+            boxShadow: '0 2px 10px rgba(107, 114, 128, 0.25)',
           }}
-          title="Add sticker"
+          title="Custom color"
         >
-          <span className="text-base">
-            {'\u2728'}
-          </span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/>
+            <circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/>
+            <circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/>
+            <circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/>
+            <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>
+          </svg>
         </button>
-        {showEmojiPicker && (
+        {showCustomColorPicker && (
           <div
-            className="absolute bottom-full mb-6 left-1/2 -translate-x-1/2 glass-playful rounded-2xl shadow-2xl p-2.5 flex gap-1.5 animate-bounce-in"
+            className="absolute bottom-full mb-12 left-1/2 -translate-x-1/2 glass-playful rounded-2xl shadow-2xl p-4 animate-bounce-in"
             style={{ zIndex: 1001 }}
           >
-            {EMOJI_OPTIONS.map((emoji) => (
-              <button
-                key={emoji}
-                onClick={() => {
-                  onAddSticker(emoji);
-                  setShowEmojiPicker(false);
-                }}
-                className="text-2xl hover:scale-125 rounded-lg p-1.5 transition-all duration-150 hover:bg-white/60"
-              >
-                {emoji}
-              </button>
-            ))}
+            <input
+              type="color"
+              value={customColor}
+              onChange={(e) => {
+                setCustomColor(e.target.value);
+                setSelectedColor(e.target.value);
+              }}
+              className="w-32 h-32 cursor-pointer rounded-lg border-2 border-white/50"
+              style={{ colorScheme: 'light' }}
+            />
           </div>
         )}
       </div>

@@ -67,7 +67,7 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
     textarea.style.width = `${(localWidth - 20) * scale}px`;
     textarea.style.height = `${(localHeight - 20) * scale}px`;
     textarea.style.fontSize = `${14 * scale}px`;
-    textarea.style.fontFamily = 'sans-serif';
+    textarea.style.fontFamily = "'Inter', sans-serif";
     textarea.style.padding = '4px';
     textarea.style.border = 'none';
     textarea.style.outline = 'none';
@@ -75,6 +75,7 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
     textarea.style.background = 'transparent';
     textarea.style.zIndex = '1000';
     textarea.style.lineHeight = '1.4';
+    textarea.style.color = '#1e293b';
 
     document.body.appendChild(textarea);
     textarea.focus();
@@ -220,7 +221,7 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
           text={note.text || 'Double-click to edit'}
           fontSize={15}
           fontFamily="'Inter', sans-serif"
-          fill={note.text ? '#1e293b' : '#94a3b8'}
+          fill={note.text ? '#334155' : '#64748b'}
           lineHeight={1.4}
           listening={false}
         />

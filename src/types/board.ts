@@ -1,3 +1,11 @@
+export interface BoardMetadata {
+  id: string;
+  name: string;
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface BoardObject {
   id: string;
   type: 'sticky' | 'shape' | 'frame' | 'sticker' | 'connector';

@@ -51,7 +51,7 @@ export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboar
             </div>
             <div>
               <h1 className="text-2xl font-extrabold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 bg-clip-text text-transparent">
-                CollabBoard
+                Collab Board
               </h1>
               <p className="text-sm text-white/70 font-medium" key={refreshKey}>
                 Welcome, {user.displayName || user.email?.split('@')[0] || 'User'}
@@ -95,6 +95,11 @@ export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboar
             ))}
           </div>
         )}
+
+        {/* Disclaimer */}
+        <p className="text-center text-white/60 text-sm mt-12 mb-4">
+          * In this demo, all boards are viewable by every user. Guest users may not delete boards.
+        </p>
       </div>
     </div>
   );

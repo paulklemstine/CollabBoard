@@ -105,7 +105,7 @@ export function AuthPanel({ user, onSignOut, onAuthChange }: AuthPanelProps) {
 
         <div className="text-center">
           <h2 className="text-2xl font-extrabold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 bg-clip-text text-transparent">
-            CollabBoard
+            Collab Board
           </h2>
           <p className="text-sm text-gray-400 mt-1 font-medium">
             Create together, in real-time

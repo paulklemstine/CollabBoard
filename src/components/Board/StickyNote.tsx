@@ -234,15 +234,6 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
         shadowOffsetY={1}
         rotation={-1}
       />
-      {/* Folded corner effect */}
-      <Rect
-        x={localWidth - 22}
-        y={localHeight - 22}
-        width={22}
-        height={22}
-        fill="rgba(0,0,0,0.08)"
-        cornerRadius={[8, 0, 8, 0]}
-      />
       {/* Delete button area (top-right corner) */}
       <Rect
         x={localWidth - 28}

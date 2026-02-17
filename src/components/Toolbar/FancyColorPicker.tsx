@@ -41,11 +41,57 @@ const rgbToHex = (r: number, g: number, b: number): string => {
   }).join('');
 };
 
+// Convert hex to RGB
+const hexToRgb = (hex: string): { r: number; g: number; b: number } => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : { r: 0, g: 0, b: 0 };
+};
+
+// Convert RGB to HSV
+const rgbToHsv = (r: number, g: number, b: number): { h: number; s: number; v: number } => {
+  r /= 255;
+  g /= 255;
+  b /= 255;
+
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const diff = max - min;
+
+  let h = 0;
+  const s = max === 0 ? 0 : diff / max;
+  const v = max;
+
+  if (diff !== 0) {
+    if (max === r) {
+      h = ((g - b) / diff + (g < b ? 6 : 0)) * 60;
+    } else if (max === g) {
+      h = ((b - r) / diff + 2) * 60;
+    } else {
+      h = ((r - g) / diff + 4) * 60;
+    }
+  }
+
+  return { h, s, v };
+};
+
 export function FancyColorPicker({ selectedColor, onSelectColor }: FancyColorPickerProps) {
   const [hue, setHue] = useState(0);
   const [saturation, setSaturation] = useState(100);
   const [brightness, setBrightness] = useState(90);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Initialize HSV state from selectedColor prop
+  useEffect(() => {
+    const rgb = hexToRgb(selectedColor);
+    const hsv = rgbToHsv(rgb.r, rgb.g, rgb.b);
+    setHue(hsv.h);
+    setSaturation(hsv.s * 100);
+    setBrightness(hsv.v * 100);
+  }, [selectedColor]);
 
   // Draw color wheel
   useEffect(() => {
@@ -140,6 +186,18 @@ export function FancyColorPicker({ selectedColor, onSelectColor }: FancyColorPic
     '#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4'
   ];
 
+  const handlePresetClick = (color: string) => {
+    // Convert hex to HSV to update internal state
+    const rgb = hexToRgb(color);
+    const hsv = rgbToHsv(rgb.r, rgb.g, rgb.b);
+
+    setHue(hsv.h);
+    setSaturation(hsv.s * 100);
+    setBrightness(hsv.v * 100);
+
+    onSelectColor(color);
+  };
+
   return (
     <div className="flex flex-col gap-4 p-4 w-72">
       {/* Color Wheel */}
@@ -189,7 +247,7 @@ export function FancyColorPicker({ selectedColor, onSelectColor }: FancyColorPic
           {presetColors.map((color) => (
             <button
               key={color}
-              onClick={() => onSelectColor(color)}
+              onClick={() => handlePresetClick(color)}
               className="w-8 h-8 rounded-lg transition-all duration-200 hover:scale-110 shadow-md"
               style={{
                 backgroundColor: color,

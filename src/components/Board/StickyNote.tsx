@@ -2,6 +2,7 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { Group, Rect, Text } from 'react-konva';
 import Konva from 'konva';
 import type { StickyNote as StickyNoteType } from '../../types/board';
+import { getContrastTextColor } from '../../utils/colors';
 
 const DRAG_THROTTLE_MS = 50;
 const MIN_WIDTH = 100;
@@ -20,10 +21,11 @@ interface StickyNoteProps {
   onConnectorHoverLeave?: () => void;
   isConnectorHighlighted?: boolean;
   isNew?: boolean;
+  parentRotation?: number;
   dragOffset?: { x: number; y: number };
 }
 
-export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange, onDelete, onClick, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, dragOffset }: StickyNoteProps) {
+export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange, onDelete, onClick, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, parentRotation, dragOffset }: StickyNoteProps) {
   const textRef = useRef<Konva.Text>(null);
   const [isEditing, setIsEditing] = useState(false);
   const lastDragUpdate = useRef(0);
@@ -36,6 +38,7 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
   const [localWidth, setLocalWidth] = useState(note.width);
   const [localHeight, setLocalHeight] = useState(note.height);
   const flashOverlayRef = useRef<Konva.Rect>(null);
+  const rotateStartRef = useRef<{ angle: number; rotation: number } | null>(null);
 
   useEffect(() => {
     if (!isResizing) {
@@ -98,6 +101,8 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
     const stageBox = container.getBoundingClientRect();
     const scale = stage.scaleX();
 
+    const textColor = getContrastTextColor(note.color);
+
     textarea.value = note.text;
     textarea.style.position = 'absolute';
     textarea.style.top = `${stageBox.top + textPosition.y}px`;
@@ -113,7 +118,7 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
     textarea.style.background = 'transparent';
     textarea.style.zIndex = '1000';
     textarea.style.lineHeight = '1.4';
-    textarea.style.color = '#1e293b';
+    textarea.style.color = textColor;
 
     document.body.appendChild(textarea);
     textarea.focus();
@@ -159,7 +164,7 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
       y={note.y + (dragOffset?.y ?? 0) + localHeight / 2}
       offsetX={localWidth / 2}
       offsetY={localHeight / 2}
-      rotation={note.rotation || 0}
+      rotation={(note.rotation || 0) + (parentRotation || 0)}
       draggable
       onDragMove={handleDragMove}
       onDragStart={(e) => {
@@ -280,7 +285,8 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
           text={note.text || 'Double-click to edit'}
           fontSize={15}
           fontFamily="'Inter', sans-serif"
-          fill={note.text ? '#334155' : '#64748b'}
+          fill={getContrastTextColor(note.color)}
+          opacity={note.text ? 1 : 0.5}
           lineHeight={1.4}
           listening={false}
         />
@@ -319,28 +325,44 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
           }}
           onDragStart={(e) => {
             e.cancelBubble = true;
+            const stage = e.target.getStage();
+            if (!stage) return;
+            const pointer = stage.getPointerPosition();
+            if (!pointer) return;
+            const group = e.target.getParent();
+            const center = group.absolutePosition();
+            const initialAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
+            rotateStartRef.current = { angle: initialAngle, rotation: note.rotation || 0 };
           }}
           onDragMove={(e) => {
             e.cancelBubble = true;
-            const handleX = e.target.x() + 10;
-            const handleY = e.target.y() + 10;
-            const centerX = localWidth / 2;
-            const centerY = localHeight / 2;
-            const angle = Math.atan2(handleY - centerY, handleX - centerX) * (180 / Math.PI);
-            // Bottom-left default is ~135 degrees, so offset accordingly
-            const rotation = angle - 135;
-            onRotate(note.id, rotation);
+            if (!rotateStartRef.current) return;
+            const stage = e.target.getStage();
+            if (!stage) return;
+            const pointer = stage.getPointerPosition();
+            if (!pointer) return;
+            const group = e.target.getParent();
+            const center = group.absolutePosition();
+            const currentAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
+            const delta = currentAngle - rotateStartRef.current.angle;
+            onRotate(note.id, rotateStartRef.current.rotation + delta);
           }}
           onDragEnd={(e) => {
             e.cancelBubble = true;
-            const handleX = e.target.x() + 10;
-            const handleY = e.target.y() + 10;
-            const centerX = localWidth / 2;
-            const centerY = localHeight / 2;
-            const angle = Math.atan2(handleY - centerY, handleX - centerX) * (180 / Math.PI);
-            const rotation = angle - 135;
-            onRotate(note.id, rotation);
-            // Reset handle position
+            if (rotateStartRef.current) {
+              const stage = e.target.getStage();
+              if (stage) {
+                const pointer = stage.getPointerPosition();
+                if (pointer) {
+                  const group = e.target.getParent();
+                  const center = group.absolutePosition();
+                  const currentAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
+                  const delta = currentAngle - rotateStartRef.current.angle;
+                  onRotate(note.id, rotateStartRef.current.rotation + delta);
+                }
+              }
+            }
+            rotateStartRef.current = null;
             e.target.position({ x: -10, y: localHeight - 10 });
           }}
         />

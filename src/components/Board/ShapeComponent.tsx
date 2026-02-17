@@ -44,9 +44,9 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
       const now = Date.now();
       if (now - lastDragUpdate.current < DRAG_THROTTLE_MS) return;
       lastDragUpdate.current = now;
-      onDragMove(shape.id, e.target.x(), e.target.y());
+      onDragMove(shape.id, e.target.x() - localWidth / 2, e.target.y() - localHeight / 2);
     },
-    [shape.id, onDragMove]
+    [shape.id, onDragMove, localWidth, localHeight]
   );
 
   const renderShape = () => {
@@ -155,8 +155,10 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
 
   return (
     <Group
-      x={shape.x + (dragOffset?.x ?? 0)}
-      y={shape.y + (dragOffset?.y ?? 0)}
+      x={shape.x + (dragOffset?.x ?? 0) + localWidth / 2}
+      y={shape.y + (dragOffset?.y ?? 0) + localHeight / 2}
+      offsetX={localWidth / 2}
+      offsetY={localHeight / 2}
       rotation={shape.rotation || 0}
       draggable
       onDragMove={handleDragMove}
@@ -167,7 +169,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
       onDragEnd={(e) => {
         const stage = e.target.getStage();
         if (stage) stage.container().style.cursor = isMouseHovered ? 'grab' : 'default';
-        onDragEnd(shape.id, e.target.x(), e.target.y());
+        onDragEnd(shape.id, e.target.x() - localWidth / 2, e.target.y() - localHeight / 2);
       }}
       onClick={() => onClick?.(shape.id)}
       onTap={() => onClick?.(shape.id)}

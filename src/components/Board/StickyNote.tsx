@@ -47,9 +47,9 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
       const now = Date.now();
       if (now - lastDragUpdate.current < DRAG_THROTTLE_MS) return;
       lastDragUpdate.current = now;
-      onDragMove(note.id, e.target.x(), e.target.y());
+      onDragMove(note.id, e.target.x() - localWidth / 2, e.target.y() - localHeight / 2);
     },
-    [note.id, onDragMove]
+    [note.id, onDragMove, localWidth, localHeight]
   );
 
   useEffect(() => {
@@ -122,8 +122,10 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
 
   return (
     <Group
-      x={note.x + (dragOffset?.x ?? 0)}
-      y={note.y + (dragOffset?.y ?? 0)}
+      x={note.x + (dragOffset?.x ?? 0) + localWidth / 2}
+      y={note.y + (dragOffset?.y ?? 0) + localHeight / 2}
+      offsetX={localWidth / 2}
+      offsetY={localHeight / 2}
       rotation={note.rotation || 0}
       draggable
       onDragMove={handleDragMove}
@@ -134,7 +136,7 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
       onDragEnd={(e) => {
         const stage = e.target.getStage();
         if (stage) stage.container().style.cursor = isMouseHovered ? 'grab' : 'default';
-        onDragEnd(note.id, e.target.x(), e.target.y());
+        onDragEnd(note.id, e.target.x() - localWidth / 2, e.target.y() - localHeight / 2);
       }}
       onClick={() => onClick?.(note.id)}
       onTap={() => onClick?.(note.id)}

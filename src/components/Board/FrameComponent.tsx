@@ -49,9 +49,9 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
       const now = Date.now();
       if (now - lastDragUpdate.current < DRAG_THROTTLE_MS) return;
       lastDragUpdate.current = now;
-      onDragMove(frame.id, e.target.x(), e.target.y());
+      onDragMove(frame.id, e.target.x() - localWidth / 2, e.target.y() - localHeight / 2);
     },
-    [frame.id, onDragMove]
+    [frame.id, onDragMove, localWidth, localHeight]
   );
 
   // Hover animation via Konva Tween — priority: containment isHovered > isMouseHovered > default
@@ -183,8 +183,10 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
 
   return (
     <Group
-      x={frame.x}
-      y={frame.y}
+      x={frame.x + localWidth / 2}
+      y={frame.y + localHeight / 2}
+      offsetX={localWidth / 2}
+      offsetY={localHeight / 2}
       rotation={frame.rotation || 0}
       draggable
       onDragMove={handleDragMove}
@@ -195,7 +197,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
       onDragEnd={(e) => {
         const stage = e.target.getStage();
         if (stage) stage.container().style.cursor = isMouseHovered ? 'grab' : 'default';
-        onDragEnd(frame.id, e.target.x(), e.target.y());
+        onDragEnd(frame.id, e.target.x() - localWidth / 2, e.target.y() - localHeight / 2);
       }}
       onClick={() => onClick?.(frame.id)}
       onTap={() => onClick?.(frame.id)}

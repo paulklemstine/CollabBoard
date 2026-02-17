@@ -5,7 +5,7 @@ import {
   findContainingFrame,
   getChildrenOfFrame,
 } from './containment';
-import type { Frame, StickyNote, Shape } from '../types/board';
+import type { Frame, StickyNote } from '../types/board';
 
 function makeFrame(overrides: Partial<Frame> = {}): Frame {
   return {

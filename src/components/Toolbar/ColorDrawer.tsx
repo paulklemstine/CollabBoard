@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { COLORS } from './ColorPicker';
 import { FancyColorPicker } from './FancyColorPicker';
 
 interface ColorDrawerProps {

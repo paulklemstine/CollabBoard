@@ -10,7 +10,7 @@ interface ShapeDrawerProps {
 export function ShapeDrawer({ selectedColor, onAddShape, onAddFrame }: ShapeDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const shapes: { type: ShapeType | 'frame'; icon: JSX.Element; label: string; color: string; action: () => void }[] = [
+  const shapes: { type: ShapeType | 'frame'; icon: React.ReactNode; label: string; color: string; action: () => void }[] = [
     {
       type: 'rect',
       label: 'Rectangle',

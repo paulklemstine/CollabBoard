@@ -131,7 +131,7 @@ function BoardView({
     addStickyNote,
     addShape,
     addFrame,
-    moveObject,
+    moveObject: _moveObject,
     resizeObject,
     updateText,
     updateTitle,

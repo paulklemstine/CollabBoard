@@ -20,7 +20,7 @@ import * as boardService from '../services/boardService';
 import type { AnyBoardObject } from '../services/boardService';
 import type { StickyNote, Shape, Frame, CursorPosition, PresenceUser } from '../types/board';
 import { findContainingFrame, getChildrenOfFrame } from '../utils/containment';
-import { ref, onValue, set, off, onDisconnect } from 'firebase/database';
+import { onValue, set } from 'firebase/database';
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
 

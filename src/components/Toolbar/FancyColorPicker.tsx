@@ -130,9 +130,8 @@ export function FancyColorPicker({ selectedColor, onSelectColor }: FancyColorPic
     onSelectColor(hex);
   };
 
-  const currentColor = rgbToHex(
-    ...Object.values(hsvToRgb(hue, saturation / 100, brightness / 100))
-  );
+  const currentRgb = hsvToRgb(hue, saturation / 100, brightness / 100);
+  const currentColor = rgbToHex(currentRgb.r, currentRgb.g, currentRgb.b);
 
   const presetColors = [
     '#fecaca', '#fed7aa', '#fef08a', '#bbf7d0',
@@ -166,7 +165,7 @@ export function FancyColorPicker({ selectedColor, onSelectColor }: FancyColorPic
           onChange={handleBrightnessChange}
           className="w-full h-3 rounded-lg appearance-none cursor-pointer"
           style={{
-            background: `linear-gradient(to right, black, ${rgbToHex(...Object.values(hsvToRgb(hue, saturation / 100, 1)))})`,
+            background: `linear-gradient(to right, black, ${(() => { const c = hsvToRgb(hue, saturation / 100, 1); return rgbToHex(c.r, c.g, c.b); })()})`,
           }}
         />
       </div>

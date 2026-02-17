@@ -4,6 +4,8 @@ import {
   signOut,
   GoogleAuthProvider,
   updateProfile,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
 } from 'firebase/auth';
 import { auth } from './firebase';
 
@@ -19,6 +21,16 @@ export async function signInAsGuest() {
     displayName: `Guest ${guestNumber}`,
   });
   return result;
+}
+
+export async function signUpWithEmail(name: string, email: string, password: string) {
+  const result = await createUserWithEmailAndPassword(auth, email, password);
+  await updateProfile(result.user, { displayName: name });
+  return result;
+}
+
+export async function signInWithEmail(email: string, password: string) {
+  return signInWithEmailAndPassword(auth, email, password);
 }
 
 export async function signOutUser() {

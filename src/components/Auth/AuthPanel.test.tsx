@@ -6,11 +6,15 @@ import { AuthPanel } from './AuthPanel';
 const mockSignInWithGoogle = vi.fn();
 const mockSignInAsGuest = vi.fn();
 const mockSignOutUser = vi.fn();
+const mockSignUpWithEmail = vi.fn();
+const mockSignInWithEmail = vi.fn();
 
 vi.mock('../../services/authService', () => ({
   signInWithGoogle: (...args: unknown[]) => mockSignInWithGoogle(...args),
   signInAsGuest: (...args: unknown[]) => mockSignInAsGuest(...args),
   signOutUser: (...args: unknown[]) => mockSignOutUser(...args),
+  signUpWithEmail: (...args: unknown[]) => mockSignUpWithEmail(...args),
+  signInWithEmail: (...args: unknown[]) => mockSignInWithEmail(...args),
 }));
 
 beforeEach(() => {
@@ -24,6 +28,25 @@ describe('AuthPanel', () => {
 
       expect(screen.getByRole('button', { name: /google/i })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /guest/i })).toBeInTheDocument();
+    });
+
+    it('renders email and password inputs', () => {
+      render(<AuthPanel user={null} />);
+
+      expect(screen.getByPlaceholderText('Email')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Password')).toBeInTheDocument();
+    });
+
+    it('does not render name input in sign-in mode', () => {
+      render(<AuthPanel user={null} />);
+
+      expect(screen.queryByPlaceholderText('Name')).not.toBeInTheDocument();
+    });
+
+    it('renders Sign In button by default', () => {
+      render(<AuthPanel user={null} />);
+
+      expect(screen.getByRole('button', { name: /^sign in$/i })).toBeInTheDocument();
     });
 
     it('calls signInWithGoogle when Google button clicked', async () => {
@@ -42,6 +65,54 @@ describe('AuthPanel', () => {
       await user.click(screen.getByRole('button', { name: /guest/i }));
 
       expect(mockSignInAsGuest).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls signInWithEmail when Sign In button clicked', async () => {
+      const user = userEvent.setup();
+      render(<AuthPanel user={null} />);
+
+      await user.type(screen.getByPlaceholderText('Email'), 'test@example.com');
+      await user.type(screen.getByPlaceholderText('Password'), 'password123');
+      await user.click(screen.getByRole('button', { name: /^sign in$/i }));
+
+      expect(mockSignInWithEmail).toHaveBeenCalledWith('test@example.com', 'password123');
+    });
+
+    it('toggles to sign-up mode and shows name input', async () => {
+      const user = userEvent.setup();
+      render(<AuthPanel user={null} />);
+
+      // Click the "Sign Up" toggle link
+      await user.click(screen.getByRole('button', { name: /^sign up$/i }));
+
+      expect(screen.getByPlaceholderText('Name')).toBeInTheDocument();
+    });
+
+    it('calls signUpWithEmail when Sign Up button clicked', async () => {
+      const user = userEvent.setup();
+      render(<AuthPanel user={null} />);
+
+      // Switch to sign-up mode
+      await user.click(screen.getByRole('button', { name: /^sign up$/i }));
+
+      await user.type(screen.getByPlaceholderText('Name'), 'Alice');
+      await user.type(screen.getByPlaceholderText('Email'), 'alice@example.com');
+      await user.type(screen.getByPlaceholderText('Password'), 'password123');
+      await user.click(screen.getByRole('button', { name: /^sign up$/i }));
+
+      expect(mockSignUpWithEmail).toHaveBeenCalledWith('Alice', 'alice@example.com', 'password123');
+    });
+
+    it('displays error on sign-in failure', async () => {
+      mockSignInWithEmail.mockRejectedValue(new Error('Invalid credentials'));
+      const user = userEvent.setup();
+      render(<AuthPanel user={null} />);
+
+      await user.type(screen.getByPlaceholderText('Email'), 'test@example.com');
+      await user.type(screen.getByPlaceholderText('Password'), 'wrong');
+      await user.click(screen.getByRole('button', { name: /^sign in$/i }));
+
+      expect(await screen.findByText('Invalid credentials')).toBeInTheDocument();
     });
   });
 

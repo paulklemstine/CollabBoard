@@ -15,9 +15,10 @@ interface StickyNoteProps {
   onDelete: (id: string) => void;
   onClick?: (id: string) => void;
   onResize?: (id: string, width: number, height: number) => void;
+  dragOffset?: { x: number; y: number };
 }
 
-export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange, onDelete, onClick, onResize }: StickyNoteProps) {
+export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange, onDelete, onClick, onResize, dragOffset }: StickyNoteProps) {
   const textRef = useRef<Konva.Text>(null);
   const [isEditing, setIsEditing] = useState(false);
   const lastDragUpdate = useRef(0);
@@ -115,8 +116,8 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
 
   return (
     <Group
-      x={note.x}
-      y={note.y}
+      x={note.x + (dragOffset?.x ?? 0)}
+      y={note.y + (dragOffset?.y ?? 0)}
       draggable
       onDragMove={handleDragMove}
       onDragStart={(e) => {

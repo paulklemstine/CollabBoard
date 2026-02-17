@@ -76,9 +76,11 @@ function BoardView({ user }: { user: { uid: string; displayName: string | null; 
     toggleConnectMode,
     handleObjectClickForConnect,
     hoveredFrameId,
+    frameDragOffset,
     handleDragMove,
     handleDragEnd,
     handleFrameDragMove,
+    handleFrameDragEnd,
   } = useBoard(BOARD_ID, user.uid);
 
   const handleMouseMove = useCallback(
@@ -106,7 +108,7 @@ function BoardView({ user }: { user: { uid: string; displayName: string | null; 
               key={frame.id}
               frame={frame}
               onDragMove={handleFrameDragMove}
-              onDragEnd={handleDragEnd}
+              onDragEnd={handleFrameDragEnd}
               onDelete={removeObject}
               onTitleChange={updateTitle}
               onClick={objectClick}
@@ -130,6 +132,7 @@ function BoardView({ user }: { user: { uid: string; displayName: string | null; 
               onDelete={removeObject}
               onClick={objectClick}
               onResize={resizeObject}
+              dragOffset={frameDragOffset && shape.parentId === frameDragOffset.frameId ? { x: frameDragOffset.dx, y: frameDragOffset.dy } : undefined}
             />
           ))}
           {stickyNotes.map((note) => (
@@ -142,6 +145,7 @@ function BoardView({ user }: { user: { uid: string; displayName: string | null; 
               onDelete={removeObject}
               onClick={objectClick}
               onResize={resizeObject}
+              dragOffset={frameDragOffset && note.parentId === frameDragOffset.frameId ? { x: frameDragOffset.dx, y: frameDragOffset.dy } : undefined}
             />
           ))}
           {stickers.map((sticker) => (
@@ -153,6 +157,7 @@ function BoardView({ user }: { user: { uid: string; displayName: string | null; 
               onDelete={removeObject}
               onClick={objectClick}
               onResize={resizeObject}
+              dragOffset={frameDragOffset && sticker.parentId === frameDragOffset.frameId ? { x: frameDragOffset.dx, y: frameDragOffset.dy } : undefined}
             />
           ))}
         </Board>
@@ -160,7 +165,7 @@ function BoardView({ user }: { user: { uid: string; displayName: string | null; 
       <CursorsOverlay cursors={cursors} />
       <PresencePanel users={onlineUsers} />
       <Toolbar
-        onAddStickyNote={addStickyNote}
+        onAddStickyNote={(color) => addStickyNote(undefined, undefined, color)}
         onAddShape={addShape}
         onAddFrame={addFrame}
         onAddSticker={addSticker}

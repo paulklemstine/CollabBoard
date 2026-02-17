@@ -16,6 +16,8 @@ export function useBoard(boardId: string, userId: string) {
   const [connectMode, setConnectMode] = useState(false);
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
   const [hoveredFrameId, setHoveredFrameId] = useState<string | null>(null);
+  const [frameDragOffset, setFrameDragOffset] = useState<{ frameId: string; dx: number; dy: number } | null>(null);
+  const frameDragStartRef = useRef<{ x: number; y: number } | null>(null);
 
   // Keep a ref to objects so drag callbacks always see the latest state
   const objectsRef = useRef(objects);
@@ -27,7 +29,7 @@ export function useBoard(boardId: string, userId: string) {
   }, [boardId]);
 
   const addStickyNote = useCallback(
-    (x: number = 200, y: number = 200) => {
+    (x: number = 200, y: number = 200, color?: string) => {
       const note: StickyNote = {
         id: crypto.randomUUID(),
         type: 'sticky',
@@ -39,7 +41,7 @@ export function useBoard(boardId: string, userId: string) {
         createdBy: userId,
         updatedAt: Date.now(),
         text: '',
-        color: STICKY_COLORS[Math.floor(Math.random() * STICKY_COLORS.length)],
+        color: color ?? STICKY_COLORS[Math.floor(Math.random() * STICKY_COLORS.length)],
       };
       addObject(boardId, note);
     },
@@ -159,24 +161,49 @@ export function useBoard(boardId: string, userId: string) {
     [boardId]
   );
 
-  /** Called during frame drag — moves frame + all children by the same delta */
+  /** Called during frame drag — moves frame, tracks offset for children locally */
   const handleFrameDragMove = useCallback(
     (frameId: string, newX: number, newY: number) => {
       const frame = objectsRef.current.find((o) => o.id === frameId);
       if (!frame) return;
 
-      const dx = newX - frame.x;
-      const dy = newY - frame.y;
+      // Record the original position on first move
+      if (!frameDragStartRef.current) {
+        frameDragStartRef.current = { x: frame.x, y: frame.y };
+      }
 
+      const dx = newX - frameDragStartRef.current.x;
+      const dy = newY - frameDragStartRef.current.y;
+
+      // Only write the frame's own position to Firestore
       updateObject(boardId, frameId, { x: newX, y: newY });
 
-      const children = getChildrenOfFrame(frameId, objectsRef.current);
-      for (const child of children) {
-        updateObject(boardId, child.id, {
-          x: child.x + dx,
-          y: child.y + dy,
-        });
+      // Track offset locally — children apply this visually without Firestore round-trip
+      setFrameDragOffset({ frameId, dx, dy });
+    },
+    [boardId]
+  );
+
+  /** Called on frame drag end — persist final child positions, clear offset */
+  const handleFrameDragEnd = useCallback(
+    (frameId: string, newX: number, newY: number) => {
+      updateObject(boardId, frameId, { x: newX, y: newY });
+
+      if (frameDragStartRef.current) {
+        const dx = newX - frameDragStartRef.current.x;
+        const dy = newY - frameDragStartRef.current.y;
+
+        const children = getChildrenOfFrame(frameId, objectsRef.current);
+        for (const child of children) {
+          updateObject(boardId, child.id, {
+            x: child.x + dx,
+            y: child.y + dy,
+          });
+        }
       }
+
+      frameDragStartRef.current = null;
+      setFrameDragOffset(null);
     },
     [boardId]
   );
@@ -285,8 +312,10 @@ export function useBoard(boardId: string, userId: string) {
     handleObjectClickForConnect,
     cancelConnecting,
     hoveredFrameId,
+    frameDragOffset,
     handleDragMove,
     handleDragEnd,
     handleFrameDragMove,
+    handleFrameDragEnd,
   };
 }

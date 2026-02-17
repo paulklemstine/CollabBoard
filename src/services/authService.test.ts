@@ -5,8 +5,10 @@ import {
   signOut as firebaseSignOut,
   GoogleAuthProvider,
   updateProfile,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
 } from 'firebase/auth';
-import { signInWithGoogle, signInAsGuest, signOutUser } from './authService';
+import { signInWithGoogle, signInAsGuest, signOutUser, signUpWithEmail, signInWithEmail } from './authService';
 
 vi.mock('firebase/auth', () => {
   const GoogleAuthProvider = vi.fn();
@@ -17,6 +19,8 @@ vi.mock('firebase/auth', () => {
     signOut: vi.fn(),
     updateProfile: vi.fn(),
     getAuth: vi.fn(),
+    createUserWithEmailAndPassword: vi.fn(),
+    signInWithEmailAndPassword: vi.fn(),
   };
 });
 
@@ -58,6 +62,40 @@ describe('authService', () => {
       expect(updateProfile).toHaveBeenCalledWith(mockUser, {
         displayName: expect.stringMatching(/^Guest \d+$/),
       });
+      expect(result.user).toEqual(mockUser);
+    });
+  });
+
+  describe('signUpWithEmail', () => {
+    it('calls createUserWithEmailAndPassword and sets displayName', async () => {
+      const mockUser = { uid: '789', displayName: null };
+      vi.mocked(createUserWithEmailAndPassword).mockResolvedValue({
+        user: mockUser,
+      } as ReturnType<typeof createUserWithEmailAndPassword> extends Promise<infer T> ? T : never);
+      vi.mocked(updateProfile).mockResolvedValue(undefined);
+
+      const result = await signUpWithEmail('Alice', 'alice@example.com', 'password123');
+
+      expect(createUserWithEmailAndPassword).toHaveBeenCalledWith(
+        expect.anything(), 'alice@example.com', 'password123'
+      );
+      expect(updateProfile).toHaveBeenCalledWith(mockUser, { displayName: 'Alice' });
+      expect(result.user).toEqual(mockUser);
+    });
+  });
+
+  describe('signInWithEmail', () => {
+    it('calls signInWithEmailAndPassword with email and password', async () => {
+      const mockUser = { uid: '101', displayName: 'Alice' };
+      vi.mocked(signInWithEmailAndPassword).mockResolvedValue({
+        user: mockUser,
+      } as ReturnType<typeof signInWithEmailAndPassword> extends Promise<infer T> ? T : never);
+
+      const result = await signInWithEmail('alice@example.com', 'password123');
+
+      expect(signInWithEmailAndPassword).toHaveBeenCalledWith(
+        expect.anything(), 'alice@example.com', 'password123'
+      );
       expect(result.user).toEqual(mockUser);
     });
   });

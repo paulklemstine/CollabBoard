@@ -14,9 +14,10 @@ interface ShapeComponentProps {
   onDelete: (id: string) => void;
   onClick?: (id: string) => void;
   onResize?: (id: string, width: number, height: number) => void;
+  dragOffset?: { x: number; y: number };
 }
 
-export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick, onResize }: ShapeComponentProps) {
+export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick, onResize, dragOffset }: ShapeComponentProps) {
   const lastDragUpdate = useRef(0);
   const lastResizeUpdate = useRef(0);
   const [isMouseHovered, setIsMouseHovered] = useState(false);
@@ -145,8 +146,8 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
 
   return (
     <Group
-      x={shape.x}
-      y={shape.y}
+      x={shape.x + (dragOffset?.x ?? 0)}
+      y={shape.y + (dragOffset?.y ?? 0)}
       draggable
       onDragMove={handleDragMove}
       onDragStart={(e) => {

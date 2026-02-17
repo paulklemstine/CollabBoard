@@ -402,7 +402,7 @@ describe('useBoard containment', () => {
     expect(result.current.hoveredFrameId).toBeNull();
   });
 
-  it('handleFrameDragMove moves frame and its children', () => {
+  it('handleFrameDragMove moves frame but defers children to drag end', () => {
     const { result } = renderHook(() => useBoard('board-1', 'user-1'));
 
     const frame = makeFrame({ id: 'f1', x: 100, y: 100, width: 400, height: 300 });
@@ -416,7 +416,36 @@ describe('useBoard containment', () => {
       result.current.handleFrameDragMove('f1', 150, 130);
     });
 
-    // Frame itself
+    // Frame itself is updated in Firestore
+    expect(boardService.updateObject).toHaveBeenCalledWith('board-1', 'f1', { x: 150, y: 130 });
+    // Children should NOT be written during drag move (they use local offset)
+    expect(boardService.updateObject).not.toHaveBeenCalledWith('board-1', 's1', expect.anything());
+    expect(boardService.updateObject).not.toHaveBeenCalledWith('board-1', 's2', expect.anything());
+    // frameDragOffset should be set
+    expect(result.current.frameDragOffset).toEqual({ frameId: 'f1', dx: 50, dy: 30 });
+  });
+
+  it('handleFrameDragEnd persists children positions and clears offset', () => {
+    const { result } = renderHook(() => useBoard('board-1', 'user-1'));
+
+    const frame = makeFrame({ id: 'f1', x: 100, y: 100, width: 400, height: 300 });
+    const child1 = makeSticky({ id: 's1', x: 200, y: 200, parentId: 'f1' });
+    const child2 = makeSticky({ id: 's2', x: 300, y: 300, parentId: 'f1' });
+    const independent = makeSticky({ id: 's3', x: 500, y: 500 });
+    setObjects([frame, child1, child2, independent]);
+
+    // Start the drag to set the start ref
+    act(() => {
+      result.current.handleFrameDragMove('f1', 150, 130);
+    });
+    vi.mocked(boardService.updateObject).mockClear();
+
+    // End the drag at (150, 130) — delta (50, 30) from original (100, 100)
+    act(() => {
+      result.current.handleFrameDragEnd('f1', 150, 130);
+    });
+
+    // Frame position persisted
     expect(boardService.updateObject).toHaveBeenCalledWith('board-1', 'f1', { x: 150, y: 130 });
     // Child 1: (200+50, 200+30) = (250, 230)
     expect(boardService.updateObject).toHaveBeenCalledWith('board-1', 's1', { x: 250, y: 230 });
@@ -424,6 +453,8 @@ describe('useBoard containment', () => {
     expect(boardService.updateObject).toHaveBeenCalledWith('board-1', 's2', { x: 350, y: 330 });
     // Independent object should NOT have been moved
     expect(boardService.updateObject).not.toHaveBeenCalledWith('board-1', 's3', expect.anything());
+    // Offset should be cleared
+    expect(result.current.frameDragOffset).toBeNull();
   });
 
   it('removeObject unparents children when deleting a frame', () => {

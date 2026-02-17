@@ -5,7 +5,7 @@ import type { ShapeType } from '../../types/board';
 const EMOJI_OPTIONS = ['\ud83d\udc4d', '\u2764\ufe0f', '\u2b50', '\ud83d\udd25', '\u2705', '\u274c', '\u2753', '\ud83d\udca1'];
 
 interface ToolbarProps {
-  onAddStickyNote: () => void;
+  onAddStickyNote: (color: string) => void;
   onAddShape: (shapeType: ShapeType, color: string) => void;
   onAddFrame: () => void;
   onAddSticker: (emoji: string) => void;
@@ -48,7 +48,7 @@ export function Toolbar({
     >
       {/* Sticky Note */}
       <button
-        onClick={() => onAddStickyNote()}
+        onClick={() => onAddStickyNote(selectedColor)}
         className="btn-lift flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold text-amber-800 transition-all duration-200"
         style={{
           background: 'linear-gradient(135deg, #fde68a 0%, #fbbf24 100%)',

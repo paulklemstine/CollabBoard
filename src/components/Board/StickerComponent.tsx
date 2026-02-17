@@ -15,9 +15,10 @@ interface StickerComponentProps {
   onDelete: (id: string) => void;
   onClick?: (id: string) => void;
   onResize?: (id: string, width: number, height: number) => void;
+  dragOffset?: { x: number; y: number };
 }
 
-export function StickerComponent({ sticker, onDragMove, onDragEnd, onDelete, onClick, onResize }: StickerComponentProps) {
+export function StickerComponent({ sticker, onDragMove, onDragEnd, onDelete, onClick, onResize, dragOffset }: StickerComponentProps) {
   const lastDragUpdate = useRef(0);
   const lastResizeUpdate = useRef(0);
   const [isMouseHovered, setIsMouseHovered] = useState(false);
@@ -49,8 +50,8 @@ export function StickerComponent({ sticker, onDragMove, onDragEnd, onDelete, onC
 
   return (
     <Group
-      x={sticker.x}
-      y={sticker.y}
+      x={sticker.x + (dragOffset?.x ?? 0)}
+      y={sticker.y + (dragOffset?.y ?? 0)}
       draggable
       onDragMove={handleDragMove}
       onDragStart={(e) => {

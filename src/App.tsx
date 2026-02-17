@@ -22,7 +22,7 @@ import { Toolbar } from './components/Toolbar/Toolbar';
 import type { StickyNote, Shape, Frame, Connector, BoardMetadata } from './types/board';
 
 function App() {
-  const { user, loading } = useAuth();
+  const { user, loading, refreshUser } = useAuth();
   const { route, navigateTo } = useRouter();
 
   const handleSignOut = useCallback(async (boardId?: string) => {
@@ -53,7 +53,7 @@ function App() {
   if (!user) {
     return (
       <div className="flex items-center justify-center h-screen bg-gradient-animate">
-        <AuthPanel user={null} />
+        <AuthPanel user={null} onAuthChange={refreshUser} />
       </div>
     );
   }

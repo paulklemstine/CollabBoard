@@ -12,9 +12,10 @@ import { getAuthErrorMessage } from '../../utils/authErrors';
 interface AuthPanelProps {
   user: User | null;
   onSignOut?: () => void;
+  onAuthChange?: () => void;
 }
 
-export function AuthPanel({ user, onSignOut }: AuthPanelProps) {
+export function AuthPanel({ user, onSignOut, onAuthChange }: AuthPanelProps) {
   const [error, setError] = useState<string | null>(null);
   const [isSignUp, setIsSignUp] = useState(false);
   const [name, setName] = useState('');
@@ -43,6 +44,7 @@ export function AuthPanel({ user, onSignOut }: AuthPanelProps) {
     setError(null);
     try {
       await signUpWithEmail(name, email, password);
+      onAuthChange?.();
     } catch (err) {
       setError(getAuthErrorMessage(err));
     }

@@ -131,7 +131,7 @@ export function Toolbar({
         </button>
         {showEmojiPicker && (
           <div
-            className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 glass-playful rounded-2xl shadow-2xl p-2.5 flex gap-1.5 animate-bounce-in"
+            className="absolute bottom-full mb-6 left-1/2 -translate-x-1/2 glass-playful rounded-2xl shadow-2xl p-2.5 flex gap-1.5 animate-bounce-in"
             style={{ zIndex: 1001 }}
           >
             {EMOJI_OPTIONS.map((emoji) => (

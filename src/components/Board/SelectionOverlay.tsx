@@ -1,7 +1,7 @@
 import { useRef, useCallback, useState } from 'react';
 import { Group, Rect, Text } from 'react-konva';
 import type Konva from 'konva';
-import type { Marquee, GroupDragOffset, SelectionBox } from '../../hooks/useMultiSelect';
+import type { Marquee, GroupDragOffset, SelectionBox, GroupTransformPreview } from '../../hooks/useMultiSelect';
 
 const HANDLE_SIZE = 16;
 
@@ -10,9 +10,12 @@ interface SelectionOverlayProps {
   selectedIds: Set<string>;
   selectionBox: SelectionBox | null;
   groupDragOffset: GroupDragOffset | null;
+  transformPreview: GroupTransformPreview | null;
   onGroupDragMove: (dx: number, dy: number) => void;
   onGroupDragEnd: (dx: number, dy: number) => void;
+  onGroupResizeMove: (scaleX: number, scaleY: number) => void;
   onGroupResize: (scaleX: number, scaleY: number) => void;
+  onGroupRotateMove: (deltaAngle: number) => void;
   onGroupRotate: (deltaAngle: number) => void;
   onDeleteSelected: () => void;
 }
@@ -22,9 +25,12 @@ export function SelectionOverlay({
   selectedIds,
   selectionBox,
   groupDragOffset,
+  transformPreview,
   onGroupDragMove,
   onGroupDragEnd,
+  onGroupResizeMove,
   onGroupResize,
+  onGroupRotateMove,
   onGroupRotate,
   onDeleteSelected,
 }: SelectionOverlayProps) {
@@ -37,6 +43,11 @@ export function SelectionOverlay({
   const box = selectionBox;
   const displayX = box ? box.x + (groupDragOffset?.dx ?? 0) : 0;
   const displayY = box ? box.y + (groupDragOffset?.dy ?? 0) : 0;
+
+  // Apply live transform preview
+  const displayWidth = box ? box.width * (transformPreview?.scaleX ?? 1) : 0;
+  const displayHeight = box ? box.height * (transformPreview?.scaleY ?? 1) : 0;
+  const displayRotation = (box?.rotation ?? 0) + (transformPreview?.rotation ?? 0);
 
   const handleBBoxDragStart = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -88,6 +99,22 @@ export function SelectionOverlay({
     [box]
   );
 
+  const handleResizeDragMove = useCallback(
+    (e: Konva.KonvaEventObject<DragEvent>) => {
+      e.cancelBubble = true;
+      if (!resizeStartRef.current || !box) return;
+
+      const dx = e.target.x() - resizeStartRef.current.x;
+      const dy = e.target.y() - resizeStartRef.current.y;
+
+      const scaleX = Math.max(0.1, (resizeStartRef.current.width + dx) / resizeStartRef.current.width);
+      const scaleY = Math.max(0.1, (resizeStartRef.current.height + dy) / resizeStartRef.current.height);
+
+      onGroupResizeMove(scaleX, scaleY);
+    },
+    [box, onGroupResizeMove]
+  );
+
   const handleResizeDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
       e.cancelBubble = true;
@@ -120,6 +147,7 @@ export function SelectionOverlay({
 
       // Get the absolute position of the group (center of selection box)
       const group = e.target.getParent();
+      if (!group) return;
       const center = group.absolutePosition();
 
       const initialAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
@@ -131,10 +159,23 @@ export function SelectionOverlay({
   const handleRotateDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
       e.cancelBubble = true;
-      // During rotate drag, the visual rotation is handled by the parent's onDragMove
-      // but we need to keep the handle from flying away
+      if (!rotateStartRef.current || !box) return;
+
+      const stage = e.target.getStage();
+      if (!stage) return;
+      const pointer = stage.getPointerPosition();
+      if (!pointer) return;
+
+      const group = e.target.getParent();
+      if (!group) return;
+      const center = group.absolutePosition();
+
+      const currentAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
+      const delta = currentAngle - rotateStartRef.current.angle;
+
+      onGroupRotateMove(delta);
     },
-    []
+    [box, onGroupRotateMove]
   );
 
   const handleRotateDragEnd = useCallback(
@@ -148,6 +189,7 @@ export function SelectionOverlay({
       if (!pointer) return;
 
       const group = e.target.getParent();
+      if (!group) return;
       const center = group.absolutePosition();
 
       const currentAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
@@ -182,11 +224,11 @@ export function SelectionOverlay({
       {/* Selection bounding box with handles — only for multi-select (2+) */}
       {box && selectedIds.size > 1 && (
         <Group
-          x={displayX + box.width / 2}
-          y={displayY + box.height / 2}
-          offsetX={box.width / 2}
-          offsetY={box.height / 2}
-          rotation={box.rotation}
+          x={displayX + displayWidth / 2}
+          y={displayY + displayHeight / 2}
+          offsetX={displayWidth / 2}
+          offsetY={displayHeight / 2}
+          rotation={displayRotation}
           draggable
           onDragStart={handleBBoxDragStart}
           onDragMove={handleBBoxDragMove}
@@ -202,8 +244,8 @@ export function SelectionOverlay({
         >
           {/* Dashed selection border */}
           <Rect
-            width={box.width}
-            height={box.height}
+            width={displayWidth}
+            height={displayHeight}
             stroke="#3b82f6"
             strokeWidth={2}
             dash={[8, 4]}
@@ -212,8 +254,8 @@ export function SelectionOverlay({
 
           {/* Resize handle (bottom-right) */}
           <Rect
-            x={box.width - HANDLE_SIZE / 2}
-            y={box.height - HANDLE_SIZE / 2}
+            x={displayWidth - HANDLE_SIZE / 2}
+            y={displayHeight - HANDLE_SIZE / 2}
             width={HANDLE_SIZE}
             height={HANDLE_SIZE}
             fill="#3b82f6"
@@ -228,13 +270,14 @@ export function SelectionOverlay({
               if (stage) stage.container().style.cursor = 'move';
             }}
             onDragStart={handleResizeDragStart}
+            onDragMove={handleResizeDragMove}
             onDragEnd={handleResizeDragEnd}
           />
 
           {/* Rotate handle (bottom-left) */}
           <Rect
             x={-HANDLE_SIZE / 2}
-            y={box.height - HANDLE_SIZE / 2}
+            y={displayHeight - HANDLE_SIZE / 2}
             width={HANDLE_SIZE}
             height={HANDLE_SIZE}
             fill="#8b5cf6"
@@ -255,7 +298,7 @@ export function SelectionOverlay({
 
           {/* Delete button (top-right) */}
           <Rect
-            x={box.width - 24}
+            x={displayWidth - 24}
             y={-28}
             width={24}
             height={24}
@@ -281,7 +324,7 @@ export function SelectionOverlay({
             }}
           />
           <Text
-            x={box.width - 19}
+            x={displayWidth - 19}
             y={-25}
             text={'\u00d7'}
             fontSize={16}

@@ -14,7 +14,7 @@ export async function signInWithGoogle() {
 
   // Override window.open to center the popup
   const originalOpen = window.open;
-  window.open = function(url, target, features) {
+  window.open = function(url, target, _features) {
     // Calculate centered position
     const width = 500;
     const height = 600;

@@ -11,7 +11,7 @@ interface FrameComponentProps {
   frame: Frame;
   onDragMove: (id: string, x: number, y: number) => void;
   onDragEnd: (id: string, x: number, y: number) => void;
-  onDelete: (id: string) => void;
+  onDelete?: (id: string) => void;
   onTitleChange: (id: string, title: string) => void;
   onClick?: (id: string) => void;
   isHovered?: boolean;
@@ -424,6 +424,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
             const pointer = stage.getPointerPosition();
             if (!pointer) return;
             const group = e.target.getParent();
+            if (!group) return;
             const center = group.absolutePosition();
             const initialAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
             rotateStartRef.current = { angle: initialAngle, rotation: frame.rotation || 0 };
@@ -436,6 +437,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
             const pointer = stage.getPointerPosition();
             if (!pointer) return;
             const group = e.target.getParent();
+            if (!group) return;
             const center = group.absolutePosition();
             const currentAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
             const delta = currentAngle - rotateStartRef.current.angle;
@@ -449,6 +451,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
                 const pointer = stage.getPointerPosition();
                 if (pointer) {
                   const group = e.target.getParent();
+                  if (!group) return;
                   const center = group.absolutePosition();
                   const currentAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
                   const delta = currentAngle - rotateStartRef.current.angle;

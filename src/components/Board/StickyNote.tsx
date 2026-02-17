@@ -13,7 +13,7 @@ interface StickyNoteProps {
   onDragMove: (id: string, x: number, y: number) => void;
   onDragEnd: (id: string, x: number, y: number) => void;
   onTextChange: (id: string, text: string) => void;
-  onDelete: (id: string) => void;
+  onDelete?: (id: string) => void;
   onClick?: (id: string) => void;
   onResize?: (id: string, width: number, height: number) => void;
   onRotate?: (id: string, rotation: number) => void;
@@ -255,37 +255,41 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
         rotation={-1}
       />
       {/* Delete button area (top-right corner) */}
-      <Rect
-        x={localWidth - 28}
-        y={4}
-        width={24}
-        height={24}
-        fill={isDeleteHovered ? 'rgba(239,68,68,0.25)' : 'rgba(0,0,0,0.04)'}
-        cornerRadius={8}
-        onClick={() => onDelete(note.id)}
-        onTap={() => onDelete(note.id)}
-        onMouseEnter={(e) => {
-          setIsDeleteHovered(true);
-          const stage = e.target.getStage();
-          if (stage) stage.container().style.cursor = 'pointer';
-        }}
-        onMouseLeave={(e) => {
-          setIsDeleteHovered(false);
-          const stage = e.target.getStage();
-          if (stage && isMouseHovered && !isResizeHovered) {
-            stage.container().style.cursor = 'grab';
-          }
-        }}
-      />
-      <Text
-        x={localWidth - 22}
-        y={7}
-        text={'\u00d7'}
-        fontSize={16}
-        fontStyle="bold"
-        fill={isDeleteHovered ? '#ef4444' : '#666'}
-        listening={false}
-      />
+      {onDelete && (
+        <>
+          <Rect
+            x={localWidth - 28}
+            y={4}
+            width={24}
+            height={24}
+            fill={isDeleteHovered ? 'rgba(239,68,68,0.25)' : 'rgba(0,0,0,0.04)'}
+            cornerRadius={8}
+            onClick={() => onDelete(note.id)}
+            onTap={() => onDelete(note.id)}
+            onMouseEnter={(e) => {
+              setIsDeleteHovered(true);
+              const stage = e.target.getStage();
+              if (stage) stage.container().style.cursor = 'pointer';
+            }}
+            onMouseLeave={(e) => {
+              setIsDeleteHovered(false);
+              const stage = e.target.getStage();
+              if (stage && isMouseHovered && !isResizeHovered) {
+                stage.container().style.cursor = 'grab';
+              }
+            }}
+          />
+          <Text
+            x={localWidth - 22}
+            y={7}
+            text={'\u00d7'}
+            fontSize={16}
+            fontStyle="bold"
+            fill={isDeleteHovered ? '#ef4444' : '#666'}
+            listening={false}
+          />
+        </>
+      )}
       {!isEditing && (
         <Text
           ref={textRef}
@@ -341,6 +345,7 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
             const pointer = stage.getPointerPosition();
             if (!pointer) return;
             const group = e.target.getParent();
+            if (!group) return;
             const center = group.absolutePosition();
             const initialAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
             rotateStartRef.current = { angle: initialAngle, rotation: note.rotation || 0 };
@@ -353,6 +358,7 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
             const pointer = stage.getPointerPosition();
             if (!pointer) return;
             const group = e.target.getParent();
+            if (!group) return;
             const center = group.absolutePosition();
             const currentAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
             const delta = currentAngle - rotateStartRef.current.angle;
@@ -366,6 +372,7 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
                 const pointer = stage.getPointerPosition();
                 if (pointer) {
                   const group = e.target.getParent();
+                  if (!group) return;
                   const center = group.absolutePosition();
                   const currentAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
                   const delta = currentAngle - rotateStartRef.current.angle;

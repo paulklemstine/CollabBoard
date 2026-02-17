@@ -11,7 +11,7 @@ interface ShapeComponentProps {
   shape: Shape;
   onDragMove: (id: string, x: number, y: number) => void;
   onDragEnd: (id: string, x: number, y: number) => void;
-  onDelete: (id: string) => void;
+  onDelete?: (id: string) => void;
   onClick?: (id: string) => void;
   onResize?: (id: string, width: number, height: number) => void;
   onRotate?: (id: string, rotation: number) => void;
@@ -252,43 +252,47 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
         />
       )}
       {/* Delete button */}
-      <Rect
-        x={localWidth - 26}
-        y={2}
-        width={22}
-        height={22}
-        fill={isDeleteHovered ? 'rgba(239,68,68,0.15)' : 'rgba(0,0,0,0.08)'}
-        cornerRadius={6}
-        onClick={(e) => {
-          e.cancelBubble = true;
-          onDelete(shape.id);
-        }}
-        onTap={(e) => {
-          e.cancelBubble = true;
-          onDelete(shape.id);
-        }}
-        onMouseEnter={(e) => {
-          setIsDeleteHovered(true);
-          const stage = e.target.getStage();
-          if (stage) stage.container().style.cursor = 'pointer';
-        }}
-        onMouseLeave={(e) => {
-          setIsDeleteHovered(false);
-          const stage = e.target.getStage();
-          if (stage && isMouseHovered && !isResizeHovered) {
-            stage.container().style.cursor = 'grab';
-          }
-        }}
-      />
-      <Text
-        x={localWidth - 21}
-        y={5}
-        text={'\u00d7'}
-        fontSize={16}
-        fontStyle="bold"
-        fill={isDeleteHovered ? '#ef4444' : '#666'}
-        listening={false}
-      />
+      {onDelete && (
+        <>
+          <Rect
+            x={localWidth - 26}
+            y={2}
+            width={22}
+            height={22}
+            fill={isDeleteHovered ? 'rgba(239,68,68,0.15)' : 'rgba(0,0,0,0.08)'}
+            cornerRadius={6}
+            onClick={(e) => {
+              e.cancelBubble = true;
+              onDelete(shape.id);
+            }}
+            onTap={(e) => {
+              e.cancelBubble = true;
+              onDelete(shape.id);
+            }}
+            onMouseEnter={(e) => {
+              setIsDeleteHovered(true);
+              const stage = e.target.getStage();
+              if (stage) stage.container().style.cursor = 'pointer';
+            }}
+            onMouseLeave={(e) => {
+              setIsDeleteHovered(false);
+              const stage = e.target.getStage();
+              if (stage && isMouseHovered && !isResizeHovered) {
+                stage.container().style.cursor = 'grab';
+              }
+            }}
+          />
+          <Text
+            x={localWidth - 21}
+            y={5}
+            text={'\u00d7'}
+            fontSize={16}
+            fontStyle="bold"
+            fill={isDeleteHovered ? '#ef4444' : '#666'}
+            listening={false}
+          />
+        </>
+      )}
       {/* Rotate handle (bottom-left) */}
       {onRotate && (
         <Rect
@@ -317,6 +321,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
             const pointer = stage.getPointerPosition();
             if (!pointer) return;
             const group = e.target.getParent();
+            if (!group) return;
             const center = group.absolutePosition();
             const initialAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
             rotateStartRef.current = { angle: initialAngle, rotation: shape.rotation || 0 };
@@ -329,6 +334,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
             const pointer = stage.getPointerPosition();
             if (!pointer) return;
             const group = e.target.getParent();
+            if (!group) return;
             const center = group.absolutePosition();
             const currentAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
             const delta = currentAngle - rotateStartRef.current.angle;
@@ -342,6 +348,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
                 const pointer = stage.getPointerPosition();
                 if (pointer) {
                   const group = e.target.getParent();
+                  if (!group) return;
                   const center = group.absolutePosition();
                   const currentAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
                   const delta = currentAngle - rotateStartRef.current.angle;

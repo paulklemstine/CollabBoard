@@ -75,7 +75,7 @@ describe('useBoard', () => {
     const { result } = renderHook(() => useBoard('board-1', 'user-1'));
 
     act(() => {
-      result.current.addStickyNote(100, 150);
+      result.current.addStickyNote({ x: 0, y: 0, scale: 1 }, 100, 150);
     });
 
     expect(boardService.addObject).toHaveBeenCalledWith(
@@ -93,7 +93,7 @@ describe('useBoard', () => {
     const { result } = renderHook(() => useBoard('board-1', 'user-1'));
 
     act(() => {
-      result.current.addShape('rect', '#ef4444');
+      result.current.addShape({ x: 0, y: 0, scale: 1 }, 'rect', '#ef4444');
     });
 
     expect(boardService.addObject).toHaveBeenCalledWith(
@@ -111,7 +111,7 @@ describe('useBoard', () => {
     const { result } = renderHook(() => useBoard('board-1', 'user-1'));
 
     act(() => {
-      result.current.addFrame();
+      result.current.addFrame({ x: 0, y: 0, scale: 1 });
     });
 
     expect(boardService.addObject).toHaveBeenCalledWith(

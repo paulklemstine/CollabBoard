@@ -74,7 +74,7 @@ export function transformGroupMove(
  */
 export function transformGroupResize(
   objects: BoardObject[],
-  bbox: BBox,
+  _bbox: BBox,
   scaleX: number,
   scaleY: number,
   anchorX: number,

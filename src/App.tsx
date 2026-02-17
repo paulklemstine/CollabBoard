@@ -157,12 +157,16 @@ function BoardView({
     handleFrameDragEnd,
   } = useBoard(boardId, user.uid);
 
+  const [selectMode, setSelectMode] = useState(false);
+  const toggleSelectMode = useCallback(() => setSelectMode((prev) => !prev), []);
+
   const {
     selectedIds,
     marquee,
     isMarqueeActive,
     groupDragOffset,
     selectionBox,
+    transformPreview,
     clearSelection,
     isSelected: isObjectSelected,
     handleStageMouseDown,
@@ -170,10 +174,12 @@ function BoardView({
     handleStageMouseUp,
     handleGroupDragMove,
     handleGroupDragEnd,
+    handleGroupResizeMove,
     handleGroupResize,
+    handleGroupRotateMove,
     handleGroupRotate,
     selectObject,
-  } = useMultiSelect(objects, boardId);
+  } = useMultiSelect(objects, boardId, selectMode);
 
   // Escape key to clear selection
   useEffect(() => {
@@ -306,12 +312,12 @@ function BoardView({
               frame={frame}
               onDragMove={handleFrameDragMove}
               onDragEnd={handleFrameDragEnd}
-              onDelete={removeObject}
+              onDelete={selectMode ? removeObject : undefined}
               onTitleChange={updateTitle}
               onClick={objectClick}
               isHovered={hoveredFrameId === frame.id}
-              onResize={resizeObject}
-              onRotate={rotateObject}
+              onResize={selectMode ? resizeObject : undefined}
+              onRotate={selectMode ? rotateObject : undefined}
               dragOffset={getChildOffset(frame)}
               parentRotation={getParentRotation(frame.parentId)}
               onConnectorHoverEnter={objectHoverEnter}
@@ -328,10 +334,10 @@ function BoardView({
               shape={shape}
               onDragMove={handleDragMove}
               onDragEnd={handleDragEnd}
-              onDelete={removeObject}
+              onDelete={selectMode ? removeObject : undefined}
               onClick={objectClick}
-              onResize={resizeObject}
-              onRotate={rotateObject}
+              onResize={selectMode ? resizeObject : undefined}
+              onRotate={selectMode ? rotateObject : undefined}
               dragOffset={getChildOffset(shape)}
               parentRotation={getParentRotation(shape.parentId)}
               onConnectorHoverEnter={objectHoverEnter}
@@ -349,10 +355,10 @@ function BoardView({
               onDragMove={handleDragMove}
               onDragEnd={handleDragEnd}
               onTextChange={updateText}
-              onDelete={removeObject}
+              onDelete={selectMode ? removeObject : undefined}
               onClick={objectClick}
-              onResize={resizeObject}
-              onRotate={rotateObject}
+              onResize={selectMode ? resizeObject : undefined}
+              onRotate={selectMode ? rotateObject : undefined}
               dragOffset={getChildOffset(note)}
               parentRotation={getParentRotation(note.parentId)}
               onConnectorHoverEnter={objectHoverEnter}
@@ -368,9 +374,12 @@ function BoardView({
             selectedIds={selectedIds}
             selectionBox={selectionBox}
             groupDragOffset={groupDragOffset}
+            transformPreview={transformPreview}
             onGroupDragMove={handleGroupDragMove}
             onGroupDragEnd={handleGroupDragEnd}
+            onGroupResizeMove={handleGroupResizeMove}
             onGroupResize={handleGroupResize}
+            onGroupRotateMove={handleGroupRotateMove}
             onGroupRotate={handleGroupRotate}
             onDeleteSelected={handleDeleteSelected}
           />
@@ -385,6 +394,8 @@ function BoardView({
         connectMode={connectMode}
         connectingFrom={connectingFrom}
         onToggleConnectMode={toggleConnectMode}
+        selectMode={selectMode}
+        onToggleSelectMode={toggleSelectMode}
       />
       <AIChat boardId={boardId} />
       <div className="absolute top-4 left-4 z-50 flex items-center gap-3">

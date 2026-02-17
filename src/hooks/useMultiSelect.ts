@@ -23,6 +23,12 @@ export interface GroupDragOffset {
   dy: number;
 }
 
+export interface GroupTransformPreview {
+  scaleX: number;
+  scaleY: number;
+  rotation: number;
+}
+
 /** Cached selection bbox — not recalculated from objects after transforms */
 export interface SelectionBox {
   x: number;
@@ -32,12 +38,13 @@ export interface SelectionBox {
   rotation: number;
 }
 
-export function useMultiSelect(objects: AnyBoardObject[], boardId: string) {
+export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selectMode: boolean) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [marquee, setMarquee] = useState<Marquee | null>(null);
   const [isMarqueeActive, setIsMarqueeActive] = useState(false);
   const [groupDragOffset, setGroupDragOffset] = useState<GroupDragOffset | null>(null);
   const [selectionBox, setSelectionBox] = useState<SelectionBox | null>(null);
+  const [transformPreview, setTransformPreview] = useState<GroupTransformPreview | null>(null);
 
   // Ref mirrors for use inside event callbacks (avoids stale closures)
   const objectsRef = useRef(objects);
@@ -47,11 +54,14 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string) {
   const selectionBoxRef = useRef(selectionBox);
   selectionBoxRef.current = selectionBox;
   const isMarqueeActiveRef = useRef(false);
+  const selectModeRef = useRef(selectMode);
+  selectModeRef.current = selectMode;
 
   const clearSelection = useCallback(() => {
     setSelectedIds(new Set());
     setGroupDragOffset(null);
     setSelectionBox(null);
+    setTransformPreview(null);
   }, []);
 
   const isSelected = useCallback(
@@ -87,8 +97,8 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string) {
       setGroupDragOffset(null);
       setSelectionBox(null);
 
-      // Only start marquee when Shift is held — otherwise allow normal pan
-      if (!e.evt.shiftKey) return;
+      // Only start marquee when select mode is active — otherwise allow normal pan
+      if (!selectModeRef.current) return;
 
       const stage = e.target.getStage();
       if (!stage) return;
@@ -217,6 +227,14 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string) {
     [boardId]
   );
 
+  const handleGroupResizeMove = useCallback((scaleX: number, scaleY: number) => {
+    setTransformPreview((prev) => ({
+      scaleX,
+      scaleY,
+      rotation: prev?.rotation ?? 0,
+    }));
+  }, []);
+
   const handleGroupResize = useCallback(
     async (scaleX: number, scaleY: number) => {
       const selected = objectsRef.current.filter((obj) =>
@@ -235,9 +253,21 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string) {
         if (!prev) return null;
         return { ...prev, width: prev.width * scaleX, height: prev.height * scaleY };
       });
+
+      setTimeout(() => {
+        setTransformPreview(null);
+      }, 100);
     },
     [boardId]
   );
+
+  const handleGroupRotateMove = useCallback((deltaAngle: number) => {
+    setTransformPreview((prev) => ({
+      scaleX: prev?.scaleX ?? 1,
+      scaleY: prev?.scaleY ?? 1,
+      rotation: deltaAngle,
+    }));
+  }, []);
 
   const handleGroupRotate = useCallback(
     async (deltaAngle: number) => {
@@ -257,6 +287,10 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string) {
         if (!prev) return null;
         return { ...prev, rotation: prev.rotation + deltaAngle };
       });
+
+      setTimeout(() => {
+        setTransformPreview(null);
+      }, 100);
     },
     [boardId]
   );
@@ -267,6 +301,7 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string) {
     isMarqueeActive,
     groupDragOffset,
     selectionBox,
+    transformPreview,
     clearSelection,
     isSelected,
     selectObject,
@@ -275,7 +310,9 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string) {
     handleStageMouseUp,
     handleGroupDragMove,
     handleGroupDragEnd,
+    handleGroupResizeMove,
     handleGroupResize,
+    handleGroupRotateMove,
     handleGroupRotate,
   };
 }

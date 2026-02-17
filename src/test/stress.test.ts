@@ -248,7 +248,7 @@ describe.skip('Stress Tests', () => {
 
       const start = performance.now();
       act(() => {
-        result.current.addStickyNote(100, 100);
+        result.current.addStickyNote({ x: 0, y: 0, scale: 1 }, 100, 100);
       });
       const elapsed = performance.now() - start;
 

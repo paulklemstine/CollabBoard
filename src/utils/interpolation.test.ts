@@ -145,7 +145,7 @@ describe('interpolation utilities', () => {
 
   describe('PositionInterpolator', () => {
     let interpolator: PositionInterpolator;
-    let updateCallback: ReturnType<typeof vi.fn>;
+    let updateCallback: ReturnType<typeof vi.fn<(x: number, y: number) => void>>;
 
     beforeEach(() => {
       vi.useFakeTimers();

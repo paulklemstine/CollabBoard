@@ -1,7 +1,10 @@
-# Presence Heartbeat System
+# Presence & Cursor Timeout System
 
 ## Overview
-The presence system now uses a heartbeat mechanism to accurately track online users and automatically remove inactive users who have closed their browser tab, logged out, or lost connection.
+Both the presence system and cursor system now use timeout mechanisms to accurately track active users and automatically remove stale data from users who have closed their browser tab, logged out, or lost connection.
+
+- **Presence System**: Uses heartbeat (5s) + timeout (15s) to track online users
+- **Cursor System**: Uses timestamp filtering + timeout (3s) to remove stale cursors
 
 ## How It Works
 
@@ -92,9 +95,62 @@ Manual testing:
 3. Within 15 seconds, user disappears from presence panel in other windows
 4. Check RTDB in Firebase Console - heartbeats update every 5 seconds
 
+## Cursor Timeout System
+
+The cursor system works differently from presence - instead of a heartbeat, it relies on the existing cursor movement updates and filters out stale cursors.
+
+### How Cursors Work
+
+1. **Cursor Movement**: When user moves their cursor, it's throttled to ~10 updates/second (100ms)
+2. **Timestamp**: Each cursor update includes a `timestamp` field
+3. **Timeout**: 3 seconds (`CURSOR_TIMEOUT = 3000ms`)
+4. **Filtering**: Client-side filtering removes cursors with timestamps older than 3 seconds
+
+### Configuration
+
+```typescript
+// In src/hooks/useCursors.ts
+
+// Cursor timeout: remove cursors if no update for 3 seconds
+export const CURSOR_TIMEOUT = 3000;
+```
+
+### Why 3 seconds?
+
+- **Shorter than presence**: Cursors need to disappear faster for better UX
+- **Movement-based**: Users expect cursors to disappear quickly when someone stops moving
+- **Throttle-aware**: Longer than throttle interval (100ms) to avoid false positives
+- **Network tolerance**: Allows for minor network hiccups without cursor flicker
+
+### Cursor Lifecycle
+
+#### User Moves Cursor
+1. Cursor position updates (throttled to 100ms)
+2. Timestamp updated with each movement
+3. Other users see cursor position in real-time
+
+#### User Stops Moving (Still Active)
+1. No more cursor updates
+2. After 3 seconds, cursor disappears from other users' screens
+3. User is still "online" in presence panel
+4. Cursor reappears when user moves again
+
+#### User Leaves
+1. **Graceful**: `onDisconnect` removes cursor immediately
+2. **Ungraceful**: After 3 seconds of no updates, cursor filtered out
+
+### Database Writes
+
+**Cursors (per user, per session):**
+- Movement-based, not time-based
+- ~10 writes/second while moving
+- 0 writes when idle
+- Very cost-efficient (only pays for actual activity)
+
 ### Future Improvements
 
-- **Adaptive heartbeat**: Slow down heartbeat when tab is not focused
+- **Adaptive heartbeat (presence)**: Slow down heartbeat when tab is not focused
 - **Visibility API**: Pause heartbeat when tab is hidden
-- **Server-side cleanup**: Cloud Function to periodically clean up very old presence records
+- **Server-side cleanup**: Cloud Function to periodically clean up very old presence/cursor records
 - **Activity indicators**: Show "idle" status if user hasn't moved cursor in 2+ minutes
+- **Cursor fade-out**: Visual fade animation before cursor disappears

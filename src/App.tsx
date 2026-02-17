@@ -176,6 +176,52 @@ function BoardView({
   const connectors = objects.filter((o): o is Connector => o.type === 'connector')
     .sort((a, b) => a.updatedAt - b.updatedAt);
 
+  // Build a map of frames for child transform lookups
+  const frameMap = new Map<string, Frame>();
+  for (const frame of frames) {
+    frameMap.set(frame.id, frame);
+  }
+
+  /** Compute the combined offset for a child: drag offset + rotation orbit around parent frame center */
+  function getChildOffset(child: { x: number; y: number; width: number; height: number; parentId?: string }): { x: number; y: number } | undefined {
+    const parentFrame = child.parentId ? frameMap.get(child.parentId) : null;
+    if (!parentFrame) return frameDragOffset && child.parentId === frameDragOffset.frameId ? { x: frameDragOffset.dx, y: frameDragOffset.dy } : undefined;
+
+    let offsetX = 0;
+    let offsetY = 0;
+
+    // Drag offset during live frame drag
+    if (frameDragOffset && child.parentId === frameDragOffset.frameId) {
+      offsetX += frameDragOffset.dx;
+      offsetY += frameDragOffset.dy;
+    }
+
+    // Rotation orbit: rotate child center around parent frame center
+    const frameRotation = parentFrame.rotation || 0;
+    if (frameRotation !== 0) {
+      const fcx = parentFrame.x + parentFrame.width / 2;
+      const fcy = parentFrame.y + parentFrame.height / 2;
+      const ccx = child.x + child.width / 2;
+      const ccy = child.y + child.height / 2;
+      const dx = ccx - fcx;
+      const dy = ccy - fcy;
+      const rad = frameRotation * (Math.PI / 180);
+      const cos = Math.cos(rad);
+      const sin = Math.sin(rad);
+      offsetX += (dx * cos - dy * sin) - dx;
+      offsetY += (dx * sin + dy * cos) - dy;
+    }
+
+    if (offsetX === 0 && offsetY === 0) return undefined;
+    return { x: offsetX, y: offsetY };
+  }
+
+  function getParentRotation(parentId?: string): number | undefined {
+    if (!parentId) return undefined;
+    const f = frameMap.get(parentId);
+    return f ? (f.rotation || 0) : undefined;
+  }
+
   const objectClick = connectMode ? handleObjectClickForConnect : undefined;
   const objectHoverEnter = connectMode ? (id: string) => handleObjectHover(id) : undefined;
   const objectHoverLeave = connectMode ? () => handleObjectHover(null) : undefined;
@@ -203,6 +249,7 @@ function BoardView({
                 toObject={toObject}
                 toX={cursorPosition.x}
                 toY={cursorPosition.y}
+                objects={objects}
               />
             ) : null;
           })()}
@@ -234,7 +281,8 @@ function BoardView({
               onClick={objectClick}
               onResize={resizeObject}
               onRotate={rotateObject}
-              dragOffset={frameDragOffset && shape.parentId === frameDragOffset.frameId ? { x: frameDragOffset.dx, y: frameDragOffset.dy } : undefined}
+              dragOffset={getChildOffset(shape)}
+              parentRotation={getParentRotation(shape.parentId)}
               onConnectorHoverEnter={objectHoverEnter}
               onConnectorHoverLeave={objectHoverLeave}
               isConnectorHighlighted={connectMode && (connectingFrom === shape.id || hoveredObjectId === shape.id)}
@@ -252,7 +300,8 @@ function BoardView({
               onClick={objectClick}
               onResize={resizeObject}
               onRotate={rotateObject}
-              dragOffset={frameDragOffset && note.parentId === frameDragOffset.frameId ? { x: frameDragOffset.dx, y: frameDragOffset.dy } : undefined}
+              dragOffset={getChildOffset(note)}
+              parentRotation={getParentRotation(note.parentId)}
               onConnectorHoverEnter={objectHoverEnter}
               onConnectorHoverLeave={objectHoverLeave}
               isConnectorHighlighted={connectMode && (connectingFrom === note.id || hoveredObjectId === note.id)}

@@ -38,6 +38,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
   const [localWidth, setLocalWidth] = useState(frame.width);
   const [localHeight, setLocalHeight] = useState(frame.height);
   const flashOverlayRef = useRef<Konva.Rect>(null);
+  const rotateStartRef = useRef<{ angle: number; rotation: number } | null>(null);
 
   useEffect(() => {
     if (!isResizing) {
@@ -305,7 +306,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
         ref={titleRef}
         x={16}
         y={-28}
-        text={frame.title || 'Untitled Frame'}
+        text={frame.title || 'Double-click to edit'}
         fontSize={14}
         fontFamily="'Inter', sans-serif"
         fontStyle="700"
@@ -383,26 +384,44 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
           }}
           onDragStart={(e) => {
             e.cancelBubble = true;
+            const stage = e.target.getStage();
+            if (!stage) return;
+            const pointer = stage.getPointerPosition();
+            if (!pointer) return;
+            const group = e.target.getParent();
+            const center = group.absolutePosition();
+            const initialAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
+            rotateStartRef.current = { angle: initialAngle, rotation: frame.rotation || 0 };
           }}
           onDragMove={(e) => {
             e.cancelBubble = true;
-            const handleX = e.target.x() + 10;
-            const handleY = e.target.y() + 10;
-            const centerX = localWidth / 2;
-            const centerY = localHeight / 2;
-            const angle = Math.atan2(handleY - centerY, handleX - centerX) * (180 / Math.PI);
-            const rotation = angle - 135;
-            onRotate(frame.id, rotation);
+            if (!rotateStartRef.current) return;
+            const stage = e.target.getStage();
+            if (!stage) return;
+            const pointer = stage.getPointerPosition();
+            if (!pointer) return;
+            const group = e.target.getParent();
+            const center = group.absolutePosition();
+            const currentAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
+            const delta = currentAngle - rotateStartRef.current.angle;
+            onRotate(frame.id, rotateStartRef.current.rotation + delta);
           }}
           onDragEnd={(e) => {
             e.cancelBubble = true;
-            const handleX = e.target.x() + 10;
-            const handleY = e.target.y() + 10;
-            const centerX = localWidth / 2;
-            const centerY = localHeight / 2;
-            const angle = Math.atan2(handleY - centerY, handleX - centerX) * (180 / Math.PI);
-            const rotation = angle - 135;
-            onRotate(frame.id, rotation);
+            if (rotateStartRef.current) {
+              const stage = e.target.getStage();
+              if (stage) {
+                const pointer = stage.getPointerPosition();
+                if (pointer) {
+                  const group = e.target.getParent();
+                  const center = group.absolutePosition();
+                  const currentAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
+                  const delta = currentAngle - rotateStartRef.current.angle;
+                  onRotate(frame.id, rotateStartRef.current.rotation + delta);
+                }
+              }
+            }
+            rotateStartRef.current = null;
             e.target.position({ x: -10, y: localHeight - 10 });
           }}
         />

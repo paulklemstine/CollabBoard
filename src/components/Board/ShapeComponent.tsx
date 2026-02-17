@@ -19,10 +19,11 @@ interface ShapeComponentProps {
   onConnectorHoverLeave?: () => void;
   isConnectorHighlighted?: boolean;
   isNew?: boolean;
+  parentRotation?: number;
   dragOffset?: { x: number; y: number };
 }
 
-export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, dragOffset }: ShapeComponentProps) {
+export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, parentRotation, dragOffset }: ShapeComponentProps) {
   const lastDragUpdate = useRef(0);
   const lastResizeUpdate = useRef(0);
   const [isMouseHovered, setIsMouseHovered] = useState(false);
@@ -33,6 +34,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
   const [localWidth, setLocalWidth] = useState(shape.width);
   const [localHeight, setLocalHeight] = useState(shape.height);
   const flashOverlayRef = useRef<Konva.Rect>(null);
+  const rotateStartRef = useRef<{ angle: number; rotation: number } | null>(null);
 
   useEffect(() => {
     if (!isResizing) {
@@ -192,7 +194,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
       y={shape.y + (dragOffset?.y ?? 0) + localHeight / 2}
       offsetX={localWidth / 2}
       offsetY={localHeight / 2}
-      rotation={shape.rotation || 0}
+      rotation={(shape.rotation || 0) + (parentRotation || 0)}
       draggable
       onDragMove={handleDragMove}
       onDragStart={(e) => {
@@ -295,26 +297,44 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
           }}
           onDragStart={(e) => {
             e.cancelBubble = true;
+            const stage = e.target.getStage();
+            if (!stage) return;
+            const pointer = stage.getPointerPosition();
+            if (!pointer) return;
+            const group = e.target.getParent();
+            const center = group.absolutePosition();
+            const initialAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
+            rotateStartRef.current = { angle: initialAngle, rotation: shape.rotation || 0 };
           }}
           onDragMove={(e) => {
             e.cancelBubble = true;
-            const handleX = e.target.x() + 10;
-            const handleY = e.target.y() + 10;
-            const centerX = localWidth / 2;
-            const centerY = localHeight / 2;
-            const angle = Math.atan2(handleY - centerY, handleX - centerX) * (180 / Math.PI);
-            const rotation = angle - 135;
-            onRotate(shape.id, rotation);
+            if (!rotateStartRef.current) return;
+            const stage = e.target.getStage();
+            if (!stage) return;
+            const pointer = stage.getPointerPosition();
+            if (!pointer) return;
+            const group = e.target.getParent();
+            const center = group.absolutePosition();
+            const currentAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
+            const delta = currentAngle - rotateStartRef.current.angle;
+            onRotate(shape.id, rotateStartRef.current.rotation + delta);
           }}
           onDragEnd={(e) => {
             e.cancelBubble = true;
-            const handleX = e.target.x() + 10;
-            const handleY = e.target.y() + 10;
-            const centerX = localWidth / 2;
-            const centerY = localHeight / 2;
-            const angle = Math.atan2(handleY - centerY, handleX - centerX) * (180 / Math.PI);
-            const rotation = angle - 135;
-            onRotate(shape.id, rotation);
+            if (rotateStartRef.current) {
+              const stage = e.target.getStage();
+              if (stage) {
+                const pointer = stage.getPointerPosition();
+                if (pointer) {
+                  const group = e.target.getParent();
+                  const center = group.absolutePosition();
+                  const currentAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
+                  const delta = currentAngle - rotateStartRef.current.angle;
+                  onRotate(shape.id, rotateStartRef.current.rotation + delta);
+                }
+              }
+            }
+            rotateStartRef.current = null;
             e.target.position({ x: -10, y: localHeight - 10 });
           }}
         />

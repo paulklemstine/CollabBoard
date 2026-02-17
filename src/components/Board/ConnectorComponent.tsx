@@ -9,19 +9,51 @@ interface ConnectorComponentProps {
   onDelete?: (id: string) => void;
 }
 
-function getCenter(obj: AnyBoardObject): { x: number; y: number } {
-  return {
-    x: obj.x + obj.width / 2,
-    y: obj.y + obj.height / 2,
-  };
+/** Get the visual center of an object, accounting for orbit around parent frame center */
+function getVisualCenter(obj: AnyBoardObject, objects: AnyBoardObject[]): { x: number; y: number } {
+  const cx = obj.x + obj.width / 2;
+  const cy = obj.y + obj.height / 2;
+
+  if (obj.parentId) {
+    const parentFrame = objects.find(o => o.id === obj.parentId);
+    if (parentFrame && (parentFrame.rotation || 0) !== 0) {
+      const fcx = parentFrame.x + parentFrame.width / 2;
+      const fcy = parentFrame.y + parentFrame.height / 2;
+      const dx = cx - fcx;
+      const dy = cy - fcy;
+      const rad = (parentFrame.rotation || 0) * (Math.PI / 180);
+      const cos = Math.cos(rad);
+      const sin = Math.sin(rad);
+      return {
+        x: fcx + dx * cos - dy * sin,
+        y: fcy + dx * sin + dy * cos,
+      };
+    }
+  }
+
+  return { x: cx, y: cy };
+}
+
+/** Get the effective rotation of an object including parent frame rotation */
+function getEffectiveRotation(obj: AnyBoardObject, objects: AnyBoardObject[]): number {
+  let rotation = obj.rotation || 0;
+  if (obj.parentId) {
+    const parentFrame = objects.find(o => o.id === obj.parentId);
+    if (parentFrame) {
+      rotation += parentFrame.rotation || 0;
+    }
+  }
+  return rotation;
 }
 
 export function getEdgePoint(
   obj: AnyBoardObject,
-  target: { x: number; y: number }
+  target: { x: number; y: number },
+  rotation: number = 0,
+  visualCenter?: { x: number; y: number }
 ): { x: number; y: number } {
-  const cx = obj.x + obj.width / 2;
-  const cy = obj.y + obj.height / 2;
+  const cx = visualCenter?.x ?? (obj.x + obj.width / 2);
+  const cy = visualCenter?.y ?? (obj.y + obj.height / 2);
   const dx = target.x - cx;
   const dy = target.y - cy;
 
@@ -29,7 +61,7 @@ export function getEdgePoint(
     return { x: cx, y: cy };
   }
 
-  // Circle: edge is center + radius in direction of target
+  // Circle: edge is center + radius in direction of target (rotation doesn't affect circles)
   if (obj.type === 'shape' && obj.shapeType === 'circle') {
     const r = Math.min(obj.width, obj.height) / 2;
     const dist = Math.sqrt(dx * dx + dy * dy);
@@ -39,22 +71,39 @@ export function getEdgePoint(
     };
   }
 
-  // Rectangle intersection for all other types
+  // For rotated rectangles: transform direction into local space, find edge, transform back
+  const rad = -rotation * (Math.PI / 180);
+  const cosR = Math.cos(rad);
+  const sinR = Math.sin(rad);
+
+  // Rotate direction vector into object's local (axis-aligned) space
+  const localDx = dx * cosR - dy * sinR;
+  const localDy = dx * sinR + dy * cosR;
+
+  // Rectangle intersection in local space
   const hw = obj.width / 2;
   const hh = obj.height / 2;
-  const absDx = Math.abs(dx);
-  const absDy = Math.abs(dy);
+  const absLocalDx = Math.abs(localDx);
+  const absLocalDy = Math.abs(localDy);
 
   let scale: number;
-  if (absDx * hh > absDy * hw) {
-    scale = hw / absDx;
+  if (absLocalDx * hh > absLocalDy * hw) {
+    scale = hw / absLocalDx;
   } else {
-    scale = hh / absDy;
+    scale = hh / absLocalDy;
   }
 
+  const localEdgeX = localDx * scale;
+  const localEdgeY = localDy * scale;
+
+  // Rotate edge point back to world space
+  const worldRad = rotation * (Math.PI / 180);
+  const worldCos = Math.cos(worldRad);
+  const worldSin = Math.sin(worldRad);
+
   return {
-    x: cx + dx * scale,
-    y: cy + dy * scale,
+    x: cx + localEdgeX * worldCos - localEdgeY * worldSin,
+    y: cy + localEdgeX * worldSin + localEdgeY * worldCos,
   };
 }
 
@@ -67,10 +116,12 @@ export function ConnectorComponent({ connector, objects, onDelete }: ConnectorCo
 
   if (!fromObj || !toObj) return null;
 
-  const fromCenter = getCenter(fromObj);
-  const toCenter = getCenter(toObj);
-  const from = getEdgePoint(fromObj, toCenter);
-  const to = getEdgePoint(toObj, fromCenter);
+  const fromRotation = getEffectiveRotation(fromObj, objects);
+  const toRotation = getEffectiveRotation(toObj, objects);
+  const fromCenter = getVisualCenter(fromObj, objects);
+  const toCenter = getVisualCenter(toObj, objects);
+  const from = getEdgePoint(fromObj, toCenter, fromRotation, fromCenter);
+  const to = getEdgePoint(toObj, fromCenter, toRotation, toCenter);
 
   // Calculate midpoint for delete button
   const midX = (from.x + to.x) / 2;

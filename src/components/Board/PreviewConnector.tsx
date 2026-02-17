@@ -7,28 +7,51 @@ interface PreviewConnectorProps {
   toObject: AnyBoardObject | null;
   toX: number;
   toY: number;
+  objects?: AnyBoardObject[];
 }
 
-export function PreviewConnector({ fromObject, toObject, toX, toY }: PreviewConnectorProps) {
-  const fromCenter = {
-    x: fromObject.x + fromObject.width / 2,
-    y: fromObject.y + fromObject.height / 2,
-  };
+function getObjRotation(obj: AnyBoardObject, objects?: AnyBoardObject[]): number {
+  let rotation = obj.rotation || 0;
+  if (obj.parentId && objects) {
+    const parentFrame = objects.find(o => o.id === obj.parentId);
+    if (parentFrame) rotation += parentFrame.rotation || 0;
+  }
+  return rotation;
+}
+
+function getObjVisualCenter(obj: AnyBoardObject, objects?: AnyBoardObject[]): { x: number; y: number } {
+  const cx = obj.x + obj.width / 2;
+  const cy = obj.y + obj.height / 2;
+  if (obj.parentId && objects) {
+    const parentFrame = objects.find(o => o.id === obj.parentId);
+    if (parentFrame && (parentFrame.rotation || 0) !== 0) {
+      const fcx = parentFrame.x + parentFrame.width / 2;
+      const fcy = parentFrame.y + parentFrame.height / 2;
+      const dx = cx - fcx;
+      const dy = cy - fcy;
+      const rad = (parentFrame.rotation || 0) * (Math.PI / 180);
+      const cos = Math.cos(rad);
+      const sin = Math.sin(rad);
+      return { x: fcx + dx * cos - dy * sin, y: fcy + dx * sin + dy * cos };
+    }
+  }
+  return { x: cx, y: cy };
+}
+
+export function PreviewConnector({ fromObject, toObject, toX, toY, objects }: PreviewConnectorProps) {
+  const fromCenter = getObjVisualCenter(fromObject, objects);
+  const fromRotation = getObjRotation(fromObject, objects);
 
   let startPoint: { x: number; y: number };
   let endPoint: { x: number; y: number };
 
   if (toObject) {
-    // Draw to the edge of the hovered component
-    const toCenter = {
-      x: toObject.x + toObject.width / 2,
-      y: toObject.y + toObject.height / 2,
-    };
-    startPoint = getEdgePoint(fromObject, toCenter);
-    endPoint = getEdgePoint(toObject, fromCenter);
+    const toCenter = getObjVisualCenter(toObject, objects);
+    const toRotation = getObjRotation(toObject, objects);
+    startPoint = getEdgePoint(fromObject, toCenter, fromRotation, fromCenter);
+    endPoint = getEdgePoint(toObject, fromCenter, toRotation, toCenter);
   } else {
-    // Draw to cursor
-    startPoint = getEdgePoint(fromObject, { x: toX, y: toY });
+    startPoint = getEdgePoint(fromObject, { x: toX, y: toY }, fromRotation, fromCenter);
     endPoint = { x: toX, y: toY };
   }
 

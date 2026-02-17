@@ -52,6 +52,14 @@ export interface Connector extends BoardObject {
   style: 'straight' | 'curved';
 }
 
+export interface AIMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: number;
+  objectsCreated?: string[];
+}
+
 export interface CursorPosition {
   userId: string;
   x: number;

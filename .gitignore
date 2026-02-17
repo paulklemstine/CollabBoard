@@ -23,3 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 .env
+.claude/*
+.firebase/*
+tmp/*
+functions/lib/

@@ -19,6 +19,7 @@ import { PreviewConnector } from './components/Board/PreviewConnector';
 import { CursorsOverlay } from './components/Cursors/CursorsOverlay';
 import { PresencePanel } from './components/Presence/PresencePanel';
 import { Toolbar } from './components/Toolbar/Toolbar';
+import { AIChat } from './components/AIChat/AIChat';
 import type { StickyNote, Shape, Frame, Connector, BoardMetadata } from './types/board';
 
 function App() {
@@ -322,6 +323,7 @@ function BoardView({
         connectingFrom={connectingFrom}
         onToggleConnectMode={toggleConnectMode}
       />
+      <AIChat boardId={boardId} />
       <div className="absolute top-4 left-4 z-50 flex items-center gap-3">
         <button
           onClick={onNavigateBack}

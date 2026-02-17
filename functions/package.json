@@ -1,0 +1,20 @@
+{
+  "name": "collabboard-functions",
+  "scripts": {
+    "build": "tsc",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "deploy": "firebase deploy --only functions"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "main": "lib/index.js",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "firebase-admin": "^13.0.0",
+    "firebase-functions": "^7.0.5"
+  },
+  "devDependencies": {
+    "typescript": "~5.7.0"
+  }
+}

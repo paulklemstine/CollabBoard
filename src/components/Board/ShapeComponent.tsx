@@ -172,7 +172,9 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
         setIsMouseHovered(true);
         onConnectorHoverEnter?.(shape.id);
         const stage = e.target.getStage();
-        if (stage) stage.container().style.cursor = 'grab';
+        if (stage && !isDeleteHovered && !isResizeHovered) {
+          stage.container().style.cursor = 'grab';
+        }
       }}
       onMouseLeave={(e) => {
         setIsMouseHovered(false);
@@ -206,7 +208,9 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
         onMouseLeave={(e) => {
           setIsDeleteHovered(false);
           const stage = e.target.getStage();
-          if (stage) stage.container().style.cursor = 'grab';
+          if (stage && isMouseHovered && !isResizeHovered) {
+            stage.container().style.cursor = 'grab';
+          }
         }}
       />
       <Text
@@ -237,7 +241,9 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
           onMouseLeave={(e) => {
             setIsResizeHovered(false);
             const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'grab';
+            if (stage && isMouseHovered && !isDeleteHovered) {
+              stage.container().style.cursor = 'grab';
+            }
           }}
           onDragStart={(e) => {
             e.cancelBubble = true;

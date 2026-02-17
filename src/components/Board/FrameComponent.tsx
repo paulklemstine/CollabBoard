@@ -200,7 +200,9 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
         setIsMouseHovered(true);
         onConnectorHoverEnter?.(frame.id);
         const stage = e.target.getStage();
-        if (stage) stage.container().style.cursor = 'grab';
+        if (stage && !isDeleteHovered && !isResizeHovered) {
+          stage.container().style.cursor = 'grab';
+        }
       }}
       onMouseLeave={(e) => {
         setIsMouseHovered(false);
@@ -294,7 +296,9 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
         onMouseLeave={(e) => {
           setIsDeleteHovered(false);
           const stage = e.target.getStage();
-          if (stage) stage.container().style.cursor = 'grab';
+          if (stage && isMouseHovered && !isResizeHovered) {
+            stage.container().style.cursor = 'grab';
+          }
         }}
       />
       <Text
@@ -325,7 +329,9 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
           onMouseLeave={(e) => {
             setIsResizeHovered(false);
             const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'grab';
+            if (stage && isMouseHovered && !isDeleteHovered) {
+              stage.container().style.cursor = 'grab';
+            }
           }}
           onDragStart={(e) => {
             e.cancelBubble = true;

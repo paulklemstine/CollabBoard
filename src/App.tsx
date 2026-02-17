@@ -1,4 +1,7 @@
 import { useCallback } from 'react';
+import { ref, set, remove } from 'firebase/database';
+import { rtdb } from './services/firebase';
+import { signOutUser } from './services/authService';
 import { useAuth } from './hooks/useAuth';
 import { useCursors } from './hooks/useCursors';
 import { usePresence, pickColor } from './hooks/usePresence';
@@ -90,6 +93,17 @@ function BoardView({ user }: { user: { uid: string; displayName: string | null; 
     [updateCursor]
   );
 
+  const handleSignOut = useCallback(async () => {
+    // Remove presence and cursor while still authenticated
+    const presenceRef = ref(rtdb, `boards/${BOARD_ID}/presence/${user.uid}`);
+    const cursorRef = ref(rtdb, `boards/${BOARD_ID}/cursors/${user.uid}`);
+    await Promise.all([
+      set(presenceRef, null),
+      remove(cursorRef),
+    ]);
+    await signOutUser();
+  }, [user.uid]);
+
   const stickyNotes = objects.filter((o): o is StickyNote => o.type === 'sticky');
   const shapes = objects.filter((o): o is Shape => o.type === 'shape');
   const frames = objects.filter((o): o is Frame => o.type === 'frame');
@@ -174,7 +188,7 @@ function BoardView({ user }: { user: { uid: string; displayName: string | null; 
         onToggleConnectMode={toggleConnectMode}
       />
       <div className="absolute top-4 left-4 z-50">
-        <AuthPanel user={user as never} />
+        <AuthPanel user={user as never} onSignOut={handleSignOut} />
       </div>
     </div>
   );

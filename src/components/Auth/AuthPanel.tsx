@@ -11,9 +11,10 @@ import { getAuthErrorMessage } from '../../utils/authErrors';
 
 interface AuthPanelProps {
   user: User | null;
+  onSignOut?: () => void;
 }
 
-export function AuthPanel({ user }: AuthPanelProps) {
+export function AuthPanel({ user, onSignOut }: AuthPanelProps) {
   const [error, setError] = useState<string | null>(null);
   const [isSignUp, setIsSignUp] = useState(false);
   const [name, setName] = useState('');
@@ -72,7 +73,7 @@ export function AuthPanel({ user }: AuthPanelProps) {
             {user.displayName}
           </span>
           <button
-            onClick={() => signOutUser()}
+            onClick={() => (onSignOut ?? signOutUser)()}
             className="btn-lift ml-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:text-white hover:bg-gradient-to-r hover:from-red-400 hover:to-pink-500 transition-all duration-200"
           >
             Sign Out

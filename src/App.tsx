@@ -178,23 +178,7 @@ function BoardView({
     <div className="relative w-screen h-screen overflow-hidden board-dots">
       <div className="absolute inset-0 z-0">
         <Board boardId={boardId} onMouseMove={handleMouseMove} onTransformChange={setStageTransform}>
-          {/* Render order: Frames → Connectors → Shapes → Sticky Notes → Stickers */}
-          {frames.map((frame) => (
-            <FrameComponent
-              key={frame.id}
-              frame={frame}
-              onDragMove={handleFrameDragMove}
-              onDragEnd={handleFrameDragEnd}
-              onDelete={removeObject}
-              onTitleChange={updateTitle}
-              onClick={objectClick}
-              isHovered={hoveredFrameId === frame.id}
-              onResize={resizeObject}
-              onConnectorHoverEnter={objectHoverEnter}
-              onConnectorHoverLeave={objectHoverLeave}
-              isConnectorHighlighted={connectMode && (connectingFrom === frame.id || hoveredObjectId === frame.id)}
-            />
-          ))}
+          {/* Render order: Connectors → Frames → Shapes → Sticky Notes (connectors always behind) */}
           {connectors.map((connector) => (
             <ConnectorComponent
               key={connector.id}
@@ -216,6 +200,22 @@ function BoardView({
               />
             ) : null;
           })()}
+          {frames.map((frame) => (
+            <FrameComponent
+              key={frame.id}
+              frame={frame}
+              onDragMove={handleFrameDragMove}
+              onDragEnd={handleFrameDragEnd}
+              onDelete={removeObject}
+              onTitleChange={updateTitle}
+              onClick={objectClick}
+              isHovered={hoveredFrameId === frame.id}
+              onResize={resizeObject}
+              onConnectorHoverEnter={objectHoverEnter}
+              onConnectorHoverLeave={objectHoverLeave}
+              isConnectorHighlighted={connectMode && (connectingFrom === frame.id || hoveredObjectId === frame.id)}
+            />
+          ))}
           {shapes.map((shape) => (
             <ShapeComponent
               key={shape.id}

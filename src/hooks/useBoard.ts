@@ -31,12 +31,16 @@ export function useBoard(boardId: string, userId: string) {
   }, [boardId]);
 
   const addStickyNote = useCallback(
-    (x: number = 200, y: number = 200, color?: string) => {
+    (x?: number, y?: number, color?: string) => {
+      // Position above toolbar if no coordinates provided
+      const defaultX = window.innerWidth / 2 - 100; // Center horizontally (sticky is 200px wide)
+      const defaultY = window.innerHeight - 350; // 350px from bottom (200px height + 150px for toolbar space)
+
       const note: StickyNote = {
         id: crypto.randomUUID(),
         type: 'sticky',
-        x,
-        y,
+        x: x ?? defaultX,
+        y: y ?? defaultY,
         width: 200,
         height: 200,
         rotation: 0,
@@ -51,14 +55,20 @@ export function useBoard(boardId: string, userId: string) {
   );
 
   const addShape = useCallback(
-    (shapeType: ShapeType, color: string, x: number = 300, y: number = 300) => {
+    (shapeType: ShapeType, color: string, x?: number, y?: number) => {
+      // Position above toolbar if no coordinates provided
+      const shapeWidth = shapeType === 'line' ? 200 : 120;
+      const shapeHeight = shapeType === 'line' ? 4 : 120;
+      const defaultX = window.innerWidth / 2 - shapeWidth / 2; // Center horizontally
+      const defaultY = window.innerHeight - shapeHeight - 170; // Above toolbar (shape height + 170px for toolbar space)
+
       const shape: Shape = {
         id: crypto.randomUUID(),
         type: 'shape',
-        x,
-        y,
-        width: shapeType === 'line' ? 200 : 120,
-        height: shapeType === 'line' ? 4 : 120,
+        x: x ?? defaultX,
+        y: y ?? defaultY,
+        width: shapeWidth,
+        height: shapeHeight,
         rotation: 0,
         createdBy: userId,
         updatedAt: Date.now(),

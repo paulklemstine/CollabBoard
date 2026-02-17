@@ -21,9 +21,11 @@ interface FrameComponentProps {
   onConnectorHoverLeave?: () => void;
   isConnectorHighlighted?: boolean;
   isNew?: boolean;
+  dragOffset?: { x: number; y: number };
+  parentRotation?: number;
 }
 
-export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitleChange, onClick, isHovered, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew }: FrameComponentProps) {
+export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitleChange, onClick, isHovered, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, dragOffset, parentRotation }: FrameComponentProps) {
   const lastDragUpdate = useRef(0);
   const lastResizeUpdate = useRef(0);
   const titleRef = useRef<Konva.Text>(null);
@@ -215,13 +217,18 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
     };
   }, [isEditing, frame.id, frame.title, localWidth, onTitleChange]);
 
+  // Apply parent drag offset and rotation
+  const displayX = frame.x + (dragOffset?.x || 0);
+  const displayY = frame.y + (dragOffset?.y || 0);
+  const displayRotation = (frame.rotation || 0) + (parentRotation || 0);
+
   return (
     <Group
-      x={frame.x + localWidth / 2}
-      y={frame.y + localHeight / 2}
+      x={displayX + localWidth / 2}
+      y={displayY + localHeight / 2}
       offsetX={localWidth / 2}
       offsetY={localHeight / 2}
-      rotation={frame.rotation || 0}
+      rotation={displayRotation}
       draggable
       onDragMove={handleDragMove}
       onDragStart={(e) => {

@@ -265,6 +265,8 @@ function BoardView({
               isHovered={hoveredFrameId === frame.id}
               onResize={resizeObject}
               onRotate={rotateObject}
+              dragOffset={getChildOffset(frame)}
+              parentRotation={getParentRotation(frame.parentId)}
               onConnectorHoverEnter={objectHoverEnter}
               onConnectorHoverLeave={objectHoverLeave}
               isConnectorHighlighted={connectMode && (connectingFrom === frame.id || hoveredObjectId === frame.id)}

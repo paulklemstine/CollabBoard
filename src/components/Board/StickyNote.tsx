@@ -249,13 +249,13 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
       {/* Resize handle */}
       {!isEditing && onResize && (
         <Rect
-          x={localWidth - 6}
-          y={localHeight - 6}
-          width={12}
-          height={12}
+          x={localWidth - 10}
+          y={localHeight - 10}
+          width={20}
+          height={20}
           fill={isResizeHovered ? '#3b82f6' : '#94a3b8'}
           opacity={isResizeHovered ? 1 : 0.4}
-          cornerRadius={2}
+          cornerRadius={3}
           draggable
           onMouseEnter={(e) => {
             setIsResizeHovered(true);
@@ -275,8 +275,8 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
           }}
           onDragMove={(e) => {
             e.cancelBubble = true;
-            const newWidth = Math.max(MIN_WIDTH, e.target.x() + 6);
-            const newHeight = Math.max(MIN_HEIGHT, e.target.y() + 6);
+            const newWidth = Math.max(MIN_WIDTH, e.target.x() + 10);
+            const newHeight = Math.max(MIN_HEIGHT, e.target.y() + 10);
             setLocalWidth(newWidth);
             setLocalHeight(newHeight);
             const now = Date.now();
@@ -287,14 +287,14 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
           }}
           onDragEnd={(e) => {
             e.cancelBubble = true;
-            const newWidth = Math.max(MIN_WIDTH, e.target.x() + 6);
-            const newHeight = Math.max(MIN_HEIGHT, e.target.y() + 6);
+            const newWidth = Math.max(MIN_WIDTH, e.target.x() + 10);
+            const newHeight = Math.max(MIN_HEIGHT, e.target.y() + 10);
             setLocalWidth(newWidth);
             setLocalHeight(newHeight);
             onResize(note.id, newWidth, newHeight);
             setIsResizing(false);
             // Reset handle position to bottom-right of new size
-            e.target.position({ x: newWidth - 6, y: newHeight - 6 });
+            e.target.position({ x: newWidth - 10, y: newHeight - 10 });
           }}
         />
       )}

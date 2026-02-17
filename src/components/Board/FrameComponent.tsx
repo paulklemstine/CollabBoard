@@ -313,13 +313,13 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
       {/* Resize handle */}
       {!isEditing && onResize && (
         <Rect
-          x={localWidth - 6}
-          y={localHeight - 6}
-          width={12}
-          height={12}
+          x={localWidth - 10}
+          y={localHeight - 10}
+          width={20}
+          height={20}
           fill={isResizeHovered ? '#3b82f6' : '#94a3b8'}
           opacity={isResizeHovered ? 1 : 0.4}
-          cornerRadius={2}
+          cornerRadius={3}
           draggable
           onMouseEnter={(e) => {
             setIsResizeHovered(true);
@@ -339,8 +339,8 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
           }}
           onDragMove={(e) => {
             e.cancelBubble = true;
-            const newWidth = Math.max(MIN_WIDTH, e.target.x() + 6);
-            const newHeight = Math.max(MIN_HEIGHT, e.target.y() + 6);
+            const newWidth = Math.max(MIN_WIDTH, e.target.x() + 10);
+            const newHeight = Math.max(MIN_HEIGHT, e.target.y() + 10);
             setLocalWidth(newWidth);
             setLocalHeight(newHeight);
             const now = Date.now();
@@ -351,13 +351,13 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
           }}
           onDragEnd={(e) => {
             e.cancelBubble = true;
-            const newWidth = Math.max(MIN_WIDTH, e.target.x() + 6);
-            const newHeight = Math.max(MIN_HEIGHT, e.target.y() + 6);
+            const newWidth = Math.max(MIN_WIDTH, e.target.x() + 10);
+            const newHeight = Math.max(MIN_HEIGHT, e.target.y() + 10);
             setLocalWidth(newWidth);
             setLocalHeight(newHeight);
             onResize(frame.id, newWidth, newHeight);
             setIsResizing(false);
-            e.target.position({ x: newWidth - 6, y: newHeight - 6 });
+            e.target.position({ x: newWidth - 10, y: newHeight - 10 });
           }}
         />
       )}

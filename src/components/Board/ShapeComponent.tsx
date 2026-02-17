@@ -100,7 +100,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
 
   const handleResizeDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
     e.cancelBubble = true;
-    let newWidth = Math.max(MIN_WIDTH, e.target.x() + 6);
+    let newWidth = Math.max(MIN_WIDTH, e.target.x() + 10);
     let newHeight: number;
 
     if (shape.shapeType === 'circle') {
@@ -108,7 +108,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
     } else if (shape.shapeType === 'line') {
       newHeight = localHeight; // lock height for lines
     } else {
-      newHeight = Math.max(MIN_HEIGHT, e.target.y() + 6);
+      newHeight = Math.max(MIN_HEIGHT, e.target.y() + 10);
     }
 
     setLocalWidth(newWidth);
@@ -123,7 +123,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
 
   const handleResizeDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
     e.cancelBubble = true;
-    let newWidth = Math.max(MIN_WIDTH, e.target.x() + 6);
+    let newWidth = Math.max(MIN_WIDTH, e.target.x() + 10);
     let newHeight: number;
 
     if (shape.shapeType === 'circle') {
@@ -131,7 +131,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
     } else if (shape.shapeType === 'line') {
       newHeight = localHeight;
     } else {
-      newHeight = Math.max(MIN_HEIGHT, e.target.y() + 6);
+      newHeight = Math.max(MIN_HEIGHT, e.target.y() + 10);
     }
 
     setLocalWidth(newWidth);
@@ -141,15 +141,15 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
 
     // For line shapes, position handle on right edge
     if (shape.shapeType === 'line') {
-      e.target.position({ x: newWidth - 6, y: localHeight / 2 - 6 });
+      e.target.position({ x: newWidth - 10, y: localHeight / 2 - 10 });
     } else {
-      e.target.position({ x: newWidth - 6, y: newHeight - 6 });
+      e.target.position({ x: newWidth - 10, y: newHeight - 10 });
     }
   };
 
   // Handle position for line shapes: right edge, vertically centered
-  const handleX = localWidth - 6;
-  const handleY = shape.shapeType === 'line' ? localHeight / 2 - 6 : localHeight - 6;
+  const handleX = localWidth - 10;
+  const handleY = shape.shapeType === 'line' ? localHeight / 2 - 10 : localHeight - 10;
 
   return (
     <Group
@@ -227,11 +227,11 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
         <Rect
           x={handleX}
           y={handleY}
-          width={12}
-          height={12}
+          width={20}
+          height={20}
           fill={isResizeHovered ? '#3b82f6' : '#94a3b8'}
           opacity={isResizeHovered ? 1 : 0.4}
-          cornerRadius={2}
+          cornerRadius={3}
           draggable
           onMouseEnter={(e) => {
             setIsResizeHovered(true);

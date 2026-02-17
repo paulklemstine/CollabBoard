@@ -8,6 +8,8 @@ import {
 } from '../services/boardService';
 import type { StickyNote, Shape, ShapeType, Frame, Sticker, Connector } from '../types/board';
 import { findContainingFrame, getChildrenOfFrame } from '../utils/containment';
+import { screenToWorld } from '../utils/coordinates';
+import type { StageTransform } from '../components/Board/Board';
 
 const STICKY_COLORS = ['#fef9c3', '#fef3c7', '#dcfce7', '#dbeafe', '#f3e8ff', '#ffe4e6', '#fed7aa', '#e0e7ff'];
 
@@ -43,21 +45,36 @@ export function useBoard(boardId: string, userId: string) {
   }, []);
 
   const addStickyNote = useCallback(
-    (x?: number, y?: number, color?: string) => {
-      // Position above toolbar if no coordinates provided
-      const defaultX = window.innerWidth / 2 - 100; // Center horizontally (sticky is 200px wide)
-      const defaultY = window.innerHeight - 350; // 350px from bottom (200px height + 150px for toolbar space)
+    (transform: StageTransform, x?: number, y?: number, color?: string) => {
+      // Calculate screen coordinates for toolbar button position
+      const screenX = window.innerWidth / 2 - 100; // Center horizontally (sticky is 200px wide)
+      const screenY = window.innerHeight - 350; // 350px from bottom (200px height + 150px for toolbar space)
+
+      // Convert to world coordinates if no coordinates provided
+      let worldX: number;
+      let worldY: number;
+      if (x !== undefined && y !== undefined) {
+        worldX = x;
+        worldY = y;
+      } else {
+        const world = screenToWorld(screenX, screenY, transform);
+        worldX = world.x;
+        worldY = world.y;
+      }
+
+      // Get highest updatedAt to ensure new object appears on top
+      const maxUpdatedAt = Math.max(0, ...objectsRef.current.map(o => o.updatedAt));
 
       const note: StickyNote = {
         id: crypto.randomUUID(),
         type: 'sticky',
-        x: x ?? defaultX,
-        y: y ?? defaultY,
+        x: worldX,
+        y: worldY,
         width: 200,
         height: 200,
         rotation: 0,
         createdBy: userId,
-        updatedAt: Date.now(),
+        updatedAt: maxUpdatedAt + 1, // Ensure it's on top
         text: '',
         color: color ?? STICKY_COLORS[Math.floor(Math.random() * STICKY_COLORS.length)],
       };
@@ -68,23 +85,40 @@ export function useBoard(boardId: string, userId: string) {
   );
 
   const addShape = useCallback(
-    (shapeType: ShapeType, color: string, x?: number, y?: number) => {
-      // Position above toolbar if no coordinates provided
+    (transform: StageTransform, shapeType: ShapeType, color: string, x?: number, y?: number) => {
+      // Calculate dimensions based on shape type
       const shapeWidth = shapeType === 'line' ? 200 : 120;
       const shapeHeight = shapeType === 'line' ? 4 : 120;
-      const defaultX = window.innerWidth / 2 - shapeWidth / 2; // Center horizontally
-      const defaultY = window.innerHeight - shapeHeight - 170; // Above toolbar (shape height + 170px for toolbar space)
+
+      // Calculate screen coordinates for toolbar button position
+      const screenX = window.innerWidth / 2 - shapeWidth / 2; // Center horizontally
+      const screenY = window.innerHeight - shapeHeight - 170; // Above toolbar (shape height + 170px for toolbar space)
+
+      // Convert to world coordinates if no coordinates provided
+      let worldX: number;
+      let worldY: number;
+      if (x !== undefined && y !== undefined) {
+        worldX = x;
+        worldY = y;
+      } else {
+        const world = screenToWorld(screenX, screenY, transform);
+        worldX = world.x;
+        worldY = world.y;
+      }
+
+      // Get highest updatedAt to ensure new object appears on top
+      const maxUpdatedAt = Math.max(0, ...objectsRef.current.map(o => o.updatedAt));
 
       const shape: Shape = {
         id: crypto.randomUUID(),
         type: 'shape',
-        x: x ?? defaultX,
-        y: y ?? defaultY,
+        x: worldX,
+        y: worldY,
         width: shapeWidth,
         height: shapeHeight,
         rotation: 0,
         createdBy: userId,
-        updatedAt: Date.now(),
+        updatedAt: maxUpdatedAt + 1, // Ensure it's on top
         shapeType,
         color,
       };
@@ -95,20 +129,36 @@ export function useBoard(boardId: string, userId: string) {
   );
 
   const addFrame = useCallback(
-    (x?: number, y?: number) => {
-      const defaultX = window.innerWidth / 2 - 200; // Center horizontally (frame is 400px wide)
-      const defaultY = window.innerHeight - 300 - 170; // Above toolbar (300px height + 170px for toolbar space)
+    (transform: StageTransform, x?: number, y?: number) => {
+      // Calculate screen coordinates for toolbar button position
+      const screenX = window.innerWidth / 2 - 200; // Center horizontally (frame is 400px wide)
+      const screenY = window.innerHeight - 300 - 170; // Above toolbar (300px height + 170px for toolbar space)
+
+      // Convert to world coordinates if no coordinates provided
+      let worldX: number;
+      let worldY: number;
+      if (x !== undefined && y !== undefined) {
+        worldX = x;
+        worldY = y;
+      } else {
+        const world = screenToWorld(screenX, screenY, transform);
+        worldX = world.x;
+        worldY = world.y;
+      }
+
+      // Get highest updatedAt to ensure new object appears on top
+      const maxUpdatedAt = Math.max(0, ...objectsRef.current.map(o => o.updatedAt));
 
       const frame: Frame = {
         id: crypto.randomUUID(),
         type: 'frame',
-        x: x ?? defaultX,
-        y: y ?? defaultY,
+        x: worldX,
+        y: worldY,
         width: 400,
         height: 300,
         rotation: 0,
         createdBy: userId,
-        updatedAt: Date.now(),
+        updatedAt: maxUpdatedAt + 1, // Ensure it's on top
         title: '',
       };
       addObject(boardId, frame);

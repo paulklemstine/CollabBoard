@@ -313,9 +313,9 @@ function BoardView({
       <CursorsOverlay cursors={cursors} stageTransform={stageTransform} />
       <PresencePanel users={onlineUsers} />
       <Toolbar
-        onAddStickyNote={(color) => addStickyNote(undefined, undefined, color)}
-        onAddShape={addShape}
-        onAddFrame={addFrame}
+        onAddStickyNote={(color) => addStickyNote(stageTransform, undefined, undefined, color)}
+        onAddShape={(shapeType, color) => addShape(stageTransform, shapeType, color)}
+        onAddFrame={() => addFrame(stageTransform)}
         connectMode={connectMode}
         connectingFrom={connectingFrom}
         onToggleConnectMode={toggleConnectMode}

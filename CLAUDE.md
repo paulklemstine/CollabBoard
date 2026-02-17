@@ -23,6 +23,7 @@ Real-time collaborative whiteboard with AI agent. Firebase backend, React fronte
 - `src/services/` - Firebase config, board CRUD, AI client
 - `src/types/` - TypeScript interfaces for board objects
 - `functions/src/` - Cloud Functions (AI agent endpoint)
+- `docs/` - Project documentation and development logs
 
 ## Conventions
 - TypeScript strict mode
@@ -163,3 +164,70 @@ describe('collaboration', () => {
 - Manual testing with 2+ browser windows remains critical for real-time sync validation
 - Performance targets: 60 FPS, <100ms object sync, <50ms cursor sync, 500+ objects, 5+ concurrent users
 - Use Chrome DevTools Performance tab to profile FPS during pan/zoom
+
+## Documentation Requirements
+
+**IMPORTANT:** Always maintain up-to-date documentation as you develop features.
+
+### Documentation Workflow
+1. **During Development:** Create/update technical documentation for new features in `docs/`
+2. **After Implementation:** Update the engineering diary in `docs/AI_DEVELOPMENT_LOG.md`
+3. **Before Committing:** Ensure all related docs are included in the commit
+
+### Required Documentation
+
+#### Feature Documentation (`docs/`)
+When implementing significant features, create dedicated markdown files in `docs/`:
+- **Architecture decisions** - Explain why you chose a particular approach
+- **System design** - Document how components interact (e.g., `PRESENCE_HEARTBEAT.md`)
+- **Configuration** - Document tuneable parameters and their rationale
+- **Trade-offs** - Explain costs, performance implications, edge cases
+- **Testing guide** - How to manually test the feature
+
+Examples:
+- `docs/PRESENCE_HEARTBEAT.md` - Presence and cursor timeout systems
+- `docs/AI_COST_ANALYSIS.md` - AI feature cost analysis
+- `docs/ARCHITECTURE.md` - Overall system architecture
+
+#### Engineering Diary (`docs/AI_DEVELOPMENT_LOG.md`)
+**ALWAYS update the development log after completing work.** This is a chronological record of all development activities.
+
+For each work session, add an entry with:
+- **Date & Time** - When the work was done
+- **Task/Feature** - What was implemented or fixed
+- **Approach** - High-level description of how you solved it
+- **Key Changes** - Files modified, new patterns introduced
+- **Challenges** - Problems encountered and how you solved them
+- **Testing** - How you verified it works
+- **Commit Hash** - Link to the commit for traceability
+
+Entry Format:
+```markdown
+### [YYYY-MM-DD HH:MM] Feature/Fix Name
+
+**Task:** Brief description of what needed to be done
+
+**Approach:**
+- Key decision 1
+- Key decision 2
+
+**Changes:**
+- `file/path.ts` - What changed and why
+- `file/path2.ts` - What changed and why
+
+**Challenges:**
+- Problem encountered and solution
+
+**Testing:**
+- How it was tested (unit tests, manual testing, etc.)
+
+**Commit:** [abc1234] Commit message
+```
+
+### Documentation Best Practices
+- **Write docs as you code** - Don't wait until the end
+- **Be specific** - Include code snippets, configuration values, file paths
+- **Explain "why"** - Not just "what" but "why did we choose this approach"
+- **Update existing docs** - When changing behavior, update related documentation
+- **Link between docs** - Cross-reference related documentation files
+- **Include examples** - Real-world usage examples and common patterns

@@ -565,6 +565,48 @@ const userId = decodedToken.uid
 
 ## Notes & Learnings
 
+### [2026-02-16 Evening] Presence & Cursor Timeout Systems
+
+**Task:** Fix issue where inactive users and their cursors remained visible after closing tabs or navigating away.
+
+**Approach:**
+- Implemented heartbeat system for presence tracking (5s interval, 15s timeout)
+- Implemented timestamp-based filtering for cursor timeout (3s timeout)
+- Added client-side stale data filtering instead of relying solely on Firebase onDisconnect
+- Created comprehensive test coverage for both systems
+
+**Changes:**
+- `src/hooks/usePresence.ts` - Added HEARTBEAT_INTERVAL (5s) and PRESENCE_TIMEOUT (15s) constants, implemented heartbeat with setInterval, added client-side filtering of stale users
+- `src/hooks/usePresence.test.ts` - Added tests for heartbeat, timeout, and stale user filtering
+- `src/hooks/useCursors.ts` - Added CURSOR_TIMEOUT (3s), implemented timestamp-based filtering, added onDisconnect handler, cleanup on unmount
+- `src/hooks/useCursors.test.ts` - Added tests for cursor timeout and stale cursor filtering
+- `docs/PRESENCE_HEARTBEAT.md` - Created comprehensive documentation explaining both systems
+- `src/utils/authErrors.ts` - Created Firebase auth error translation utility
+- `src/utils/authErrors.test.ts` - Added test coverage for error message translation
+- `src/components/Auth/AuthPanel.tsx` - Updated to use user-friendly error messages
+- `CLAUDE.md` - Added documentation requirements section
+
+**Challenges:**
+- **Problem**: Firebase onDisconnect() is not reliable for all exit scenarios (tab close, browser crash, network loss)
+- **Solution**: Implemented dual approach - onDisconnect for graceful exits + client-side timeout filtering for ungraceful exits
+- **Problem**: Different timeout requirements for presence (15s) vs cursors (3s)
+- **Solution**: Presence uses longer timeout (tolerates network hiccups), cursors use shorter timeout (better UX when users stop moving)
+
+**Testing:**
+- Unit tests with vitest fake timers to verify heartbeat intervals and timeout logic
+- Manual testing: Opened 2+ browser windows, verified users disappear within timeout periods after closing tabs
+
+**Commits:**
+- [95af9a0] Add user-friendly Firebase auth error messages
+- [4b5b2c0] Add heartbeat system for presence tracking to remove inactive users
+- [8e7b27e] Add cursor timeout system to remove stale cursors from inactive users
+- [eaacac0] Add playful UI styling and improve visual design
+
+**Cost Impact:**
+- Presence heartbeat: ~12 RTDB writes/min per user (~$0.037 per 100 users per hour)
+- Cursors: Movement-based, no additional writes (already had timestamps)
+- Very cost-efficient for real-time presence tracking
+
 ### 2026-02-16: Template Creation
 - Created AI development log structure
 - Defined initial tool set (createStickyNote, deleteObject, moveObject, updateText)

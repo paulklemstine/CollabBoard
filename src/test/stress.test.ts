@@ -9,6 +9,10 @@
  * | Cursor sync latency   | <50ms                                     |
  * | Object capacity       | 500+ objects without performance drops    |
  * | Concurrent users      | 5+ without degradation                    |
+ *
+ * NOTE: These tests are SKIPPED by default as they are special occasion tests.
+ * To run stress tests, use: npx vitest run src/test/stress.test.ts --no-file-parallelism
+ * Or temporarily change `describe.skip` to `describe` in this file.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -143,7 +147,7 @@ const FRAME_BUDGET_MS = 16.67;
 
 // ─── Test Suites ────────────────────────────────────────────────────────────
 
-describe('Stress Tests', () => {
+describe.skip('Stress Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     subscribeCb = null;

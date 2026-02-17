@@ -23,9 +23,11 @@ interface StickyNoteProps {
   isNew?: boolean;
   parentRotation?: number;
   dragOffset?: { x: number; y: number };
+  isSelected?: boolean;
+  groupDragOffset?: { dx: number; dy: number } | null;
 }
 
-export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange, onDelete, onClick, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, parentRotation, dragOffset }: StickyNoteProps) {
+export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange, onDelete, onClick, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, parentRotation, dragOffset, isSelected, groupDragOffset }: StickyNoteProps) {
   const textRef = useRef<Konva.Text>(null);
   const [isEditing, setIsEditing] = useState(false);
   const lastDragUpdate = useRef(0);
@@ -165,12 +167,12 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
 
   return (
     <Group
-      x={note.x + (dragOffset?.x ?? 0) + localWidth / 2}
-      y={note.y + (dragOffset?.y ?? 0) + localHeight / 2}
+      x={note.x + (dragOffset?.x ?? 0) + (groupDragOffset?.dx ?? 0) + localWidth / 2}
+      y={note.y + (dragOffset?.y ?? 0) + (groupDragOffset?.dy ?? 0) + localHeight / 2}
       offsetX={localWidth / 2}
       offsetY={localHeight / 2}
       rotation={(note.rotation || 0) + (parentRotation || 0)}
-      draggable
+      draggable={!groupDragOffset}
       onDragMove={handleDragMove}
       onDragStart={(e) => {
         const stage = e.target.getStage();
@@ -214,6 +216,19 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
         stroke={isConnectorHighlighted ? '#818cf8' : getComplementaryColor(note.color)}
         strokeWidth={isConnectorHighlighted ? 4 : 3}
       />
+      {/* Selection highlight */}
+      {isSelected && (
+        <Rect
+          width={localWidth}
+          height={localHeight}
+          stroke="#3b82f6"
+          strokeWidth={3}
+          dash={[8, 4]}
+          fill="transparent"
+          cornerRadius={14}
+          listening={false}
+        />
+      )}
       {/* Flash overlay for new objects */}
       {isNew && (
         <Rect

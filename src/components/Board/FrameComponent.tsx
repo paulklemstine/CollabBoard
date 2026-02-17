@@ -23,9 +23,11 @@ interface FrameComponentProps {
   isNew?: boolean;
   dragOffset?: { x: number; y: number };
   parentRotation?: number;
+  isSelected?: boolean;
+  groupDragOffset?: { dx: number; dy: number } | null;
 }
 
-export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitleChange, onClick, isHovered, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, dragOffset, parentRotation }: FrameComponentProps) {
+export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitleChange, onClick, isHovered, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, dragOffset, parentRotation, isSelected, groupDragOffset }: FrameComponentProps) {
   const lastDragUpdate = useRef(0);
   const lastResizeUpdate = useRef(0);
   const titleRef = useRef<Konva.Text>(null);
@@ -225,9 +227,9 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
     };
   }, [isEditing, frame.id, frame.title, frame.rotation, localWidth, onTitleChange, parentRotation]);
 
-  // Apply parent drag offset and rotation
-  const displayX = frame.x + (dragOffset?.x || 0);
-  const displayY = frame.y + (dragOffset?.y || 0);
+  // Apply parent drag offset, group drag offset, and rotation
+  const displayX = frame.x + (dragOffset?.x || 0) + (groupDragOffset?.dx ?? 0);
+  const displayY = frame.y + (dragOffset?.y || 0) + (groupDragOffset?.dy ?? 0);
   const displayRotation = (frame.rotation || 0) + (parentRotation || 0);
 
   return (
@@ -237,7 +239,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
       offsetX={localWidth / 2}
       offsetY={localHeight / 2}
       rotation={displayRotation}
-      draggable
+      draggable={!groupDragOffset}
       onDragMove={handleDragMove}
       onDragStart={(e) => {
         const stage = e.target.getStage();
@@ -279,6 +281,21 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
         fill="rgba(250, 245, 255, 0.12)"
         cornerRadius={16}
       />
+      {/* Selection highlight */}
+      {isSelected && (
+        <Rect
+          x={-4}
+          y={-4}
+          width={localWidth + 8}
+          height={localHeight + 8}
+          stroke="#3b82f6"
+          strokeWidth={3}
+          dash={[8, 4]}
+          fill="transparent"
+          cornerRadius={18}
+          listening={false}
+        />
+      )}
       {/* Flash overlay for new objects */}
       {isNew && (
         <Rect

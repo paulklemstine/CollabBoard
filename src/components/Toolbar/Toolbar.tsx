@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { COLORS } from './ColorPicker';
 import { ColorDrawer } from './ColorDrawer';
 import { ShapeDrawer } from './ShapeDrawer';
@@ -22,6 +22,15 @@ export function Toolbar({
   onToggleConnectMode,
 }: ToolbarProps) {
   const [selectedColor, setSelectedColor] = useState(COLORS[0]);
+  const [shiftHeld, setShiftHeld] = useState(false);
+
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => { if (e.key === 'Shift') setShiftHeld(true); };
+    const up = (e: KeyboardEvent) => { if (e.key === 'Shift') setShiftHeld(false); };
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
+    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
+  }, []);
 
   const connectLabel = connectMode
     ? connectingFrom
@@ -56,6 +65,27 @@ export function Toolbar({
           }}
           className="flex gap-1.5 glass-playful rounded-2xl p-2.5 items-center animate-float-up"
         >
+      {/* Select Mode Indicator */}
+      <div
+        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
+          shiftHeld
+            ? 'text-white'
+            : 'text-gray-500 bg-white/30'
+        }`}
+        style={shiftHeld ? {
+          background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
+          boxShadow: '0 4px 16px rgba(59, 130, 246, 0.4)',
+        } : undefined}
+        title="Hold Shift + drag to select multiple objects"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
+        </svg>
+        <span className="text-xs">{shiftHeld ? 'Select' : <><span className="opacity-60">Shift</span></>}</span>
+      </div>
+
+      <div className="w-px h-8 mx-0.5" style={{ background: 'linear-gradient(to bottom, rgba(251,146,60,0.2), rgba(168,85,247,0.3), rgba(96,165,250,0.2))' }} />
+
       {/* Sticky Note */}
       <button
         onClick={() => onAddStickyNote(selectedColor)}

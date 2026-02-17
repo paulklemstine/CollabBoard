@@ -21,9 +21,11 @@ interface ShapeComponentProps {
   isNew?: boolean;
   parentRotation?: number;
   dragOffset?: { x: number; y: number };
+  isSelected?: boolean;
+  groupDragOffset?: { dx: number; dy: number } | null;
 }
 
-export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, parentRotation, dragOffset }: ShapeComponentProps) {
+export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, parentRotation, dragOffset, isSelected, groupDragOffset }: ShapeComponentProps) {
   const lastDragUpdate = useRef(0);
   const lastResizeUpdate = useRef(0);
   const [isMouseHovered, setIsMouseHovered] = useState(false);
@@ -190,12 +192,12 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
 
   return (
     <Group
-      x={shape.x + (dragOffset?.x ?? 0) + localWidth / 2}
-      y={shape.y + (dragOffset?.y ?? 0) + localHeight / 2}
+      x={shape.x + (dragOffset?.x ?? 0) + (groupDragOffset?.dx ?? 0) + localWidth / 2}
+      y={shape.y + (dragOffset?.y ?? 0) + (groupDragOffset?.dy ?? 0) + localHeight / 2}
       offsetX={localWidth / 2}
       offsetY={localHeight / 2}
       rotation={(shape.rotation || 0) + (parentRotation || 0)}
-      draggable
+      draggable={!groupDragOffset}
       onDragMove={handleDragMove}
       onDragStart={(e) => {
         const stage = e.target.getStage();
@@ -224,6 +226,19 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
       }}
     >
       {renderShape()}
+      {/* Selection highlight */}
+      {isSelected && (
+        <Rect
+          width={localWidth}
+          height={localHeight}
+          stroke="#3b82f6"
+          strokeWidth={3}
+          dash={[8, 4]}
+          fill="transparent"
+          cornerRadius={shape.shapeType === 'circle' ? localWidth / 2 : 16}
+          listening={false}
+        />
+      )}
       {/* Flash overlay for new objects */}
       {isNew && (
         <Rect

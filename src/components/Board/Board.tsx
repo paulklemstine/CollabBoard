@@ -13,6 +13,10 @@ interface BoardProps {
   boardId: string;
   onMouseMove?: (x: number, y: number) => void;
   onTransformChange?: (transform: StageTransform) => void;
+  onStageMouseDown?: (e: Konva.KonvaEventObject<MouseEvent>) => void;
+  onStageMouseMove?: (e: Konva.KonvaEventObject<MouseEvent>) => void;
+  onStageMouseUp?: (e: Konva.KonvaEventObject<MouseEvent>) => void;
+  isPanDisabled?: boolean;
   children?: React.ReactNode;
 }
 
@@ -20,7 +24,7 @@ const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 5;
 const ZOOM_STEP = 1.2;
 
-export function Board({ boardId: _boardId, onMouseMove, onTransformChange, children }: BoardProps) {
+export function Board({ boardId: _boardId, onMouseMove, onTransformChange, onStageMouseDown, onStageMouseMove, onStageMouseUp, isPanDisabled, children }: BoardProps) {
   const [dimensions, setDimensions] = useState({
     width: window.innerWidth,
     height: window.innerHeight,
@@ -180,10 +184,13 @@ export function Board({ boardId: _boardId, onMouseMove, onTransformChange, child
         ref={stageRef}
         width={dimensions.width}
         height={dimensions.height}
-        draggable
+        draggable={!isPanDisabled}
         onWheel={handleWheel}
         onMouseLeave={handleMouseLeave}
         onDragMove={handleDragMove}
+        onMouseDown={onStageMouseDown}
+        onMouseMove={onStageMouseMove}
+        onMouseUp={onStageMouseUp}
         scaleX={scale}
         scaleY={scale}
       >

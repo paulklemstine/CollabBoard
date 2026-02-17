@@ -18,6 +18,7 @@ function objectsCollection(boardId: string) {
 }
 
 export async function addObject(boardId: string, obj: AnyBoardObject): Promise<void> {
+  if (!obj.id) return;
   const docRef = doc(objectsCollection(boardId), obj.id);
   await setDoc(docRef, obj);
 }
@@ -27,11 +28,13 @@ export async function updateObject(
   objectId: string,
   updates: Partial<AnyBoardObject>
 ): Promise<void> {
+  if (!objectId) return;
   const docRef = doc(objectsCollection(boardId), objectId);
   await updateDoc(docRef, { ...updates, updatedAt: Date.now() });
 }
 
 export async function deleteObject(boardId: string, objectId: string): Promise<void> {
+  if (!objectId) return;
   const docRef = doc(objectsCollection(boardId), objectId);
   await deleteDoc(docRef);
 }
@@ -44,10 +47,13 @@ export async function batchUpdateObjects(
   boardId: string,
   updates: Array<{ id: string; updates: Partial<AnyBoardObject> }>
 ): Promise<void> {
+  const valid = updates.filter(({ id }) => !!id);
+  if (valid.length === 0) return;
+
   const batch = writeBatch(db);
   const now = Date.now();
 
-  for (const { id, updates: objUpdates } of updates) {
+  for (const { id, updates: objUpdates } of valid) {
     const docRef = doc(objectsCollection(boardId), id);
     batch.update(docRef, { ...objUpdates, updatedAt: now });
   }
@@ -60,7 +66,7 @@ export function subscribeToBoard(
   callback: (objects: AnyBoardObject[]) => void
 ): Unsubscribe {
   return onSnapshot(objectsCollection(boardId), (snapshot) => {
-    const objects = snapshot.docs.map((d) => d.data() as AnyBoardObject);
+    const objects = snapshot.docs.map((d) => ({ ...d.data(), id: d.id }) as AnyBoardObject);
     callback(objects);
   });
 }

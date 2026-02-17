@@ -8,6 +8,7 @@ import { useRouter } from './hooks/useRouter';
 import { useCursors } from './hooks/useCursors';
 import { usePresence, pickColor } from './hooks/usePresence';
 import { useBoard } from './hooks/useBoard';
+import { useMultiSelect } from './hooks/useMultiSelect';
 import { AuthPanel } from './components/Auth/AuthPanel';
 import { BoardDashboard } from './components/Dashboard/BoardDashboard';
 import { Board, type StageTransform } from './components/Board/Board';
@@ -16,6 +17,7 @@ import { ShapeComponent } from './components/Board/ShapeComponent';
 import { FrameComponent } from './components/Board/FrameComponent';
 import { ConnectorComponent } from './components/Board/ConnectorComponent';
 import { PreviewConnector } from './components/Board/PreviewConnector';
+import { SelectionOverlay } from './components/Board/SelectionOverlay';
 import { CursorsOverlay } from './components/Cursors/CursorsOverlay';
 import { PresencePanel } from './components/Presence/PresencePanel';
 import { Toolbar } from './components/Toolbar/Toolbar';
@@ -155,6 +157,42 @@ function BoardView({
     handleFrameDragEnd,
   } = useBoard(boardId, user.uid);
 
+  const {
+    selectedIds,
+    marquee,
+    isMarqueeActive,
+    groupDragOffset,
+    selectionBox,
+    clearSelection,
+    isSelected: isObjectSelected,
+    handleStageMouseDown,
+    handleStageMouseMove,
+    handleStageMouseUp,
+    handleGroupDragMove,
+    handleGroupDragEnd,
+    handleGroupResize,
+    handleGroupRotate,
+    selectObject,
+  } = useMultiSelect(objects, boardId);
+
+  // Escape key to clear selection
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && selectedIds.size > 0) {
+        clearSelection();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedIds.size, clearSelection]);
+
+  const handleDeleteSelected = useCallback(() => {
+    for (const id of selectedIds) {
+      removeObject(id);
+    }
+    clearSelection();
+  }, [selectedIds, removeObject, clearSelection]);
+
   const [stageTransform, setStageTransform] = useState<StageTransform>({ x: 0, y: 0, scale: 1 });
 
   const handleMouseMove = useCallback(
@@ -223,14 +261,22 @@ function BoardView({
     return f ? (f.rotation || 0) : undefined;
   }
 
-  const objectClick = connectMode ? handleObjectClickForConnect : undefined;
+  const objectClick = connectMode ? handleObjectClickForConnect : selectObject;
   const objectHoverEnter = connectMode ? (id: string) => handleObjectHover(id) : undefined;
   const objectHoverLeave = connectMode ? () => handleObjectHover(null) : undefined;
 
   return (
     <div className="relative w-screen h-screen overflow-hidden board-dots">
       <div className="absolute inset-0 z-0">
-        <Board boardId={boardId} onMouseMove={handleMouseMove} onTransformChange={setStageTransform}>
+        <Board
+          boardId={boardId}
+          onMouseMove={handleMouseMove}
+          onTransformChange={setStageTransform}
+          onStageMouseDown={connectMode ? undefined : handleStageMouseDown}
+          onStageMouseMove={connectMode ? undefined : handleStageMouseMove}
+          onStageMouseUp={connectMode ? undefined : handleStageMouseUp}
+          isPanDisabled={isMarqueeActive}
+        >
           {/* Render order: Connectors → Frames → Shapes → Sticky Notes (connectors always behind) */}
           {connectors.map((connector) => (
             <ConnectorComponent
@@ -272,6 +318,8 @@ function BoardView({
               onConnectorHoverLeave={objectHoverLeave}
               isConnectorHighlighted={connectMode && (connectingFrom === frame.id || hoveredObjectId === frame.id)}
               isNew={newObjectIds.has(frame.id)}
+              isSelected={isObjectSelected(frame.id)}
+              groupDragOffset={selectedIds.size > 1 && isObjectSelected(frame.id) ? groupDragOffset : null}
             />
           ))}
           {shapes.map((shape) => (
@@ -290,6 +338,8 @@ function BoardView({
               onConnectorHoverLeave={objectHoverLeave}
               isConnectorHighlighted={connectMode && (connectingFrom === shape.id || hoveredObjectId === shape.id)}
               isNew={newObjectIds.has(shape.id)}
+              isSelected={isObjectSelected(shape.id)}
+              groupDragOffset={selectedIds.size > 1 && isObjectSelected(shape.id) ? groupDragOffset : null}
             />
           ))}
           {stickyNotes.map((note) => (
@@ -309,8 +359,21 @@ function BoardView({
               onConnectorHoverLeave={objectHoverLeave}
               isConnectorHighlighted={connectMode && (connectingFrom === note.id || hoveredObjectId === note.id)}
               isNew={newObjectIds.has(note.id)}
+              isSelected={isObjectSelected(note.id)}
+              groupDragOffset={selectedIds.size > 1 && isObjectSelected(note.id) ? groupDragOffset : null}
             />
           ))}
+          <SelectionOverlay
+            marquee={marquee}
+            selectedIds={selectedIds}
+            selectionBox={selectionBox}
+            groupDragOffset={groupDragOffset}
+            onGroupDragMove={handleGroupDragMove}
+            onGroupDragEnd={handleGroupDragEnd}
+            onGroupResize={handleGroupResize}
+            onGroupRotate={handleGroupRotate}
+            onDeleteSelected={handleDeleteSelected}
+          />
         </Board>
       </div>
       <CursorsOverlay cursors={cursors} stageTransform={stageTransform} />

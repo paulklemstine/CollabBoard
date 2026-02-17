@@ -6,6 +6,30 @@ A chronological log of all development work on CollabBoard, tracking features, f
 
 ## Development Entries
 
+### [2026-02-16 Night] Cursor Position Updates During Drag
+
+**Task:** Fix cursor freezing during object drag operations - other users could see the object moving but not the cursor.
+
+**Approach:**
+- Identified that Konva drag events on Group components don't bubble to Stage's onMouseMove handler
+- Created wrapper functions that call both the drag handler AND cursor update
+- Applied wrappers to all draggable components (sticky notes, shapes, frames, stickers)
+
+**Changes:**
+- `src/App.tsx` - Added handleDragMoveWithCursor and handleFrameDragMoveWithCursor wrapper functions that update both object position and cursor position during drag operations
+
+**Challenges:**
+- **Problem**: During drag operations in Konva, mouse move events on the Stage don't fire because the drag is handled by the Group component
+- **Solution**: Explicitly call updateCursor(x, y) within the drag move handlers to broadcast cursor position during drag
+
+**Testing:**
+- Manual testing: Open 2 browser windows, drag object in one window, verify cursor moves in real-time in the other window
+
+**Commits:**
+- [494e917] Fix cursor position updates during object dragging
+
+---
+
 ### [2026-02-16 Late Evening] Sticker Menu Z-Index Fix
 
 **Task:** Fix sticker emoji picker appearing hidden behind the toolbar.

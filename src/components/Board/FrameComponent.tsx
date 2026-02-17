@@ -388,7 +388,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
           onMouseEnter={(e) => {
             setIsRotateHovered(true);
             const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'grab';
+            if (stage) stage.container().style.cursor = 'alias';
           }}
           onMouseLeave={(e) => {
             setIsRotateHovered(false);

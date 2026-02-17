@@ -288,7 +288,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
           onMouseEnter={(e) => {
             setIsRotateHovered(true);
             const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'grab';
+            if (stage) stage.container().style.cursor = 'alias';
           }}
           onMouseLeave={(e) => {
             setIsRotateHovered(false);

@@ -40,7 +40,7 @@ export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboar
                 CollabBoard
               </h1>
               <p className="text-sm text-white/70 font-medium">
-                Welcome, {user.displayName ?? user.email ?? 'User'}
+                Welcome, {user.displayName || user.email?.split('@')[0] || 'User'}
               </p>
             </div>
           </div>

@@ -67,10 +67,10 @@ export function AuthPanel({ user, onSignOut }: AuthPanelProps) {
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             }}
           >
-            {(user.displayName?.[0] ?? 'U').toUpperCase()}
+            {(user.displayName?.[0] || user.email?.[0] || 'U').toUpperCase()}
           </div>
           <span className="text-sm font-semibold text-gray-700">
-            {user.displayName}
+            {user.displayName || user.email?.split('@')[0] || 'User'}
           </span>
           <button
             onClick={() => (onSignOut ?? signOutUser)()}

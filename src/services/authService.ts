@@ -26,6 +26,8 @@ export async function signInAsGuest() {
 export async function signUpWithEmail(name: string, email: string, password: string) {
   const result = await createUserWithEmailAndPassword(auth, email, password);
   await updateProfile(result.user, { displayName: name });
+  // Reload so onAuthStateChanged picks up the updated displayName
+  await result.user.reload();
   return result;
 }
 

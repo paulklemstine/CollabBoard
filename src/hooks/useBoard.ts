@@ -132,6 +132,13 @@ export function useBoard(boardId: string, userId: string) {
     [boardId]
   );
 
+  const rotateObject = useCallback(
+    (objectId: string, rotation: number) => {
+      updateObject(boardId, objectId, { rotation });
+    },
+    [boardId]
+  );
+
   /** Called during drag of non-frame objects — updates position + detects hover over frames */
   const handleDragMove = useCallback(
     (objectId: string, x: number, y: number) => {
@@ -329,6 +336,7 @@ export function useBoard(boardId: string, userId: string) {
     addSticker,
     moveObject,
     resizeObject,
+    rotateObject,
     updateText,
     updateTitle,
     removeObject,

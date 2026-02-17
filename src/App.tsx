@@ -133,6 +133,7 @@ function BoardView({
     addFrame,
     moveObject: _moveObject,
     resizeObject,
+    rotateObject,
     updateText,
     updateTitle,
     removeObject,
@@ -211,6 +212,7 @@ function BoardView({
               onClick={objectClick}
               isHovered={hoveredFrameId === frame.id}
               onResize={resizeObject}
+              onRotate={rotateObject}
               onConnectorHoverEnter={objectHoverEnter}
               onConnectorHoverLeave={objectHoverLeave}
               isConnectorHighlighted={connectMode && (connectingFrom === frame.id || hoveredObjectId === frame.id)}
@@ -225,6 +227,7 @@ function BoardView({
               onDelete={removeObject}
               onClick={objectClick}
               onResize={resizeObject}
+              onRotate={rotateObject}
               dragOffset={frameDragOffset && shape.parentId === frameDragOffset.frameId ? { x: frameDragOffset.dx, y: frameDragOffset.dy } : undefined}
               onConnectorHoverEnter={objectHoverEnter}
               onConnectorHoverLeave={objectHoverLeave}
@@ -241,6 +244,7 @@ function BoardView({
               onDelete={removeObject}
               onClick={objectClick}
               onResize={resizeObject}
+              onRotate={rotateObject}
               dragOffset={frameDragOffset && note.parentId === frameDragOffset.frameId ? { x: frameDragOffset.dx, y: frameDragOffset.dy } : undefined}
               onConnectorHoverEnter={objectHoverEnter}
               onConnectorHoverLeave={objectHoverLeave}

@@ -16,12 +16,13 @@ interface FrameComponentProps {
   onClick?: (id: string) => void;
   isHovered?: boolean;
   onResize?: (id: string, width: number, height: number) => void;
+  onRotate?: (id: string, rotation: number) => void;
   onConnectorHoverEnter?: (id: string) => void;
   onConnectorHoverLeave?: () => void;
   isConnectorHighlighted?: boolean;
 }
 
-export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitleChange, onClick, isHovered, onResize, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted }: FrameComponentProps) {
+export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitleChange, onClick, isHovered, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted }: FrameComponentProps) {
   const lastDragUpdate = useRef(0);
   const lastResizeUpdate = useRef(0);
   const titleRef = useRef<Konva.Text>(null);
@@ -30,6 +31,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
   const [isEditing, setIsEditing] = useState(false);
   const [isMouseHovered, setIsMouseHovered] = useState(false);
   const [isResizeHovered, setIsResizeHovered] = useState(false);
+  const [isRotateHovered, setIsRotateHovered] = useState(false);
   const [isDeleteHovered, setIsDeleteHovered] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [localWidth, setLocalWidth] = useState(frame.width);
@@ -183,6 +185,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
     <Group
       x={frame.x}
       y={frame.y}
+      rotation={frame.rotation || 0}
       draggable
       onDragMove={handleDragMove}
       onDragStart={(e) => {
@@ -200,7 +203,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
         setIsMouseHovered(true);
         onConnectorHoverEnter?.(frame.id);
         const stage = e.target.getStage();
-        if (stage && !isDeleteHovered && !isResizeHovered) {
+        if (stage && !isDeleteHovered && !isResizeHovered && !isRotateHovered) {
           stage.container().style.cursor = 'grab';
         }
       }}
@@ -310,6 +313,53 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
         fill={isDeleteHovered ? '#ef4444' : '#666'}
         listening={false}
       />
+      {/* Rotate handle (bottom-left) */}
+      {!isEditing && onRotate && (
+        <Rect
+          x={-10}
+          y={localHeight - 10}
+          width={20}
+          height={20}
+          fill={isRotateHovered ? '#8b5cf6' : '#94a3b8'}
+          opacity={isRotateHovered ? 1 : 0.4}
+          cornerRadius={10}
+          draggable
+          onMouseEnter={(e) => {
+            setIsRotateHovered(true);
+            const stage = e.target.getStage();
+            if (stage) stage.container().style.cursor = 'grab';
+          }}
+          onMouseLeave={(e) => {
+            setIsRotateHovered(false);
+            const stage = e.target.getStage();
+            if (stage && isMouseHovered) stage.container().style.cursor = 'grab';
+          }}
+          onDragStart={(e) => {
+            e.cancelBubble = true;
+          }}
+          onDragMove={(e) => {
+            e.cancelBubble = true;
+            const handleX = e.target.x() + 10;
+            const handleY = e.target.y() + 10;
+            const centerX = localWidth / 2;
+            const centerY = localHeight / 2;
+            const angle = Math.atan2(handleY - centerY, handleX - centerX) * (180 / Math.PI);
+            const rotation = angle - 135;
+            onRotate(frame.id, rotation);
+          }}
+          onDragEnd={(e) => {
+            e.cancelBubble = true;
+            const handleX = e.target.x() + 10;
+            const handleY = e.target.y() + 10;
+            const centerX = localWidth / 2;
+            const centerY = localHeight / 2;
+            const angle = Math.atan2(handleY - centerY, handleX - centerX) * (180 / Math.PI);
+            const rotation = angle - 135;
+            onRotate(frame.id, rotation);
+            e.target.position({ x: -10, y: localHeight - 10 });
+          }}
+        />
+      )}
       {/* Resize handle */}
       {!isEditing && onResize && (
         <Rect

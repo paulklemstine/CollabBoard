@@ -14,17 +14,19 @@ interface ShapeComponentProps {
   onDelete: (id: string) => void;
   onClick?: (id: string) => void;
   onResize?: (id: string, width: number, height: number) => void;
+  onRotate?: (id: string, rotation: number) => void;
   onConnectorHoverEnter?: (id: string) => void;
   onConnectorHoverLeave?: () => void;
   isConnectorHighlighted?: boolean;
   dragOffset?: { x: number; y: number };
 }
 
-export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick, onResize, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, dragOffset }: ShapeComponentProps) {
+export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, dragOffset }: ShapeComponentProps) {
   const lastDragUpdate = useRef(0);
   const lastResizeUpdate = useRef(0);
   const [isMouseHovered, setIsMouseHovered] = useState(false);
   const [isResizeHovered, setIsResizeHovered] = useState(false);
+  const [isRotateHovered, setIsRotateHovered] = useState(false);
   const [isDeleteHovered, setIsDeleteHovered] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [localWidth, setLocalWidth] = useState(shape.width);
@@ -155,6 +157,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
     <Group
       x={shape.x + (dragOffset?.x ?? 0)}
       y={shape.y + (dragOffset?.y ?? 0)}
+      rotation={shape.rotation || 0}
       draggable
       onDragMove={handleDragMove}
       onDragStart={(e) => {
@@ -172,7 +175,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
         setIsMouseHovered(true);
         onConnectorHoverEnter?.(shape.id);
         const stage = e.target.getStage();
-        if (stage && !isDeleteHovered && !isResizeHovered) {
+        if (stage && !isDeleteHovered && !isResizeHovered && !isRotateHovered) {
           stage.container().style.cursor = 'grab';
         }
       }}
@@ -222,6 +225,53 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
         fill={isDeleteHovered ? '#ef4444' : '#666'}
         listening={false}
       />
+      {/* Rotate handle (bottom-left) */}
+      {onRotate && (
+        <Rect
+          x={-10}
+          y={localHeight - 10}
+          width={20}
+          height={20}
+          fill={isRotateHovered ? '#8b5cf6' : '#94a3b8'}
+          opacity={isRotateHovered ? 1 : 0.4}
+          cornerRadius={10}
+          draggable
+          onMouseEnter={(e) => {
+            setIsRotateHovered(true);
+            const stage = e.target.getStage();
+            if (stage) stage.container().style.cursor = 'grab';
+          }}
+          onMouseLeave={(e) => {
+            setIsRotateHovered(false);
+            const stage = e.target.getStage();
+            if (stage && isMouseHovered) stage.container().style.cursor = 'grab';
+          }}
+          onDragStart={(e) => {
+            e.cancelBubble = true;
+          }}
+          onDragMove={(e) => {
+            e.cancelBubble = true;
+            const handleX = e.target.x() + 10;
+            const handleY = e.target.y() + 10;
+            const centerX = localWidth / 2;
+            const centerY = localHeight / 2;
+            const angle = Math.atan2(handleY - centerY, handleX - centerX) * (180 / Math.PI);
+            const rotation = angle - 135;
+            onRotate(shape.id, rotation);
+          }}
+          onDragEnd={(e) => {
+            e.cancelBubble = true;
+            const handleX = e.target.x() + 10;
+            const handleY = e.target.y() + 10;
+            const centerX = localWidth / 2;
+            const centerY = localHeight / 2;
+            const angle = Math.atan2(handleY - centerY, handleX - centerX) * (180 / Math.PI);
+            const rotation = angle - 135;
+            onRotate(shape.id, rotation);
+            e.target.position({ x: -10, y: localHeight - 10 });
+          }}
+        />
+      )}
       {/* Resize handle */}
       {onResize && (
         <Rect

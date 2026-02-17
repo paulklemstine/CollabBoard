@@ -8,6 +8,12 @@ const COLORS = [
   '#8b5cf6', '#ef4444', '#14b8a6', '#f97316', '#06b6d4',
 ];
 
+// Heartbeat: update presence every 5 seconds
+export const HEARTBEAT_INTERVAL = 5000;
+
+// Timeout: consider user offline if no heartbeat for 15 seconds
+export const PRESENCE_TIMEOUT = 15000;
+
 export function pickColor(uid: string): string {
   let hash = 0;
   for (let i = 0; i < uid.length; i++) {
@@ -29,18 +35,26 @@ export function usePresence(
     const userPresenceRef = ref(rtdb, `boards/${boardId}/presence/${userId}`);
     const allPresenceRef = ref(rtdb, `boards/${boardId}/presence`);
 
-    // Set user online
-    set(userPresenceRef, {
-      uid: userId,
-      displayName,
-      email,
-      color,
-      online: true,
-      lastSeen: Date.now(),
-    });
+    // Function to update user presence with current timestamp
+    const updatePresence = () => {
+      set(userPresenceRef, {
+        uid: userId,
+        displayName,
+        email,
+        color,
+        online: true,
+        lastSeen: Date.now(),
+      });
+    };
+
+    // Set user online immediately
+    updatePresence();
 
     // Configure disconnect handler
     onDisconnect(userPresenceRef).remove();
+
+    // Start heartbeat - update presence every HEARTBEAT_INTERVAL
+    const heartbeatInterval = setInterval(updatePresence, HEARTBEAT_INTERVAL);
 
     // Subscribe to all presence
     onValue(allPresenceRef, (snapshot) => {
@@ -49,14 +63,29 @@ export function usePresence(
         setOnlineUsers([]);
         return;
       }
+
+      const now = Date.now();
       const users = Object.values(data as Record<string, PresenceUser>).filter(
-        (u) => u.online
+        (u) => {
+          // Filter out users marked as offline
+          if (!u.online) return false;
+
+          // Filter out users whose lastSeen is older than PRESENCE_TIMEOUT
+          const timeSinceLastSeen = now - u.lastSeen;
+          return timeSinceLastSeen < PRESENCE_TIMEOUT;
+        }
       );
       setOnlineUsers(users);
     });
 
     return () => {
+      // Clear heartbeat interval
+      clearInterval(heartbeatInterval);
+
+      // Unsubscribe from presence updates
       off(allPresenceRef);
+
+      // Mark user as offline
       set(userPresenceRef, {
         uid: userId,
         displayName,

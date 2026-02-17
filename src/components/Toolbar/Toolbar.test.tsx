@@ -7,7 +7,6 @@ const defaultProps = {
   onAddStickyNote: vi.fn(),
   onAddShape: vi.fn(),
   onAddFrame: vi.fn(),
-  onAddSticker: vi.fn(),
   connectMode: false,
   connectingFrom: null,
   onToggleConnectMode: vi.fn(),
@@ -30,63 +29,16 @@ describe('Toolbar', () => {
     expect(onAdd).toHaveBeenCalledOnce();
   });
 
-  it('renders shape buttons', () => {
+  it('renders color drawer', () => {
     render(<Toolbar {...defaultProps} />);
 
-    expect(screen.getByTitle('Add rectangle')).toBeInTheDocument();
-    expect(screen.getByTitle('Add circle')).toBeInTheDocument();
+    expect(screen.getByText('Colors')).toBeInTheDocument();
   });
 
-  it('calls onAddShape with correct args when rect is clicked', async () => {
-    const user = userEvent.setup();
-    const onAddShape = vi.fn();
-
-    render(<Toolbar {...defaultProps} onAddShape={onAddShape} />);
-    await user.click(screen.getByTitle('Add rectangle'));
-
-    expect(onAddShape).toHaveBeenCalledWith('rect', expect.any(String));
-  });
-
-  it('renders frame button', () => {
+  it('renders shape drawer', () => {
     render(<Toolbar {...defaultProps} />);
 
-    expect(screen.getByTitle('Add frame')).toBeInTheDocument();
-  });
-
-  it('calls onAddFrame when frame button is clicked', async () => {
-    const user = userEvent.setup();
-    const onAddFrame = vi.fn();
-
-    render(<Toolbar {...defaultProps} onAddFrame={onAddFrame} />);
-    await user.click(screen.getByTitle('Add frame'));
-
-    expect(onAddFrame).toHaveBeenCalledOnce();
-  });
-
-  it('renders sticker button', () => {
-    render(<Toolbar {...defaultProps} />);
-
-    expect(screen.getByTitle('Add sticker')).toBeInTheDocument();
-  });
-
-  it('shows emoji picker when sticker button clicked', async () => {
-    const user = userEvent.setup();
-
-    render(<Toolbar {...defaultProps} />);
-    await user.click(screen.getByTitle('Add sticker'));
-
-    expect(screen.getByText('\ud83d\udc4d')).toBeInTheDocument();
-  });
-
-  it('calls onAddSticker when emoji is selected', async () => {
-    const user = userEvent.setup();
-    const onAddSticker = vi.fn();
-
-    render(<Toolbar {...defaultProps} onAddSticker={onAddSticker} />);
-    await user.click(screen.getByTitle('Add sticker'));
-    await user.click(screen.getByText('\ud83d\udc4d'));
-
-    expect(onAddSticker).toHaveBeenCalledWith('\ud83d\udc4d');
+    expect(screen.getByText('Shapes')).toBeInTheDocument();
   });
 
   it('renders connect button', () => {

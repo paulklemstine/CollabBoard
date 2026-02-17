@@ -38,9 +38,10 @@ describe('useCursors', () => {
   });
 
   it('filters out own cursor from returned cursors', () => {
+    const now = Date.now();
     const cursorData = {
-      'user-1': { x: 10, y: 20, name: 'Me', color: '#ff0', userId: 'user-1', timestamp: 1 },
-      'user-2': { x: 30, y: 40, name: 'Other', color: '#0ff', userId: 'user-2', timestamp: 1 },
+      'user-1': { x: 10, y: 20, name: 'Me', color: '#ff0', userId: 'user-1', timestamp: now },
+      'user-2': { x: 30, y: 40, name: 'Other', color: '#0ff', userId: 'user-2', timestamp: now },
     };
 
     vi.mocked(onValue).mockImplementation((_ref, callback) => {

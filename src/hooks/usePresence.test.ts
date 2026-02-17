@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { ref, onValue, set, onDisconnect, off } from 'firebase/database';
 import { usePresence, HEARTBEAT_INTERVAL, PRESENCE_TIMEOUT } from './usePresence';
 
@@ -58,9 +58,10 @@ describe('usePresence', () => {
   });
 
   it('subscribes to all presence and returns online users', () => {
+    const now = Date.now();
     const presenceData = {
-      'user-1': { uid: 'user-1', displayName: 'Me', email: '', color: '#f00', online: true, lastSeen: 1 },
-      'user-2': { uid: 'user-2', displayName: 'Other', email: '', color: '#0f0', online: true, lastSeen: 1 },
+      'user-1': { uid: 'user-1', displayName: 'Me', email: '', color: '#f00', online: true, lastSeen: now },
+      'user-2': { uid: 'user-2', displayName: 'Other', email: '', color: '#0f0', online: true, lastSeen: now },
     };
 
     vi.mocked(onValue).mockImplementation((_ref, callback) => {
@@ -106,7 +107,7 @@ describe('usePresence', () => {
     expect(set).toHaveBeenCalledTimes(2);
   });
 
-  it('sends heartbeat every HEARTBEAT_INTERVAL milliseconds', async () => {
+  it('sends heartbeat every HEARTBEAT_INTERVAL milliseconds', () => {
     vi.mocked(onValue).mockReturnValue(vi.fn() as never);
 
     renderHook(() =>
@@ -116,14 +117,14 @@ describe('usePresence', () => {
     const initialCalls = vi.mocked(set).mock.calls.length;
 
     // Advance time by HEARTBEAT_INTERVAL
-    vi.advanceTimersByTime(HEARTBEAT_INTERVAL);
-
-    await waitFor(() => {
-      expect(vi.mocked(set).mock.calls.length).toBeGreaterThan(initialCalls);
+    act(() => {
+      vi.advanceTimersByTime(HEARTBEAT_INTERVAL);
     });
+
+    expect(vi.mocked(set).mock.calls.length).toBeGreaterThan(initialCalls);
   });
 
-  it('updates lastSeen timestamp on each heartbeat', async () => {
+  it('updates lastSeen timestamp on each heartbeat', () => {
     vi.mocked(onValue).mockReturnValue(vi.fn() as never);
     const startTime = Date.now();
 
@@ -136,13 +137,13 @@ describe('usePresence', () => {
     expect(firstCall.lastSeen).toBe(startTime);
 
     // Advance time and trigger heartbeat
-    vi.advanceTimersByTime(HEARTBEAT_INTERVAL);
-
-    await waitFor(() => {
-      const calls = vi.mocked(set).mock.calls;
-      const latestCall = calls[calls.length - 1][1] as { lastSeen: number };
-      expect(latestCall.lastSeen).toBeGreaterThanOrEqual(startTime + HEARTBEAT_INTERVAL);
+    act(() => {
+      vi.advanceTimersByTime(HEARTBEAT_INTERVAL);
     });
+
+    const calls = vi.mocked(set).mock.calls;
+    const latestCall = calls[calls.length - 1][1] as { lastSeen: number };
+    expect(latestCall.lastSeen).toBeGreaterThanOrEqual(startTime + HEARTBEAT_INTERVAL);
   });
 
   it('clears heartbeat interval on unmount', () => {

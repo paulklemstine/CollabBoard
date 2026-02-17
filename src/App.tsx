@@ -1,7 +1,8 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ref, set, remove } from 'firebase/database';
 import { rtdb } from './services/firebase';
 import { signOutUser } from './services/authService';
+import { subscribeToBoardMetadata } from './services/boardMetadataService';
 import { useAuth } from './hooks/useAuth';
 import { useRouter } from './hooks/useRouter';
 import { useCursors } from './hooks/useCursors';
@@ -18,7 +19,7 @@ import { PreviewConnector } from './components/Board/PreviewConnector';
 import { CursorsOverlay } from './components/Cursors/CursorsOverlay';
 import { PresencePanel } from './components/Presence/PresencePanel';
 import { Toolbar } from './components/Toolbar/Toolbar';
-import type { StickyNote, Shape, Frame, Connector } from './types/board';
+import type { StickyNote, Shape, Frame, Connector, BoardMetadata } from './types/board';
 
 function App() {
   const { user, loading } = useAuth();
@@ -88,6 +89,30 @@ function BoardView({
   onNavigateBack: () => void;
   onSignOut: () => Promise<void>;
 }) {
+  const [boardMetadata, setBoardMetadata] = useState<BoardMetadata | null>(null);
+
+  // Subscribe to board metadata for display + deletion detection
+  const onNavigateBackRef = useRef(onNavigateBack);
+  onNavigateBackRef.current = onNavigateBack;
+
+  useEffect(() => {
+    let isFirst = true;
+    const unsubscribe = subscribeToBoardMetadata(boardId, (board) => {
+      setBoardMetadata(board);
+      if (isFirst) {
+        isFirst = false;
+        if (!board) {
+          onNavigateBackRef.current();
+        }
+        return;
+      }
+      if (!board) {
+        onNavigateBackRef.current();
+      }
+    });
+    return unsubscribe;
+  }, [boardId]);
+
   const userColor = pickColor(user.uid);
   const { cursors, updateCursor } = useCursors(
     boardId,
@@ -180,6 +205,7 @@ function BoardView({
               key={connector.id}
               connector={connector}
               objects={objects}
+              onDelete={removeObject}
             />
           ))}
           {/* Preview connector while connecting */}
@@ -230,7 +256,7 @@ function BoardView({
         connectingFrom={connectingFrom}
         onToggleConnectMode={toggleConnectMode}
       />
-      <div className="absolute top-4 left-4 z-50 flex items-center gap-2">
+      <div className="absolute top-4 left-4 z-50 flex items-center gap-3">
         <button
           onClick={onNavigateBack}
           className="glass-playful rounded-xl px-3 py-2 text-sm font-semibold text-gray-700 hover:text-purple-600 transition-colors duration-200 shadow-lg flex items-center gap-1.5"
@@ -240,6 +266,13 @@ function BoardView({
           </svg>
           Boards
         </button>
+        {boardMetadata && (
+          <div className="glass-playful rounded-xl px-5 py-2.5 shadow-lg">
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 bg-clip-text text-transparent">
+              {boardMetadata.name}
+            </h1>
+          </div>
+        )}
         <AuthPanel user={user as never} onSignOut={onSignOut} />
       </div>
     </div>

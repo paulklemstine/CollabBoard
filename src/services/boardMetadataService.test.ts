@@ -14,6 +14,7 @@ import {
   createBoard,
   deleteBoard,
   deleteBoardObjects,
+  subscribeToBoardMetadata,
   subscribeToUserBoards,
   subscribeToAllBoards,
 } from './boardMetadataService';
@@ -117,6 +118,55 @@ describe('boardMetadataService', () => {
     vi.mocked(onSnapshot).mockReturnValue(unsubscribe as never);
 
     const result = subscribeToUserBoards('user-1', vi.fn());
+
+    expect(result).toBe(unsubscribe);
+  });
+
+  it('subscribeToBoardMetadata subscribes to a single board doc', () => {
+    const callback = vi.fn();
+    vi.mocked(onSnapshot).mockReturnValue(vi.fn() as never);
+
+    subscribeToBoardMetadata('board-1', callback);
+
+    expect(doc).toHaveBeenCalledWith(expect.anything(), 'boards', 'board-1');
+    expect(onSnapshot).toHaveBeenCalled();
+  });
+
+  it('subscribeToBoardMetadata passes board data when doc exists', () => {
+    const callback = vi.fn();
+    vi.mocked(onSnapshot).mockImplementation((_ref, cb) => {
+      (cb as (snap: { exists: () => boolean; data: () => BoardMetadata }) => void)({
+        exists: () => true,
+        data: () => mockBoard,
+      });
+      return vi.fn() as never;
+    });
+
+    subscribeToBoardMetadata('board-1', callback);
+
+    expect(callback).toHaveBeenCalledWith(mockBoard);
+  });
+
+  it('subscribeToBoardMetadata passes null when doc does not exist', () => {
+    const callback = vi.fn();
+    vi.mocked(onSnapshot).mockImplementation((_ref, cb) => {
+      (cb as (snap: { exists: () => boolean; data: () => undefined }) => void)({
+        exists: () => false,
+        data: () => undefined,
+      });
+      return vi.fn() as never;
+    });
+
+    subscribeToBoardMetadata('board-1', callback);
+
+    expect(callback).toHaveBeenCalledWith(null);
+  });
+
+  it('subscribeToBoardMetadata returns unsubscribe function', () => {
+    const unsubscribe = vi.fn();
+    vi.mocked(onSnapshot).mockReturnValue(unsubscribe as never);
+
+    const result = subscribeToBoardMetadata('board-1', vi.fn());
 
     expect(result).toBe(unsubscribe);
   });

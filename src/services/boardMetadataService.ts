@@ -50,6 +50,15 @@ export function subscribeToUserBoards(
   });
 }
 
+export function subscribeToBoardMetadata(
+  boardId: string,
+  callback: (board: BoardMetadata | null) => void,
+): Unsubscribe {
+  return onSnapshot(boardDoc(boardId), (snapshot) => {
+    callback(snapshot.exists() ? (snapshot.data() as BoardMetadata) : null);
+  });
+}
+
 export function subscribeToAllBoards(
   callback: (boards: BoardMetadata[]) => void,
 ): Unsubscribe {

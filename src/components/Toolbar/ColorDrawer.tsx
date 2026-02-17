@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { COLORS } from './ColorPicker';
+import { FancyColorPicker } from './FancyColorPicker';
 
 interface ColorDrawerProps {
   selectedColor: string;
   onSelectColor: (color: string) => void;
 }
 
-// Convert hex to HSL, rotate hue by 180°, convert back to hex
+// Convert hex to HSL, rotate hue by 180° and invert lightness for maximum contrast
 const getComplementaryColor = (hex: string): string => {
   // Remove # if present
   hex = hex.replace('#', '');
@@ -34,6 +35,13 @@ const getComplementaryColor = (hex: string): string => {
   // Rotate hue by 180° (complementary color)
   h = (h + 0.5) % 1;
 
+  // Invert lightness for maximum contrast
+  // If original is light (>0.5), make dark; if dark, make light
+  const l2 = l > 0.5 ? 0.2 : 0.9;
+
+  // Keep saturation high for vibrant text
+  const s2 = Math.max(s, 0.7);
+
   // Convert HSL back to RGB
   const hue2rgb = (p: number, q: number, t: number) => {
     if (t < 0) t += 1;
@@ -45,11 +53,11 @@ const getComplementaryColor = (hex: string): string => {
   };
 
   let r2, g2, b2;
-  if (s === 0) {
-    r2 = g2 = b2 = l;
+  if (s2 === 0) {
+    r2 = g2 = b2 = l2;
   } else {
-    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-    const p = 2 * l - q;
+    const q = l2 < 0.5 ? l2 * (1 + s2) : l2 + s2 - l2 * s2;
+    const p = 2 * l2 - q;
     r2 = hue2rgb(p, q, h + 1/3);
     g2 = hue2rgb(p, q, h);
     b2 = hue2rgb(p, q, h - 1/3);
@@ -66,7 +74,6 @@ const getComplementaryColor = (hex: string): string => {
 
 export function ColorDrawer({ selectedColor, onSelectColor }: ColorDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [customColor, setCustomColor] = useState('#000000');
 
   const textColor = getComplementaryColor(selectedColor);
 
@@ -105,40 +112,8 @@ export function ColorDrawer({ selectedColor, onSelectColor }: ColorDrawerProps) 
           className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 animate-bounce-in"
           style={{ zIndex: 1001 }}
         >
-          <div className="glass-playful rounded-2xl shadow-2xl p-3">
-            {/* Default Colors */}
-            <div className="flex gap-2 items-center mb-3 pb-3 border-b border-white/20">
-              {COLORS.map((color) => (
-                <button
-                  key={color}
-                  onClick={() => onSelectColor(color)}
-                  className="w-8 h-8 rounded-full transition-all duration-200 hover:scale-125"
-                  style={{
-                    backgroundColor: color,
-                    boxShadow: selectedColor === color
-                      ? `0 0 0 2.5px white, 0 0 0 5px ${color}, 0 0 16px ${color}60`
-                      : `0 2px 6px ${color}30, inset 0 -1px 2px rgba(0,0,0,0.1)`,
-                    border: '2px solid rgba(255,255,255,0.6)',
-                  }}
-                  title={color}
-                />
-              ))}
-            </div>
-
-            {/* Custom Color Picker */}
-            <div className="flex flex-col items-center gap-2">
-              <span className="text-xs font-semibold text-gray-600">Custom</span>
-              <input
-                type="color"
-                value={customColor}
-                onChange={(e) => {
-                  setCustomColor(e.target.value);
-                  onSelectColor(e.target.value);
-                }}
-                className="w-24 h-24 cursor-pointer rounded-lg border-2 border-white/50"
-                style={{ colorScheme: 'light' }}
-              />
-            </div>
+          <div className="glass-playful rounded-2xl shadow-2xl">
+            <FancyColorPicker selectedColor={selectedColor} onSelectColor={onSelectColor} />
           </div>
         </div>
       )}

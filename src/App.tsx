@@ -67,6 +67,10 @@ function BoardView({ user }: { user: { uid: string; displayName: string | null; 
     connectingFrom,
     toggleConnectMode,
     handleObjectClickForConnect,
+    hoveredFrameId,
+    handleDragMove,
+    handleDragEnd,
+    handleFrameDragMove,
   } = useBoard(BOARD_ID, user.uid);
 
   const handleMouseMove = useCallback(
@@ -93,11 +97,12 @@ function BoardView({ user }: { user: { uid: string; displayName: string | null; 
             <FrameComponent
               key={frame.id}
               frame={frame}
-              onDragMove={moveObject}
-              onDragEnd={moveObject}
+              onDragMove={handleFrameDragMove}
+              onDragEnd={handleDragEnd}
               onDelete={removeObject}
               onTitleChange={updateTitle}
               onClick={objectClick}
+              isHovered={hoveredFrameId === frame.id}
             />
           ))}
           {connectors.map((connector) => (
@@ -111,8 +116,8 @@ function BoardView({ user }: { user: { uid: string; displayName: string | null; 
             <ShapeComponent
               key={shape.id}
               shape={shape}
-              onDragMove={moveObject}
-              onDragEnd={moveObject}
+              onDragMove={handleDragMove}
+              onDragEnd={handleDragEnd}
               onDelete={removeObject}
               onClick={objectClick}
             />
@@ -121,8 +126,8 @@ function BoardView({ user }: { user: { uid: string; displayName: string | null; 
             <StickyNoteComponent
               key={note.id}
               note={note}
-              onDragMove={moveObject}
-              onDragEnd={moveObject}
+              onDragMove={handleDragMove}
+              onDragEnd={handleDragEnd}
               onTextChange={updateText}
               onDelete={removeObject}
               onClick={objectClick}
@@ -132,8 +137,8 @@ function BoardView({ user }: { user: { uid: string; displayName: string | null; 
             <StickerComponent
               key={sticker.id}
               sticker={sticker}
-              onDragMove={moveObject}
-              onDragEnd={moveObject}
+              onDragMove={handleDragMove}
+              onDragEnd={handleDragEnd}
               onDelete={removeObject}
               onClick={objectClick}
             />

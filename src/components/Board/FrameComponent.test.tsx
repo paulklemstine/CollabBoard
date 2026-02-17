@@ -65,4 +65,46 @@ describe('FrameComponent', () => {
 
     expect(container.querySelector('.konvajs-content')).toBeInTheDocument();
   });
+
+  it('renders with isHovered=true without crashing', async () => {
+    const { Stage, Layer } = await import('react-konva');
+
+    const { container } = render(
+      <Stage width={800} height={600}>
+        <Layer>
+          <FrameComponent
+            frame={mockFrame}
+            onDragMove={vi.fn()}
+            onDragEnd={vi.fn()}
+            onDelete={vi.fn()}
+            onTitleChange={vi.fn()}
+            isHovered={true}
+          />
+        </Layer>
+      </Stage>
+    );
+
+    expect(container.querySelector('.konvajs-content')).toBeInTheDocument();
+  });
+
+  it('renders with isHovered=false without crashing', async () => {
+    const { Stage, Layer } = await import('react-konva');
+
+    const { container } = render(
+      <Stage width={800} height={600}>
+        <Layer>
+          <FrameComponent
+            frame={mockFrame}
+            onDragMove={vi.fn()}
+            onDragEnd={vi.fn()}
+            onDelete={vi.fn()}
+            onTitleChange={vi.fn()}
+            isHovered={false}
+          />
+        </Layer>
+      </Stage>
+    );
+
+    expect(container.querySelector('.konvajs-content')).toBeInTheDocument();
+  });
 });

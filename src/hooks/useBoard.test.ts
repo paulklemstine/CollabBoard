@@ -2,13 +2,19 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useBoard } from './useBoard';
 import * as boardService from '../services/boardService';
-import type { StickyNote, Connector } from '../types/board';
+import type { AnyBoardObject } from '../services/boardService';
+import type { StickyNote, Connector, Frame } from '../types/board';
+
+let subscribeCb: ((objects: AnyBoardObject[]) => void) | null = null;
 
 vi.mock('../services/boardService', () => ({
   addObject: vi.fn(),
   updateObject: vi.fn(),
   deleteObject: vi.fn(),
-  subscribeToBoard: vi.fn(() => vi.fn()),
+  subscribeToBoard: vi.fn((_boardId: string, cb: (objects: AnyBoardObject[]) => void) => {
+    subscribeCb = cb;
+    return vi.fn();
+  }),
 }));
 
 vi.mock('../services/firebase', () => ({
@@ -272,5 +278,170 @@ describe('useBoard', () => {
       })
     );
     expect(result.current.connectMode).toBe(false);
+  });
+});
+
+function makeFrame(overrides: Partial<Frame> = {}): Frame {
+  return {
+    id: 'frame-1',
+    type: 'frame',
+    x: 100,
+    y: 100,
+    width: 400,
+    height: 300,
+    rotation: 0,
+    createdBy: 'user-1',
+    updatedAt: 0,
+    title: '',
+    ...overrides,
+  };
+}
+
+function makeSticky(overrides: Partial<StickyNote> = {}): StickyNote {
+  return {
+    id: 'sticky-1',
+    type: 'sticky',
+    x: 200,
+    y: 200,
+    width: 100,
+    height: 100,
+    rotation: 0,
+    createdBy: 'user-1',
+    updatedAt: 0,
+    text: '',
+    color: '#fef08a',
+    ...overrides,
+  };
+}
+
+function setObjects(objects: AnyBoardObject[]) {
+  act(() => {
+    subscribeCb?.(objects);
+  });
+}
+
+describe('useBoard containment', () => {
+  beforeEach(() => {
+    // Re-establish subscribeCb capture since earlier tests may override mockImplementation
+    vi.mocked(boardService.subscribeToBoard).mockImplementation(
+      (_boardId: string, cb: (objects: AnyBoardObject[]) => void) => {
+        subscribeCb = cb;
+        return vi.fn();
+      }
+    );
+  });
+
+  it('handleDragEnd sets parentId when dropped inside a frame', () => {
+    const { result } = renderHook(() => useBoard('board-1', 'user-1'));
+
+    const frame = makeFrame({ id: 'f1', x: 100, y: 100, width: 400, height: 300 });
+    const sticky = makeSticky({ id: 's1', x: 200, y: 200, width: 100, height: 100 });
+    setObjects([frame, sticky]);
+
+    // Drop sticky at (250, 250) — center is (300, 300), inside frame
+    act(() => {
+      result.current.handleDragEnd('s1', 250, 250);
+    });
+
+    expect(boardService.updateObject).toHaveBeenCalledWith('board-1', 's1', {
+      x: 250,
+      y: 250,
+      parentId: 'f1',
+    });
+  });
+
+  it('handleDragEnd clears parentId when dropped outside all frames', () => {
+    const { result } = renderHook(() => useBoard('board-1', 'user-1'));
+
+    const frame = makeFrame({ id: 'f1', x: 100, y: 100, width: 400, height: 300 });
+    const sticky = makeSticky({ id: 's1', x: 200, y: 200, width: 100, height: 100, parentId: 'f1' });
+    setObjects([frame, sticky]);
+
+    // Drop sticky at (600, 600) — center is (650, 650), outside frame
+    act(() => {
+      result.current.handleDragEnd('s1', 600, 600);
+    });
+
+    expect(boardService.updateObject).toHaveBeenCalledWith('board-1', 's1', {
+      x: 600,
+      y: 600,
+      parentId: '',
+    });
+  });
+
+  it('handleDragMove sets hoveredFrameId during drag', () => {
+    const { result } = renderHook(() => useBoard('board-1', 'user-1'));
+
+    const frame = makeFrame({ id: 'f1', x: 100, y: 100, width: 400, height: 300 });
+    const sticky = makeSticky({ id: 's1', x: 0, y: 0, width: 100, height: 100 });
+    setObjects([frame, sticky]);
+
+    // Drag sticky to (250, 250) — center (300, 300), inside frame
+    act(() => {
+      result.current.handleDragMove('s1', 250, 250);
+    });
+
+    expect(result.current.hoveredFrameId).toBe('f1');
+  });
+
+  it('handleDragEnd clears hoveredFrameId', () => {
+    const { result } = renderHook(() => useBoard('board-1', 'user-1'));
+
+    const frame = makeFrame({ id: 'f1', x: 100, y: 100, width: 400, height: 300 });
+    const sticky = makeSticky({ id: 's1', x: 0, y: 0, width: 100, height: 100 });
+    setObjects([frame, sticky]);
+
+    act(() => {
+      result.current.handleDragMove('s1', 250, 250);
+    });
+    expect(result.current.hoveredFrameId).toBe('f1');
+
+    act(() => {
+      result.current.handleDragEnd('s1', 250, 250);
+    });
+    expect(result.current.hoveredFrameId).toBeNull();
+  });
+
+  it('handleFrameDragMove moves frame and its children', () => {
+    const { result } = renderHook(() => useBoard('board-1', 'user-1'));
+
+    const frame = makeFrame({ id: 'f1', x: 100, y: 100, width: 400, height: 300 });
+    const child1 = makeSticky({ id: 's1', x: 200, y: 200, parentId: 'f1' });
+    const child2 = makeSticky({ id: 's2', x: 300, y: 300, parentId: 'f1' });
+    const independent = makeSticky({ id: 's3', x: 500, y: 500 });
+    setObjects([frame, child1, child2, independent]);
+
+    // Move frame by (50, 30): from (100,100) to (150,130)
+    act(() => {
+      result.current.handleFrameDragMove('f1', 150, 130);
+    });
+
+    // Frame itself
+    expect(boardService.updateObject).toHaveBeenCalledWith('board-1', 'f1', { x: 150, y: 130 });
+    // Child 1: (200+50, 200+30) = (250, 230)
+    expect(boardService.updateObject).toHaveBeenCalledWith('board-1', 's1', { x: 250, y: 230 });
+    // Child 2: (300+50, 300+30) = (350, 330)
+    expect(boardService.updateObject).toHaveBeenCalledWith('board-1', 's2', { x: 350, y: 330 });
+    // Independent object should NOT have been moved
+    expect(boardService.updateObject).not.toHaveBeenCalledWith('board-1', 's3', expect.anything());
+  });
+
+  it('removeObject unparents children when deleting a frame', () => {
+    const { result } = renderHook(() => useBoard('board-1', 'user-1'));
+
+    const frame = makeFrame({ id: 'f1', x: 100, y: 100 });
+    const child1 = makeSticky({ id: 's1', parentId: 'f1' });
+    const child2 = makeSticky({ id: 's2', parentId: 'f1' });
+    setObjects([frame, child1, child2]);
+
+    act(() => {
+      result.current.removeObject('f1');
+    });
+
+    // Children should be unparented
+    expect(boardService.updateObject).toHaveBeenCalledWith('board-1', 's1', { parentId: '' });
+    expect(boardService.updateObject).toHaveBeenCalledWith('board-1', 's2', { parentId: '' });
+    // Frame should be deleted
+    expect(boardService.deleteObject).toHaveBeenCalledWith('board-1', 'f1');
   });
 });

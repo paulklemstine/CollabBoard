@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   addObject,
   updateObject,
@@ -7,6 +7,7 @@ import {
   type AnyBoardObject,
 } from '../services/boardService';
 import type { StickyNote, Shape, ShapeType, Frame, Sticker, Connector } from '../types/board';
+import { findContainingFrame, getChildrenOfFrame } from '../utils/containment';
 
 const STICKY_COLORS = ['#fef08a', '#fde68a', '#bbf7d0', '#bfdbfe', '#e9d5ff', '#fecaca'];
 
@@ -14,6 +15,11 @@ export function useBoard(boardId: string, userId: string) {
   const [objects, setObjects] = useState<AnyBoardObject[]>([]);
   const [connectMode, setConnectMode] = useState(false);
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
+  const [hoveredFrameId, setHoveredFrameId] = useState<string | null>(null);
+
+  // Keep a ref to objects so drag callbacks always see the latest state
+  const objectsRef = useRef(objects);
+  objectsRef.current = objects;
 
   useEffect(() => {
     const unsubscribe = subscribeToBoard(boardId, setObjects);
@@ -105,6 +111,69 @@ export function useBoard(boardId: string, userId: string) {
     [boardId]
   );
 
+  /** Called during drag of non-frame objects — updates position + detects hover over frames */
+  const handleDragMove = useCallback(
+    (objectId: string, x: number, y: number) => {
+      updateObject(boardId, objectId, { x, y });
+
+      const obj = objectsRef.current.find((o) => o.id === objectId);
+      if (!obj) return;
+
+      const draggedObj = { ...obj, x, y };
+      const frames = objectsRef.current.filter(
+        (o): o is Frame => o.type === 'frame'
+      );
+      const containingFrame = findContainingFrame(draggedObj, frames);
+      setHoveredFrameId(containingFrame?.id ?? null);
+    },
+    [boardId]
+  );
+
+  /** Called on drag end — persists position + sets/clears parentId based on containment */
+  const handleDragEnd = useCallback(
+    (objectId: string, x: number, y: number) => {
+      const obj = objectsRef.current.find((o) => o.id === objectId);
+      if (!obj) {
+        updateObject(boardId, objectId, { x, y });
+        setHoveredFrameId(null);
+        return;
+      }
+
+      const draggedObj = { ...obj, x, y };
+      const frames = objectsRef.current.filter(
+        (o): o is Frame => o.type === 'frame'
+      );
+      const containingFrame = findContainingFrame(draggedObj, frames);
+      const newParentId = containingFrame?.id ?? '';
+
+      updateObject(boardId, objectId, { x, y, parentId: newParentId });
+      setHoveredFrameId(null);
+    },
+    [boardId]
+  );
+
+  /** Called during frame drag — moves frame + all children by the same delta */
+  const handleFrameDragMove = useCallback(
+    (frameId: string, newX: number, newY: number) => {
+      const frame = objectsRef.current.find((o) => o.id === frameId);
+      if (!frame) return;
+
+      const dx = newX - frame.x;
+      const dy = newY - frame.y;
+
+      updateObject(boardId, frameId, { x: newX, y: newY });
+
+      const children = getChildrenOfFrame(frameId, objectsRef.current);
+      for (const child of children) {
+        updateObject(boardId, child.id, {
+          x: child.x + dx,
+          y: child.y + dy,
+        });
+      }
+    },
+    [boardId]
+  );
+
   const updateText = useCallback(
     (objectId: string, text: string) => {
       updateObject(boardId, objectId, { text } as Partial<StickyNote>);
@@ -121,6 +190,16 @@ export function useBoard(boardId: string, userId: string) {
 
   const removeObject = useCallback(
     (objectId: string) => {
+      const obj = objects.find((o) => o.id === objectId);
+
+      // If deleting a frame, unparent all its children first
+      if (obj?.type === 'frame') {
+        const children = getChildrenOfFrame(objectId, objects);
+        for (const child of children) {
+          updateObject(boardId, child.id, { parentId: '' });
+        }
+      }
+
       // Auto-delete connectors that reference the removed object
       const orphanedConnectors = objects.filter(
         (o): o is Connector =>
@@ -197,5 +276,9 @@ export function useBoard(boardId: string, userId: string) {
     toggleConnectMode,
     handleObjectClickForConnect,
     cancelConnecting,
+    hoveredFrameId,
+    handleDragMove,
+    handleDragEnd,
+    handleFrameDragMove,
   };
 }

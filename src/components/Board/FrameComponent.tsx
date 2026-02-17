@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { Group, Rect, Text } from 'react-konva';
-import type Konva from 'konva';
+import Konva from 'konva';
 import type { Frame } from '../../types/board';
 
 const DRAG_THROTTLE_MS = 50;
@@ -12,11 +12,14 @@ interface FrameComponentProps {
   onDelete: (id: string) => void;
   onTitleChange: (id: string, title: string) => void;
   onClick?: (id: string) => void;
+  isHovered?: boolean;
 }
 
-export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitleChange, onClick }: FrameComponentProps) {
+export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitleChange, onClick, isHovered }: FrameComponentProps) {
   const lastDragUpdate = useRef(0);
   const titleRef = useRef<Konva.Text>(null);
+  const borderRef = useRef<Konva.Rect>(null);
+  const tweenRef = useRef<Konva.Tween | null>(null);
   const [isEditing, setIsEditing] = useState(false);
 
   const handleDragMove = useCallback(
@@ -28,6 +31,53 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
     },
     [frame.id, onDragMove]
   );
+
+  // Hover animation via Konva Tween
+  useEffect(() => {
+    const rect = borderRef.current;
+    if (!rect) return;
+
+    // Destroy any in-flight tween
+    if (tweenRef.current) {
+      tweenRef.current.destroy();
+      tweenRef.current = null;
+    }
+
+    if (isHovered) {
+      tweenRef.current = new Konva.Tween({
+        node: rect,
+        duration: 0.2,
+        stroke: '#3b82f6',
+        strokeWidth: 3,
+        fill: 'rgba(59, 130, 246, 0.08)',
+        shadowColor: '#3b82f6',
+        shadowBlur: 12,
+        shadowOpacity: 0.4,
+        easing: Konva.Easings.EaseInOut,
+      });
+      tweenRef.current.play();
+    } else {
+      tweenRef.current = new Konva.Tween({
+        node: rect,
+        duration: 0.15,
+        stroke: '#94a3b8',
+        strokeWidth: 2,
+        fill: 'rgba(241, 245, 249, 0.3)',
+        shadowColor: 'transparent',
+        shadowBlur: 0,
+        shadowOpacity: 0,
+        easing: Konva.Easings.EaseInOut,
+      });
+      tweenRef.current.play();
+    }
+
+    return () => {
+      if (tweenRef.current) {
+        tweenRef.current.destroy();
+        tweenRef.current = null;
+      }
+    };
+  }, [isHovered]);
 
   useEffect(() => {
     if (!isEditing) return;
@@ -96,6 +146,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
     >
       {/* Frame border */}
       <Rect
+        ref={borderRef}
         width={frame.width}
         height={frame.height}
         stroke="#94a3b8"

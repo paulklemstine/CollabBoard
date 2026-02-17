@@ -8,6 +8,7 @@ export interface BoardObject {
   rotation: number;
   createdBy: string;
   updatedAt: number;
+  parentId?: string;
 }
 
 export interface StickyNote extends BoardObject {

@@ -4,10 +4,11 @@ import {
   updateObject,
   deleteObject,
   subscribeToBoard,
+  batchUpdateObjects,
   type AnyBoardObject,
 } from '../services/boardService';
 import type { StickyNote, Shape, ShapeType, Frame, Sticker, Connector } from '../types/board';
-import { findContainingFrame, getChildrenOfFrame } from '../utils/containment';
+import { findContainingFrame, getChildrenOfFrame, scaleToFitFrame } from '../utils/containment';
 import { screenToWorld } from '../utils/coordinates';
 import type { StageTransform } from '../components/Board/Board';
 
@@ -242,7 +243,19 @@ export function useBoard(boardId: string, userId: string) {
       const containingFrame = findContainingFrame(draggedObj, frames, objectsRef.current);
       const newParentId = containingFrame?.id ?? '';
 
-      updateObject(boardId, objectId, { x, y, parentId: newParentId });
+      // Scale down the object if it doesn't fit in the frame
+      const updates: Partial<typeof obj> = { x, y, parentId: newParentId };
+      if (containingFrame) {
+        const scaled = scaleToFitFrame(draggedObj, containingFrame);
+        if (scaled) {
+          updates.x = scaled.x;
+          updates.y = scaled.y;
+          updates.width = scaled.width;
+          updates.height = scaled.height;
+        }
+      }
+
+      updateObject(boardId, objectId, updates);
       setHoveredFrameId(null);
     },
     [boardId]
@@ -281,7 +294,7 @@ export function useBoard(boardId: string, userId: string) {
 
   /** Called on frame drag end — persist final child positions, set parentId, clear offset */
   const handleFrameDragEnd = useCallback(
-    (frameId: string, newX: number, newY: number) => {
+    async (frameId: string, newX: number, newY: number) => {
       const frame = objectsRef.current.find((o) => o.id === frameId);
       if (!frame || frame.type !== 'frame') {
         updateObject(boardId, frameId, { x: newX, y: newY });
@@ -299,26 +312,57 @@ export function useBoard(boardId: string, userId: string) {
       const containingFrame = findContainingFrame(draggedFrame, otherFrames, objectsRef.current);
       const newParentId = containingFrame?.id ?? '';
 
-      // Update frame position and parentId
-      updateObject(boardId, frameId, { x: newX, y: newY, parentId: newParentId });
+      // Scale down the frame if it doesn't fit in the containing frame
+      const frameUpdates: Partial<Frame> = { x: newX, y: newY, parentId: newParentId };
+      let finalFrameX = newX;
+      let finalFrameY = newY;
 
-      // Move all children with the frame
+      if (containingFrame) {
+        const scaled = scaleToFitFrame(draggedFrame, containingFrame);
+        if (scaled) {
+          frameUpdates.x = scaled.x;
+          frameUpdates.y = scaled.y;
+          frameUpdates.width = scaled.width;
+          frameUpdates.height = scaled.height;
+          finalFrameX = scaled.x;
+          finalFrameY = scaled.y;
+        }
+      }
+
+      // Prepare batch updates for frame and all children to avoid flickering
+      const batchUpdates: Array<{ id: string; updates: Partial<AnyBoardObject> }> = [
+        { id: frameId, updates: frameUpdates },
+      ];
+
+      // Move all children with the frame (using final position after scaling)
       if (frameDragStartRef.current) {
-        const dx = newX - frameDragStartRef.current.x;
-        const dy = newY - frameDragStartRef.current.y;
+        const dx = finalFrameX - frameDragStartRef.current.x;
+        const dy = finalFrameY - frameDragStartRef.current.y;
 
         const children = getChildrenOfFrame(frameId, objectsRef.current);
         for (const child of children) {
-          updateObject(boardId, child.id, {
-            x: child.x + dx,
-            y: child.y + dy,
+          batchUpdates.push({
+            id: child.id,
+            updates: {
+              x: child.x + dx,
+              y: child.y + dy,
+            },
           });
         }
       }
 
+      // Update all objects atomically to prevent flickering
+      await batchUpdateObjects(boardId, batchUpdates);
+
+      // Clear frame drag state
       frameDragStartRef.current = null;
-      setFrameDragOffset(null);
       setHoveredFrameId(null);
+
+      // Keep the offset active for a short time to prevent flickering
+      // while waiting for Firestore updates to come back
+      setTimeout(() => {
+        setFrameDragOffset(null);
+      }, 100);
     },
     [boardId]
   );

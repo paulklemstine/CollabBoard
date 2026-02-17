@@ -5,6 +5,7 @@ import {
   updateDoc,
   deleteDoc,
   onSnapshot,
+  writeBatch,
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -33,6 +34,25 @@ export async function updateObject(
 export async function deleteObject(boardId: string, objectId: string): Promise<void> {
   const docRef = doc(objectsCollection(boardId), objectId);
   await deleteDoc(docRef);
+}
+
+/**
+ * Batch update multiple objects atomically.
+ * Useful for updating frame children positions to avoid flickering.
+ */
+export async function batchUpdateObjects(
+  boardId: string,
+  updates: Array<{ id: string; updates: Partial<AnyBoardObject> }>
+): Promise<void> {
+  const batch = writeBatch(db);
+  const now = Date.now();
+
+  for (const { id, updates: objUpdates } of updates) {
+    const docRef = doc(objectsCollection(boardId), id);
+    batch.update(docRef, { ...objUpdates, updatedAt: now });
+  }
+
+  await batch.commit();
 }
 
 export function subscribeToBoard(

@@ -5,6 +5,7 @@ import {
   findContainingFrame,
   getChildrenOfFrame,
   wouldCreateCircularDependency,
+  scaleToFitFrame,
 } from './containment';
 import type { Frame, StickyNote } from '../types/board';
 import type { AnyBoardObject } from '../services/boardService';
@@ -210,5 +211,193 @@ describe('getChildrenOfFrame', () => {
       makeSticky({ id: 's1', parentId: '' }),
     ];
     expect(getChildrenOfFrame('f1', objects)).toEqual([]);
+  });
+});
+
+describe('scaleToFitFrame', () => {
+  it('returns null when object fits inside frame without scaling', () => {
+    const frame = makeFrame({ x: 100, y: 100, width: 400, height: 300 });
+    const sticky = makeSticky({ x: 150, y: 150, width: 100, height: 100 });
+
+    expect(scaleToFitFrame(sticky, frame)).toBeNull();
+  });
+
+  it('scales down object width when it exceeds frame width', () => {
+    const frame = makeFrame({ x: 100, y: 100, width: 400, height: 300 });
+    const sticky = makeSticky({ x: 150, y: 150, width: 500, height: 100 });
+
+    const result = scaleToFitFrame(sticky, frame);
+    expect(result).not.toBeNull();
+    expect(result!.width).toBeLessThan(500);
+    expect(result!.width).toBeLessThanOrEqual(400);
+    expect(result!.height).toBeLessThan(100); // Height scaled proportionally
+  });
+
+  it('scales down object height when it exceeds frame height', () => {
+    const frame = makeFrame({ x: 100, y: 100, width: 400, height: 300 });
+    const sticky = makeSticky({ x: 150, y: 150, width: 100, height: 400 });
+
+    const result = scaleToFitFrame(sticky, frame);
+    expect(result).not.toBeNull();
+    expect(result!.height).toBeLessThan(400);
+    expect(result!.height).toBeLessThanOrEqual(300);
+    expect(result!.width).toBeLessThan(100); // Width scaled proportionally
+  });
+
+  it('scales down object when both dimensions exceed frame', () => {
+    const frame = makeFrame({ x: 100, y: 100, width: 400, height: 300 });
+    const sticky = makeSticky({ x: 150, y: 150, width: 600, height: 500 });
+
+    const result = scaleToFitFrame(sticky, frame);
+    expect(result).not.toBeNull();
+    expect(result!.width).toBeLessThanOrEqual(400);
+    expect(result!.height).toBeLessThanOrEqual(300);
+  });
+
+  it('maintains aspect ratio when scaling', () => {
+    const frame = makeFrame({ x: 100, y: 100, width: 400, height: 300 });
+    const sticky = makeSticky({ x: 150, y: 150, width: 800, height: 400 }); // 2:1 aspect ratio
+
+    const result = scaleToFitFrame(sticky, frame);
+    expect(result).not.toBeNull();
+
+    // Original aspect ratio is 2:1
+    const originalAspect = 800 / 400;
+    const newAspect = result!.width / result!.height;
+    expect(Math.abs(originalAspect - newAspect)).toBeLessThan(0.01);
+  });
+
+  it('leaves small margin to prevent edge-to-edge fit', () => {
+    const frame = makeFrame({ x: 100, y: 100, width: 400, height: 300 });
+    const sticky = makeSticky({ x: 150, y: 150, width: 500, height: 400 });
+
+    const result = scaleToFitFrame(sticky, frame);
+    expect(result).not.toBeNull();
+
+    // Should have some padding
+    expect(result!.width).toBeLessThan(400);
+    expect(result!.height).toBeLessThan(300);
+  });
+
+  it('handles very large objects gracefully', () => {
+    const frame = makeFrame({ x: 100, y: 100, width: 400, height: 300 });
+    const sticky = makeSticky({ x: 150, y: 150, width: 10000, height: 5000 });
+
+    const result = scaleToFitFrame(sticky, frame);
+    expect(result).not.toBeNull();
+    expect(result!.width).toBeLessThanOrEqual(400);
+    expect(result!.height).toBeLessThanOrEqual(300);
+  });
+
+  it('works with square objects', () => {
+    const frame = makeFrame({ x: 100, y: 100, width: 400, height: 300 });
+    const sticky = makeSticky({ x: 150, y: 150, width: 500, height: 500 });
+
+    const result = scaleToFitFrame(sticky, frame);
+    expect(result).not.toBeNull();
+
+    // Square should remain square
+    expect(Math.abs(result!.width - result!.height)).toBeLessThan(0.01);
+  });
+
+  it('handles rotated objects - 45 degrees that needs scaling', () => {
+    const frame = makeFrame({ x: 100, y: 100, width: 300, height: 300 });
+    // 400x200 rectangle rotated 45 degrees
+    // Bounding box becomes ~424x424, which exceeds 300x300 frame
+    const sticky = makeSticky({ x: 150, y: 150, width: 400, height: 200, rotation: 45 });
+
+    const result = scaleToFitFrame(sticky, frame);
+    // The rotated bounding box is ~424x424, frame allows 270x270, so needs scaling
+    expect(result).not.toBeNull();
+    expect(result!.width).toBeLessThan(400);
+    expect(result!.height).toBeLessThan(200);
+  });
+
+  it('handles rotated objects - 90 degrees', () => {
+    const frame = makeFrame({ x: 100, y: 100, width: 400, height: 300 });
+    // 500x100 rectangle rotated 90 degrees becomes 100x500 bounding box
+    const sticky = makeSticky({ x: 150, y: 150, width: 500, height: 100, rotation: 90 });
+
+    const result = scaleToFitFrame(sticky, frame);
+    expect(result).not.toBeNull();
+
+    // After rotation, the bounding box is 100w x 500h, so height needs scaling
+    // The result should scale the original dimensions proportionally
+    expect(result!.width).toBeLessThan(500);
+    expect(result!.height).toBeLessThan(100);
+  });
+
+  it('handles rotated objects - 180 degrees (no change in bounding box)', () => {
+    const frame = makeFrame({ x: 100, y: 100, width: 400, height: 300 });
+    // 500x100 rotated 180 degrees still has same bounding box
+    const sticky = makeSticky({ x: 150, y: 150, width: 500, height: 100, rotation: 180 });
+
+    const result = scaleToFitFrame(sticky, frame);
+    expect(result).not.toBeNull();
+    expect(result!.width).toBeLessThan(500);
+  });
+
+  it('returns null for rotated object that fits', () => {
+    const frame = makeFrame({ x: 100, y: 100, width: 400, height: 400 });
+    // Small object rotated 45 degrees - should still fit
+    const sticky = makeSticky({ x: 150, y: 150, width: 100, height: 50, rotation: 45 });
+
+    const result = scaleToFitFrame(sticky, frame);
+    // Bounding box of 100x50 rotated 45 degrees is ~112x112, which fits in 400x400 frame
+    expect(result).toBeNull();
+  });
+
+  it('scales correctly when rotation creates larger bounding box', () => {
+    const frame = makeFrame({ x: 100, y: 100, width: 300, height: 300 });
+    // 400x100 rectangle. When rotated 45 degrees, bounding box is much larger
+    const sticky = makeSticky({ x: 150, y: 150, width: 400, height: 100, rotation: 45 });
+
+    const result = scaleToFitFrame(sticky, frame);
+    expect(result).not.toBeNull();
+
+    // The scaled dimensions should maintain the original aspect ratio
+    const originalAspect = 400 / 100;
+    const newAspect = result!.width / result!.height;
+    expect(Math.abs(originalAspect - newAspect)).toBeLessThan(0.01);
+  });
+
+  it('preserves center point when scaling down', () => {
+    const frame = makeFrame({ x: 100, y: 100, width: 300, height: 300 });
+    // Object centered at (250, 250) with dimensions 500x400
+    const sticky = makeSticky({ x: 0, y: 50, width: 500, height: 400 });
+
+    const result = scaleToFitFrame(sticky, frame);
+    expect(result).not.toBeNull();
+
+    // Original center: (0 + 500/2, 50 + 400/2) = (250, 250)
+    // After scaling, center should still be at (250, 250)
+    // New position should be: (250 - newWidth/2, 250 - newHeight/2)
+    const originalCenterX = sticky.x + sticky.width / 2;
+    const originalCenterY = sticky.y + sticky.height / 2;
+
+    const newCenterX = result!.x + result!.width / 2;
+    const newCenterY = result!.y + result!.height / 2;
+
+    expect(Math.abs(originalCenterX - newCenterX)).toBeLessThan(0.01);
+    expect(Math.abs(originalCenterY - newCenterY)).toBeLessThan(0.01);
+  });
+
+  it('preserves center point for rotated objects when scaling', () => {
+    const frame = makeFrame({ x: 100, y: 100, width: 300, height: 300 });
+    // Rotated object that needs scaling
+    const sticky = makeSticky({ x: 100, y: 100, width: 400, height: 200, rotation: 45 });
+
+    const result = scaleToFitFrame(sticky, frame);
+    expect(result).not.toBeNull();
+
+    // Center should remain the same
+    const originalCenterX = sticky.x + sticky.width / 2;
+    const originalCenterY = sticky.y + sticky.height / 2;
+
+    const newCenterX = result!.x + result!.width / 2;
+    const newCenterY = result!.y + result!.height / 2;
+
+    expect(Math.abs(originalCenterX - newCenterX)).toBeLessThan(0.01);
+    expect(Math.abs(originalCenterY - newCenterY)).toBeLessThan(0.01);
   });
 });

@@ -101,3 +101,78 @@ export function getChildrenOfFrame(
 ): AnyBoardObject[] {
   return objects.filter((obj) => obj.parentId === frameId);
 }
+
+/**
+ * Calculate the bounding box dimensions of a rotated rectangle.
+ * Returns the width and height of the axis-aligned bounding box.
+ */
+function getRotatedBoundingBox(
+  width: number,
+  height: number,
+  rotationDegrees: number
+): { width: number; height: number } {
+  // Convert degrees to radians
+  const radians = (rotationDegrees * Math.PI) / 180;
+
+  // Calculate the bounding box dimensions
+  // For a rotated rectangle, the bounding box is:
+  // width = |w * cos(θ)| + |h * sin(θ)|
+  // height = |w * sin(θ)| + |h * cos(θ)|
+  const cos = Math.abs(Math.cos(radians));
+  const sin = Math.abs(Math.sin(radians));
+
+  return {
+    width: width * cos + height * sin,
+    height: width * sin + height * cos,
+  };
+}
+
+/**
+ * Calculate scaled dimensions and position if an object needs to be scaled down to fit inside a frame.
+ * Returns null if the object already fits.
+ * Maintains aspect ratio, leaves a small margin (10% padding), and preserves the center point.
+ * Accounts for object rotation by calculating the rotated bounding box.
+ */
+export function scaleToFitFrame(
+  obj: BoardObject,
+  frame: Frame
+): { x: number; y: number; width: number; height: number } | null {
+  // Leave 10% padding (5% on each side)
+  const padding = 0.9;
+  const maxWidth = frame.width * padding;
+  const maxHeight = frame.height * padding;
+
+  // Calculate the actual bounding box considering rotation
+  const boundingBox = getRotatedBoundingBox(obj.width, obj.height, obj.rotation);
+
+  // If object already fits (considering rotation), no scaling needed
+  if (boundingBox.width <= maxWidth && boundingBox.height <= maxHeight) {
+    return null;
+  }
+
+  // Calculate scale factors based on the rotated bounding box
+  const scaleX = maxWidth / boundingBox.width;
+  const scaleY = maxHeight / boundingBox.height;
+
+  // Use the smaller scale factor to maintain aspect ratio
+  const scale = Math.min(scaleX, scaleY);
+
+  // Apply scale to the ORIGINAL dimensions (not the bounding box)
+  const newWidth = obj.width * scale;
+  const newHeight = obj.height * scale;
+
+  // Calculate original center point
+  const centerX = obj.x + obj.width / 2;
+  const centerY = obj.y + obj.height / 2;
+
+  // Calculate new position to keep center point fixed
+  const newX = centerX - newWidth / 2;
+  const newY = centerY - newHeight / 2;
+
+  return {
+    x: newX,
+    y: newY,
+    width: newWidth,
+    height: newHeight,
+  };
+}

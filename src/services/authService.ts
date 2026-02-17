@@ -11,7 +11,30 @@ import { auth } from './firebase';
 
 export async function signInWithGoogle() {
   const provider = new GoogleAuthProvider();
-  return signInWithPopup(auth, provider);
+
+  // Override window.open to center the popup
+  const originalOpen = window.open;
+  window.open = function(url, target, features) {
+    // Calculate centered position
+    const width = 500;
+    const height = 600;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+
+    // Create centered features string
+    const centeredFeatures = `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`;
+
+    // Call original with centered parameters
+    return originalOpen.call(this, url, target, centeredFeatures);
+  };
+
+  try {
+    const result = await signInWithPopup(auth, provider);
+    return result;
+  } finally {
+    // Restore original window.open
+    window.open = originalOpen;
+  }
 }
 
 export async function signInAsGuest() {

@@ -173,6 +173,9 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
     textNode.hide();
     textNode.getLayer()?.batchDraw();
 
+    // Calculate display rotation (frame rotation + parent rotation)
+    const rotation = (frame.rotation || 0) + (parentRotation || 0);
+
     input.value = frame.title;
     input.style.position = 'absolute';
     input.style.top = `${stageBox.top + textPosition.y}px`;
@@ -187,6 +190,8 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
     input.style.background = 'white';
     input.style.borderRadius = '4px';
     input.style.zIndex = '1000';
+    input.style.transformOrigin = 'top left';
+    input.style.transform = `rotate(${rotation}deg)`;
 
     document.body.appendChild(input);
     input.focus();
@@ -218,7 +223,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
       textNode.getLayer()?.batchDraw();
       if (input.parentNode) input.remove();
     };
-  }, [isEditing, frame.id, frame.title, localWidth, onTitleChange]);
+  }, [isEditing, frame.id, frame.title, frame.rotation, localWidth, onTitleChange, parentRotation]);
 
   // Apply parent drag offset and rotation
   const displayX = frame.x + (dragOffset?.x || 0);

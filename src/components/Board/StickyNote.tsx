@@ -2,7 +2,7 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { Group, Rect, Text } from 'react-konva';
 import Konva from 'konva';
 import type { StickyNote as StickyNoteType } from '../../types/board';
-import { getContrastTextColor } from '../../utils/colors';
+import { getContrastTextColor, getComplementaryColor } from '../../utils/colors';
 
 const DRAG_THROTTLE_MS = 50;
 const MIN_WIDTH = 100;
@@ -103,6 +103,9 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
 
     const textColor = getContrastTextColor(note.color);
 
+    // Calculate display rotation (note rotation + parent rotation)
+    const rotation = (note.rotation || 0) + (parentRotation || 0);
+
     textarea.value = note.text;
     textarea.style.position = 'absolute';
     textarea.style.top = `${stageBox.top + textPosition.y}px`;
@@ -119,6 +122,8 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
     textarea.style.zIndex = '1000';
     textarea.style.lineHeight = '1.4';
     textarea.style.color = textColor;
+    textarea.style.transformOrigin = 'top left';
+    textarea.style.transform = `rotate(${rotation}deg)`;
 
     document.body.appendChild(textarea);
     textarea.focus();
@@ -156,7 +161,7 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
       textarea.removeEventListener('keydown', handleKeyDown);
       if (textarea.parentNode) textarea.remove();
     };
-  }, [isEditing, note.id, note.text, localWidth, localHeight, onTextChange]);
+  }, [isEditing, note.id, note.text, note.rotation, note.color, localWidth, localHeight, onTextChange, parentRotation]);
 
   return (
     <Group
@@ -206,8 +211,8 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
         shadowOffsetY={(isConnectorHighlighted || isMouseHovered) ? 10 : 6}
         shadowOffsetX={(isConnectorHighlighted || isMouseHovered) ? 2 : 0}
         shadowOpacity={(isConnectorHighlighted || isMouseHovered) ? 0.45 : 0.3}
-        stroke={isConnectorHighlighted ? '#818cf8' : (isMouseHovered ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.3)')}
-        strokeWidth={isConnectorHighlighted ? 4 : (isMouseHovered ? 2 : 1.5)}
+        stroke={isConnectorHighlighted ? '#818cf8' : getComplementaryColor(note.color)}
+        strokeWidth={isConnectorHighlighted ? 4 : 3}
       />
       {/* Flash overlay for new objects */}
       {isNew && (

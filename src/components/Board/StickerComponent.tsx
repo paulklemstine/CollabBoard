@@ -38,6 +38,12 @@ export function StickerComponent({ sticker, onDragMove, onDragEnd, onDelete, onC
       onClick={() => onClick?.(sticker.id)}
       onTap={() => onClick?.(sticker.id)}
     >
+      {/* Hit area for dragging */}
+      <Rect
+        width={sticker.width}
+        height={sticker.height}
+        fill="transparent"
+      />
       <Text
         text={sticker.emoji}
         fontSize={48}

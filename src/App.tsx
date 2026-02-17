@@ -3,10 +3,12 @@ import { ref, set, remove } from 'firebase/database';
 import { rtdb } from './services/firebase';
 import { signOutUser } from './services/authService';
 import { useAuth } from './hooks/useAuth';
+import { useRouter } from './hooks/useRouter';
 import { useCursors } from './hooks/useCursors';
 import { usePresence, pickColor } from './hooks/usePresence';
 import { useBoard } from './hooks/useBoard';
 import { AuthPanel } from './components/Auth/AuthPanel';
+import { BoardDashboard } from './components/Dashboard/BoardDashboard';
 import { Board } from './components/Board/Board';
 import { StickyNoteComponent } from './components/Board/StickyNote';
 import { ShapeComponent } from './components/Board/ShapeComponent';
@@ -18,10 +20,19 @@ import { PresencePanel } from './components/Presence/PresencePanel';
 import { Toolbar } from './components/Toolbar/Toolbar';
 import type { StickyNote, Shape, Frame, Sticker, Connector } from './types/board';
 
-const BOARD_ID = 'default-board';
-
 function App() {
   const { user, loading } = useAuth();
+  const { route, navigateTo } = useRouter();
+
+  const handleSignOut = useCallback(async (boardId?: string) => {
+    if (boardId) {
+      const presenceRef = ref(rtdb, `boards/${boardId}/presence/${user?.uid}`);
+      const cursorRef = ref(rtdb, `boards/${boardId}/cursors/${user?.uid}`);
+      await Promise.all([set(presenceRef, null), remove(cursorRef)]);
+    }
+    await signOutUser();
+    navigateTo({ page: 'dashboard' });
+  }, [user?.uid, navigateTo]);
 
   if (loading) {
     return (
@@ -31,7 +42,7 @@ function App() {
             className="w-14 h-14 rounded-full border-4 border-white/30 border-t-white animate-spin-loader"
           />
           <span className="text-white/90 font-semibold text-sm tracking-wide">
-            Loading your board...
+            Loading...
           </span>
         </div>
       </div>
@@ -46,19 +57,46 @@ function App() {
     );
   }
 
-  return <BoardView user={user} />;
+  if (route.page === 'board') {
+    return (
+      <BoardView
+        user={user}
+        boardId={route.boardId}
+        onNavigateBack={() => navigateTo({ page: 'dashboard' })}
+        onSignOut={() => handleSignOut(route.boardId)}
+      />
+    );
+  }
+
+  return (
+    <BoardDashboard
+      user={user}
+      onSelectBoard={(boardId) => navigateTo({ page: 'board', boardId })}
+      onSignOut={() => handleSignOut()}
+    />
+  );
 }
 
-function BoardView({ user }: { user: { uid: string; displayName: string | null; email: string | null } }) {
+function BoardView({
+  user,
+  boardId,
+  onNavigateBack,
+  onSignOut,
+}: {
+  user: { uid: string; displayName: string | null; email: string | null };
+  boardId: string;
+  onNavigateBack: () => void;
+  onSignOut: () => Promise<void>;
+}) {
   const userColor = pickColor(user.uid);
   const { cursors, updateCursor } = useCursors(
-    BOARD_ID,
+    boardId,
     user.uid,
     user.displayName ?? 'Anonymous',
     userColor,
   );
   const { onlineUsers } = usePresence(
-    BOARD_ID,
+    boardId,
     user.uid,
     user.displayName ?? 'Anonymous',
     user.email ?? '',
@@ -84,7 +122,7 @@ function BoardView({ user }: { user: { uid: string; displayName: string | null; 
     handleDragEnd,
     handleFrameDragMove,
     handleFrameDragEnd,
-  } = useBoard(BOARD_ID, user.uid);
+  } = useBoard(boardId, user.uid);
 
   const handleMouseMove = useCallback(
     (x: number, y: number) => {
@@ -93,16 +131,22 @@ function BoardView({ user }: { user: { uid: string; displayName: string | null; 
     [updateCursor]
   );
 
-  const handleSignOut = useCallback(async () => {
-    // Remove presence and cursor while still authenticated
-    const presenceRef = ref(rtdb, `boards/${BOARD_ID}/presence/${user.uid}`);
-    const cursorRef = ref(rtdb, `boards/${BOARD_ID}/cursors/${user.uid}`);
-    await Promise.all([
-      set(presenceRef, null),
-      remove(cursorRef),
-    ]);
-    await signOutUser();
-  }, [user.uid]);
+  // Enhanced drag handlers that update cursor position during drag
+  const handleDragMoveWithCursor = useCallback(
+    (id: string, x: number, y: number) => {
+      handleDragMove(id, x, y);
+      updateCursor(x, y);
+    },
+    [handleDragMove, updateCursor]
+  );
+
+  const handleFrameDragMoveWithCursor = useCallback(
+    (id: string, x: number, y: number) => {
+      handleFrameDragMove(id, x, y);
+      updateCursor(x, y);
+    },
+    [handleFrameDragMove, updateCursor]
+  );
 
   const stickyNotes = objects.filter((o): o is StickyNote => o.type === 'sticky');
   const shapes = objects.filter((o): o is Shape => o.type === 'shape');
@@ -115,13 +159,13 @@ function BoardView({ user }: { user: { uid: string; displayName: string | null; 
   return (
     <div className="relative w-screen h-screen overflow-hidden board-dots">
       <div className="absolute inset-0 z-0">
-        <Board boardId={BOARD_ID} onMouseMove={handleMouseMove}>
+        <Board boardId={boardId} onMouseMove={handleMouseMove}>
           {/* Render order: Frames → Connectors → Shapes → Sticky Notes → Stickers */}
           {frames.map((frame) => (
             <FrameComponent
               key={frame.id}
               frame={frame}
-              onDragMove={handleFrameDragMove}
+              onDragMove={handleFrameDragMoveWithCursor}
               onDragEnd={handleFrameDragEnd}
               onDelete={removeObject}
               onTitleChange={updateTitle}
@@ -141,7 +185,7 @@ function BoardView({ user }: { user: { uid: string; displayName: string | null; 
             <ShapeComponent
               key={shape.id}
               shape={shape}
-              onDragMove={handleDragMove}
+              onDragMove={handleDragMoveWithCursor}
               onDragEnd={handleDragEnd}
               onDelete={removeObject}
               onClick={objectClick}
@@ -153,7 +197,7 @@ function BoardView({ user }: { user: { uid: string; displayName: string | null; 
             <StickyNoteComponent
               key={note.id}
               note={note}
-              onDragMove={handleDragMove}
+              onDragMove={handleDragMoveWithCursor}
               onDragEnd={handleDragEnd}
               onTextChange={updateText}
               onDelete={removeObject}
@@ -166,7 +210,7 @@ function BoardView({ user }: { user: { uid: string; displayName: string | null; 
             <StickerComponent
               key={sticker.id}
               sticker={sticker}
-              onDragMove={handleDragMove}
+              onDragMove={handleDragMoveWithCursor}
               onDragEnd={handleDragEnd}
               onDelete={removeObject}
               onClick={objectClick}
@@ -187,8 +231,17 @@ function BoardView({ user }: { user: { uid: string; displayName: string | null; 
         connectingFrom={connectingFrom}
         onToggleConnectMode={toggleConnectMode}
       />
-      <div className="absolute top-4 left-4 z-50">
-        <AuthPanel user={user as never} onSignOut={handleSignOut} />
+      <div className="absolute top-4 left-4 z-50 flex items-center gap-2">
+        <button
+          onClick={onNavigateBack}
+          className="glass-playful rounded-xl px-3 py-2 text-sm font-semibold text-gray-700 hover:text-purple-600 transition-colors duration-200 shadow-lg flex items-center gap-1.5"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+          Boards
+        </button>
+        <AuthPanel user={user as never} onSignOut={onSignOut} />
       </div>
     </div>
   );

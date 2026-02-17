@@ -33,8 +33,8 @@ describe('Toolbar', () => {
   it('renders shape buttons', () => {
     render(<Toolbar {...defaultProps} />);
 
-    expect(screen.getByText('Rect')).toBeInTheDocument();
-    expect(screen.getByText('Circle')).toBeInTheDocument();
+    expect(screen.getByTitle('Add rectangle')).toBeInTheDocument();
+    expect(screen.getByTitle('Add circle')).toBeInTheDocument();
   });
 
   it('calls onAddShape with correct args when rect is clicked', async () => {
@@ -42,7 +42,7 @@ describe('Toolbar', () => {
     const onAddShape = vi.fn();
 
     render(<Toolbar {...defaultProps} onAddShape={onAddShape} />);
-    await user.click(screen.getByText('Rect'));
+    await user.click(screen.getByTitle('Add rectangle'));
 
     expect(onAddShape).toHaveBeenCalledWith('rect', expect.any(String));
   });
@@ -50,7 +50,7 @@ describe('Toolbar', () => {
   it('renders frame button', () => {
     render(<Toolbar {...defaultProps} />);
 
-    expect(screen.getByText('Frame')).toBeInTheDocument();
+    expect(screen.getByTitle('Add frame')).toBeInTheDocument();
   });
 
   it('calls onAddFrame when frame button is clicked', async () => {
@@ -58,7 +58,7 @@ describe('Toolbar', () => {
     const onAddFrame = vi.fn();
 
     render(<Toolbar {...defaultProps} onAddFrame={onAddFrame} />);
-    await user.click(screen.getByText('Frame'));
+    await user.click(screen.getByTitle('Add frame'));
 
     expect(onAddFrame).toHaveBeenCalledOnce();
   });
@@ -66,16 +66,16 @@ describe('Toolbar', () => {
   it('renders sticker button', () => {
     render(<Toolbar {...defaultProps} />);
 
-    expect(screen.getByText('Sticker')).toBeInTheDocument();
+    expect(screen.getByTitle('Add sticker')).toBeInTheDocument();
   });
 
   it('shows emoji picker when sticker button clicked', async () => {
     const user = userEvent.setup();
 
     render(<Toolbar {...defaultProps} />);
-    await user.click(screen.getByText('Sticker'));
+    await user.click(screen.getByTitle('Add sticker'));
 
-    expect(screen.getByText('👍')).toBeInTheDocument();
+    expect(screen.getByText('\ud83d\udc4d')).toBeInTheDocument();
   });
 
   it('calls onAddSticker when emoji is selected', async () => {
@@ -83,10 +83,10 @@ describe('Toolbar', () => {
     const onAddSticker = vi.fn();
 
     render(<Toolbar {...defaultProps} onAddSticker={onAddSticker} />);
-    await user.click(screen.getByText('Sticker'));
-    await user.click(screen.getByText('👍'));
+    await user.click(screen.getByTitle('Add sticker'));
+    await user.click(screen.getByText('\ud83d\udc4d'));
 
-    expect(onAddSticker).toHaveBeenCalledWith('👍');
+    expect(onAddSticker).toHaveBeenCalledWith('\ud83d\udc4d');
   });
 
   it('renders connect button', () => {

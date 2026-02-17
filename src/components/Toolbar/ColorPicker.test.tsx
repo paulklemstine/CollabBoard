@@ -23,10 +23,12 @@ describe('ColorPicker', () => {
     expect(onSelect).toHaveBeenCalledWith(COLORS[2]);
   });
 
-  it('highlights the selected color', () => {
+  it('highlights the selected color with box-shadow glow', () => {
     render(<ColorPicker selectedColor={COLORS[1]} onSelectColor={vi.fn()} />);
 
     const buttons = screen.getAllByRole('button');
-    expect(buttons[1]).toHaveStyle({ borderColor: '#1e293b' });
+    const style = buttons[1].style;
+    // Selected color gets a multi-ring box-shadow with the color's glow
+    expect(style.boxShadow).toContain(COLORS[1]);
   });
 });

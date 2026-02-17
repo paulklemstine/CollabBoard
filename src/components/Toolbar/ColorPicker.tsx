@@ -7,15 +7,17 @@ interface ColorPickerProps {
 
 export function ColorPicker({ selectedColor, onSelectColor }: ColorPickerProps) {
   return (
-    <div className="flex gap-1 items-center px-2">
+    <div className="flex gap-1.5 items-center px-1">
       {COLORS.map((color) => (
         <button
           key={color}
           onClick={() => onSelectColor(color)}
-          className="w-6 h-6 rounded-full border-2 transition-transform hover:scale-110"
+          className="w-6 h-6 rounded-full transition-all duration-200 hover:scale-125"
           style={{
             backgroundColor: color,
-            borderColor: selectedColor === color ? '#1e293b' : 'transparent',
+            boxShadow: selectedColor === color
+              ? `0 0 0 2px white, 0 0 0 4px ${color}, 0 0 12px ${color}50`
+              : `0 1px 3px ${color}40`,
           }}
           title={color}
         />

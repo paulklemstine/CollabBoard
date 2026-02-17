@@ -36,11 +36,16 @@ export function ConnectorComponent({ connector, objects }: ConnectorComponentPro
       <Arrow
         points={[from.x, from.y, cpX, cpY, to.x, to.y]}
         tension={0.5}
-        stroke="#6366f1"
-        strokeWidth={2}
-        fill="#6366f1"
-        pointerLength={10}
-        pointerWidth={8}
+        stroke="#818cf8"
+        strokeWidth={2.5}
+        fill="#818cf8"
+        pointerLength={12}
+        pointerWidth={10}
+        shadowColor="#6366f1"
+        shadowBlur={8}
+        shadowOpacity={0.3}
+        lineCap="round"
+        lineJoin="round"
         listening={false}
       />
     );
@@ -49,11 +54,16 @@ export function ConnectorComponent({ connector, objects }: ConnectorComponentPro
   return (
     <Arrow
       points={[from.x, from.y, to.x, to.y]}
-      stroke="#6366f1"
-      strokeWidth={2}
-      fill="#6366f1"
-      pointerLength={10}
-      pointerWidth={8}
+      stroke="#818cf8"
+      strokeWidth={2.5}
+      fill="#818cf8"
+      pointerLength={12}
+      pointerWidth={10}
+      shadowColor="#6366f1"
+      shadowBlur={8}
+      shadowOpacity={0.3}
+      lineCap="round"
+      lineJoin="round"
       listening={false}
     />
   );

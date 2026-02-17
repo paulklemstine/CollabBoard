@@ -15,6 +15,7 @@ export function useBoard(boardId: string, userId: string) {
   const [objects, setObjects] = useState<AnyBoardObject[]>([]);
   const [connectMode, setConnectMode] = useState(false);
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
+  const [hoveredObjectId, setHoveredObjectId] = useState<string | null>(null);
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
   const [hoveredFrameId, setHoveredFrameId] = useState<string | null>(null);
   const [frameDragOffset, setFrameDragOffset] = useState<{ frameId: string; dx: number; dy: number } | null>(null);
@@ -264,6 +265,12 @@ export function useBoard(boardId: string, userId: string) {
     }
   }, [connectMode, connectingFrom]);
 
+  const handleObjectHover = useCallback((objectId: string | null) => {
+    if (connectMode && connectingFrom && objectId !== connectingFrom) {
+      setHoveredObjectId(objectId);
+    }
+  }, [connectMode, connectingFrom]);
+
   const handleObjectClickForConnect = useCallback(
     (objectId: string) => {
       if (!connectMode) return;
@@ -318,8 +325,10 @@ export function useBoard(boardId: string, userId: string) {
     connectMode,
     connectingFrom,
     cursorPosition,
+    hoveredObjectId,
     toggleConnectMode,
     handleObjectClickForConnect,
+    handleObjectHover,
     updateCursorPosition,
     cancelConnecting,
     hoveredFrameId,

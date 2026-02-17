@@ -10,7 +10,7 @@ import { usePresence, pickColor } from './hooks/usePresence';
 import { useBoard } from './hooks/useBoard';
 import { AuthPanel } from './components/Auth/AuthPanel';
 import { BoardDashboard } from './components/Dashboard/BoardDashboard';
-import { Board } from './components/Board/Board';
+import { Board, type StageTransform } from './components/Board/Board';
 import { StickyNoteComponent } from './components/Board/StickyNote';
 import { ShapeComponent } from './components/Board/ShapeComponent';
 import { FrameComponent } from './components/Board/FrameComponent';
@@ -139,8 +139,10 @@ function BoardView({
     connectMode,
     connectingFrom,
     cursorPosition,
+    hoveredObjectId,
     toggleConnectMode,
     handleObjectClickForConnect,
+    handleObjectHover,
     updateCursorPosition,
     hoveredFrameId,
     frameDragOffset,
@@ -149,6 +151,8 @@ function BoardView({
     handleFrameDragMove,
     handleFrameDragEnd,
   } = useBoard(boardId, user.uid);
+
+  const [stageTransform, setStageTransform] = useState<StageTransform>({ x: 0, y: 0, scale: 1 });
 
   const handleMouseMove = useCallback(
     (x: number, y: number) => {
@@ -181,11 +185,13 @@ function BoardView({
   const connectors = objects.filter((o): o is Connector => o.type === 'connector');
 
   const objectClick = connectMode ? handleObjectClickForConnect : undefined;
+  const objectHoverEnter = connectMode ? (id: string) => handleObjectHover(id) : undefined;
+  const objectHoverLeave = connectMode ? () => handleObjectHover(null) : undefined;
 
   return (
     <div className="relative w-screen h-screen overflow-hidden board-dots">
       <div className="absolute inset-0 z-0">
-        <Board boardId={boardId} onMouseMove={handleMouseMove}>
+        <Board boardId={boardId} onMouseMove={handleMouseMove} onTransformChange={setStageTransform}>
           {/* Render order: Frames → Connectors → Shapes → Sticky Notes → Stickers */}
           {frames.map((frame) => (
             <FrameComponent
@@ -198,6 +204,9 @@ function BoardView({
               onClick={objectClick}
               isHovered={hoveredFrameId === frame.id}
               onResize={resizeObject}
+              onConnectorHoverEnter={objectHoverEnter}
+              onConnectorHoverLeave={objectHoverLeave}
+              isConnectorHighlighted={connectMode && (connectingFrom === frame.id || hoveredObjectId === frame.id)}
             />
           ))}
           {connectors.map((connector) => (
@@ -211,9 +220,11 @@ function BoardView({
           {/* Preview connector while connecting */}
           {connectMode && connectingFrom && cursorPosition && (() => {
             const fromObject = objects.find((o) => o.id === connectingFrom);
+            const toObject = hoveredObjectId ? objects.find((o) => o.id === hoveredObjectId) || null : null;
             return fromObject ? (
               <PreviewConnector
                 fromObject={fromObject}
+                toObject={toObject}
                 toX={cursorPosition.x}
                 toY={cursorPosition.y}
               />
@@ -229,6 +240,9 @@ function BoardView({
               onClick={objectClick}
               onResize={resizeObject}
               dragOffset={frameDragOffset && shape.parentId === frameDragOffset.frameId ? { x: frameDragOffset.dx, y: frameDragOffset.dy } : undefined}
+              onConnectorHoverEnter={objectHoverEnter}
+              onConnectorHoverLeave={objectHoverLeave}
+              isConnectorHighlighted={connectMode && (connectingFrom === shape.id || hoveredObjectId === shape.id)}
             />
           ))}
           {stickyNotes.map((note) => (
@@ -242,11 +256,14 @@ function BoardView({
               onClick={objectClick}
               onResize={resizeObject}
               dragOffset={frameDragOffset && note.parentId === frameDragOffset.frameId ? { x: frameDragOffset.dx, y: frameDragOffset.dy } : undefined}
+              onConnectorHoverEnter={objectHoverEnter}
+              onConnectorHoverLeave={objectHoverLeave}
+              isConnectorHighlighted={connectMode && (connectingFrom === note.id || hoveredObjectId === note.id)}
             />
           ))}
         </Board>
       </div>
-      <CursorsOverlay cursors={cursors} />
+      <CursorsOverlay cursors={cursors} stageTransform={stageTransform} />
       <PresencePanel users={onlineUsers} />
       <Toolbar
         onAddStickyNote={(color) => addStickyNote(undefined, undefined, color)}

@@ -15,10 +15,13 @@ interface StickyNoteProps {
   onDelete: (id: string) => void;
   onClick?: (id: string) => void;
   onResize?: (id: string, width: number, height: number) => void;
+  onConnectorHoverEnter?: (id: string) => void;
+  onConnectorHoverLeave?: () => void;
+  isConnectorHighlighted?: boolean;
   dragOffset?: { x: number; y: number };
 }
 
-export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange, onDelete, onClick, onResize, dragOffset }: StickyNoteProps) {
+export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange, onDelete, onClick, onResize, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, dragOffset }: StickyNoteProps) {
   const textRef = useRef<Konva.Text>(null);
   const [isEditing, setIsEditing] = useState(false);
   const lastDragUpdate = useRef(0);
@@ -136,11 +139,13 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
       onDblTap={() => setIsEditing(true)}
       onMouseEnter={(e) => {
         setIsMouseHovered(true);
+        onConnectorHoverEnter?.(note.id);
         const stage = e.target.getStage();
         if (stage) stage.container().style.cursor = 'grab';
       }}
       onMouseLeave={(e) => {
         setIsMouseHovered(false);
+        onConnectorHoverLeave?.();
         const stage = e.target.getStage();
         if (stage) stage.container().style.cursor = 'default';
       }}
@@ -151,13 +156,13 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
         height={localHeight}
         fill={note.color}
         cornerRadius={14}
-        shadowColor={note.color}
-        shadowBlur={isMouseHovered ? 28 : 18}
-        shadowOffsetY={isMouseHovered ? 10 : 6}
-        shadowOffsetX={isMouseHovered ? 2 : 0}
-        shadowOpacity={isMouseHovered ? 0.45 : 0.3}
-        stroke={isMouseHovered ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.3)'}
-        strokeWidth={isMouseHovered ? 2 : 1.5}
+        shadowColor={isConnectorHighlighted ? '#818cf8' : note.color}
+        shadowBlur={(isConnectorHighlighted || isMouseHovered) ? 28 : 18}
+        shadowOffsetY={(isConnectorHighlighted || isMouseHovered) ? 10 : 6}
+        shadowOffsetX={(isConnectorHighlighted || isMouseHovered) ? 2 : 0}
+        shadowOpacity={(isConnectorHighlighted || isMouseHovered) ? 0.45 : 0.3}
+        stroke={isConnectorHighlighted ? '#818cf8' : (isMouseHovered ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.3)')}
+        strokeWidth={isConnectorHighlighted ? 4 : (isMouseHovered ? 2 : 1.5)}
       />
       {/* Decorative tape strip at top center */}
       <Rect

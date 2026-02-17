@@ -1,11 +1,13 @@
 import { Cursor } from './Cursor';
 import type { CursorPosition } from '../../types/board';
+import type { StageTransform } from '../Board/Board';
 
 interface CursorsOverlayProps {
   cursors: CursorPosition[];
+  stageTransform: StageTransform;
 }
 
-export function CursorsOverlay({ cursors }: CursorsOverlayProps) {
+export function CursorsOverlay({ cursors, stageTransform }: CursorsOverlayProps) {
   return (
     <div
       style={{
@@ -21,8 +23,8 @@ export function CursorsOverlay({ cursors }: CursorsOverlayProps) {
       {cursors.map((cursor) => (
         <Cursor
           key={cursor.userId}
-          x={cursor.x}
-          y={cursor.y}
+          x={cursor.x * stageTransform.scale + stageTransform.x}
+          y={cursor.y * stageTransform.scale + stageTransform.y}
           name={cursor.name}
           color={cursor.color}
         />

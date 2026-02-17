@@ -16,9 +16,12 @@ interface FrameComponentProps {
   onClick?: (id: string) => void;
   isHovered?: boolean;
   onResize?: (id: string, width: number, height: number) => void;
+  onConnectorHoverEnter?: (id: string) => void;
+  onConnectorHoverLeave?: () => void;
+  isConnectorHighlighted?: boolean;
 }
 
-export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitleChange, onClick, isHovered, onResize }: FrameComponentProps) {
+export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitleChange, onClick, isHovered, onResize, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted }: FrameComponentProps) {
   const lastDragUpdate = useRef(0);
   const lastResizeUpdate = useRef(0);
   const titleRef = useRef<Konva.Text>(null);
@@ -195,11 +198,13 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
       onTap={() => onClick?.(frame.id)}
       onMouseEnter={(e) => {
         setIsMouseHovered(true);
+        onConnectorHoverEnter?.(frame.id);
         const stage = e.target.getStage();
         if (stage) stage.container().style.cursor = 'grab';
       }}
       onMouseLeave={(e) => {
         setIsMouseHovered(false);
+        onConnectorHoverLeave?.();
         const stage = e.target.getStage();
         if (stage) stage.container().style.cursor = 'default';
       }}
@@ -209,8 +214,8 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
         ref={borderRef}
         width={localWidth}
         height={localHeight}
-        stroke="#a78bfa"
-        strokeWidth={2.5}
+        stroke={isConnectorHighlighted ? '#818cf8' : '#a78bfa'}
+        strokeWidth={isConnectorHighlighted ? 4 : 2.5}
         dash={[12, 6]}
         fill="rgba(250, 245, 255, 0.12)"
         cornerRadius={16}

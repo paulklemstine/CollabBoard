@@ -3,9 +3,16 @@ import { Stage, Layer } from 'react-konva';
 import type Konva from 'konva';
 import { ZoomControls } from './ZoomControls';
 
+export interface StageTransform {
+  x: number;
+  y: number;
+  scale: number;
+}
+
 interface BoardProps {
   boardId: string;
   onMouseMove?: (x: number, y: number) => void;
+  onTransformChange?: (transform: StageTransform) => void;
   children?: React.ReactNode;
 }
 
@@ -13,7 +20,7 @@ const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 5;
 const ZOOM_STEP = 1.2;
 
-export function Board({ boardId: _boardId, onMouseMove, children }: BoardProps) {
+export function Board({ boardId: _boardId, onMouseMove, onTransformChange, children }: BoardProps) {
   const [dimensions, setDimensions] = useState({
     width: window.innerWidth,
     height: window.innerHeight,
@@ -31,6 +38,14 @@ export function Board({ boardId: _boardId, onMouseMove, children }: BoardProps) 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  const notifyTransform = useCallback((stage: Konva.Stage) => {
+    onTransformChange?.({
+      x: stage.x(),
+      y: stage.y(),
+      scale: stage.scaleX(),
+    });
+  }, [onTransformChange]);
 
   const handleWheel = useCallback((e: Konva.KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
@@ -55,11 +70,13 @@ export function Board({ boardId: _boardId, onMouseMove, children }: BoardProps) 
 
     setScale(newScale);
     stage.scale({ x: newScale, y: newScale });
-    stage.position({
+    const newPos = {
       x: pointer.x - mousePointTo.x * newScale,
       y: pointer.y - mousePointTo.y * newScale,
-    });
-  }, []);
+    };
+    stage.position(newPos);
+    notifyTransform(stage);
+  }, [notifyTransform]);
 
   const zoomIn = useCallback(() => {
     const stage = stageRef.current;
@@ -81,7 +98,8 @@ export function Board({ boardId: _boardId, onMouseMove, children }: BoardProps) 
       x: centerX - mousePointTo.x * newScale,
       y: centerY - mousePointTo.y * newScale,
     });
-  }, [dimensions]);
+    notifyTransform(stage);
+  }, [dimensions, notifyTransform]);
 
   const zoomOut = useCallback(() => {
     const stage = stageRef.current;
@@ -103,7 +121,8 @@ export function Board({ boardId: _boardId, onMouseMove, children }: BoardProps) 
       x: centerX - mousePointTo.x * newScale,
       y: centerY - mousePointTo.y * newScale,
     });
-  }, [dimensions]);
+    notifyTransform(stage);
+  }, [dimensions, notifyTransform]);
 
   const resetZoom = useCallback(() => {
     const stage = stageRef.current;
@@ -112,7 +131,8 @@ export function Board({ boardId: _boardId, onMouseMove, children }: BoardProps) 
     setScale(1);
     stage.scale({ x: 1, y: 1 });
     stage.position({ x: 0, y: 0 });
-  }, []);
+    notifyTransform(stage);
+  }, [notifyTransform]);
 
   const handleMouseMove = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
@@ -128,6 +148,13 @@ export function Board({ boardId: _boardId, onMouseMove, children }: BoardProps) 
     },
     [onMouseMove]
   );
+
+  const handleDragMove = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
+    const stage = e.target.getStage();
+    if (stage && e.target === stage) {
+      notifyTransform(stage);
+    }
+  }, [notifyTransform]);
 
   const handleMouseLeave = useCallback(() => {
     const stage = stageRef.current;
@@ -146,6 +173,7 @@ export function Board({ boardId: _boardId, onMouseMove, children }: BoardProps) 
         onWheel={handleWheel}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
+        onDragMove={handleDragMove}
         scaleX={scale}
         scaleY={scale}
       >

@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm test:*)",
+      "Bash(npx vitest run:*)",
+      "Bash(npm run test:*)",
+      "Bash(.node_modules.binvitest run src/utils/authErrors.test.ts)",
+      "Bash(node:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(where node)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run build:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

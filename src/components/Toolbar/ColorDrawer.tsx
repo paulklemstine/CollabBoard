@@ -6,9 +6,69 @@ interface ColorDrawerProps {
   onSelectColor: (color: string) => void;
 }
 
+// Convert hex to HSL, rotate hue by 180°, convert back to hex
+const getComplementaryColor = (hex: string): string => {
+  // Remove # if present
+  hex = hex.replace('#', '');
+
+  // Convert hex to RGB
+  const r = parseInt(hex.substring(0, 2), 16) / 255;
+  const g = parseInt(hex.substring(2, 4), 16) / 255;
+  const b = parseInt(hex.substring(4, 6), 16) / 255;
+
+  // Convert RGB to HSL
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let h = 0;
+  const l = (max + min) / 2;
+  const s = max === min ? 0 : l > 0.5 ? (max - min) / (2 - max - min) : (max - min) / (max + min);
+
+  if (max !== min) {
+    switch (max) {
+      case r: h = ((g - b) / (max - min) + (g < b ? 6 : 0)) / 6; break;
+      case g: h = ((b - r) / (max - min) + 2) / 6; break;
+      case b: h = ((r - g) / (max - min) + 4) / 6; break;
+    }
+  }
+
+  // Rotate hue by 180° (complementary color)
+  h = (h + 0.5) % 1;
+
+  // Convert HSL back to RGB
+  const hue2rgb = (p: number, q: number, t: number) => {
+    if (t < 0) t += 1;
+    if (t > 1) t -= 1;
+    if (t < 1/6) return p + (q - p) * 6 * t;
+    if (t < 1/2) return q;
+    if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+    return p;
+  };
+
+  let r2, g2, b2;
+  if (s === 0) {
+    r2 = g2 = b2 = l;
+  } else {
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    r2 = hue2rgb(p, q, h + 1/3);
+    g2 = hue2rgb(p, q, h);
+    b2 = hue2rgb(p, q, h - 1/3);
+  }
+
+  // Convert RGB back to hex
+  const toHex = (n: number) => {
+    const hex = Math.round(n * 255).toString(16);
+    return hex.length === 1 ? '0' + hex : hex;
+  };
+
+  return `#${toHex(r2)}${toHex(g2)}${toHex(b2)}`;
+};
+
 export function ColorDrawer({ selectedColor, onSelectColor }: ColorDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [customColor, setCustomColor] = useState('#000000');
+
+  const textColor = getComplementaryColor(selectedColor);
 
   return (
     <div
@@ -22,7 +82,7 @@ export function ColorDrawer({ selectedColor, onSelectColor }: ColorDrawerProps) 
         style={{
           background: `linear-gradient(135deg, ${selectedColor}dd 0%, ${selectedColor} 50%, ${selectedColor}dd 100%)`,
           boxShadow: `0 2px 10px ${selectedColor}60`,
-          color: '#fff',
+          color: textColor,
           textShadow: '0 1px 2px rgba(0,0,0,0.3)',
         }}
         title="Colors"

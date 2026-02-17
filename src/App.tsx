@@ -14,6 +14,7 @@ import { StickyNoteComponent } from './components/Board/StickyNote';
 import { ShapeComponent } from './components/Board/ShapeComponent';
 import { FrameComponent } from './components/Board/FrameComponent';
 import { ConnectorComponent } from './components/Board/ConnectorComponent';
+import { PreviewConnector } from './components/Board/PreviewConnector';
 import { CursorsOverlay } from './components/Cursors/CursorsOverlay';
 import { PresencePanel } from './components/Presence/PresencePanel';
 import { Toolbar } from './components/Toolbar/Toolbar';
@@ -112,8 +113,10 @@ function BoardView({
     removeObject,
     connectMode,
     connectingFrom,
+    cursorPosition,
     toggleConnectMode,
     handleObjectClickForConnect,
+    updateCursorPosition,
     hoveredFrameId,
     frameDragOffset,
     handleDragMove,
@@ -125,8 +128,9 @@ function BoardView({
   const handleMouseMove = useCallback(
     (x: number, y: number) => {
       updateCursor(x, y);
+      updateCursorPosition(x, y);
     },
-    [updateCursor]
+    [updateCursor, updateCursorPosition]
   );
 
   // Enhanced drag handlers that update cursor position during drag
@@ -178,6 +182,17 @@ function BoardView({
               objects={objects}
             />
           ))}
+          {/* Preview connector while connecting */}
+          {connectMode && connectingFrom && cursorPosition && (() => {
+            const fromObject = objects.find((o) => o.id === connectingFrom);
+            return fromObject ? (
+              <PreviewConnector
+                fromObject={fromObject}
+                toX={cursorPosition.x}
+                toY={cursorPosition.y}
+              />
+            ) : null;
+          })()}
           {shapes.map((shape) => (
             <ShapeComponent
               key={shape.id}

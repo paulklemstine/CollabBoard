@@ -40,17 +40,22 @@ export function Toolbar({
         pointerEvents: 'none',
         display: 'flex',
         justifyContent: 'center',
+        overflow: 'visible',
       }}
     >
-    <div
-      style={{
-        pointerEvents: 'auto',
-        maxWidth: 'calc(100vw - 32px)',
-        overflowX: 'auto',
-        boxShadow: '0 8px 32px rgba(139, 92, 246, 0.12), 0 4px 16px rgba(236, 72, 153, 0.08), 0 2px 8px rgba(0,0,0,0.06)',
-      }}
-      className="flex gap-1.5 glass-playful rounded-2xl p-2.5 items-center animate-float-up toolbar-scroll"
-    >
+      <div
+        style={{
+          pointerEvents: 'auto',
+          maxWidth: 'calc(100vw - 32px)',
+          overflow: 'visible',
+        }}
+      >
+        <div
+          style={{
+            boxShadow: '0 8px 32px rgba(139, 92, 246, 0.12), 0 4px 16px rgba(236, 72, 153, 0.08), 0 2px 8px rgba(0,0,0,0.06)',
+          }}
+          className="flex gap-1.5 glass-playful rounded-2xl p-2.5 items-center animate-float-up"
+        >
       {/* Sticky Note */}
       <button
         onClick={() => onAddStickyNote(selectedColor)}
@@ -102,7 +107,8 @@ export function Toolbar({
           {connectLabel}
         </div>
       </button>
-    </div>
+        </div>
+      </div>
     </div>
   );
 }

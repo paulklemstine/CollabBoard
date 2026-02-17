@@ -162,22 +162,8 @@ function BoardView({
     [updateCursor, updateCursorPosition]
   );
 
-  // Enhanced drag handlers that update cursor position during drag
-  const handleDragMoveWithCursor = useCallback(
-    (id: string, x: number, y: number) => {
-      handleDragMove(id, x, y);
-      updateCursor(x, y);
-    },
-    [handleDragMove, updateCursor]
-  );
-
-  const handleFrameDragMoveWithCursor = useCallback(
-    (id: string, x: number, y: number) => {
-      handleFrameDragMove(id, x, y);
-      updateCursor(x, y);
-    },
-    [handleFrameDragMove, updateCursor]
-  );
+  // Note: cursor position during drag is handled by Board's onMouseMove,
+  // which correctly uses the pointer position (not the object position).
 
   const stickyNotes = objects.filter((o): o is StickyNote => o.type === 'sticky');
   const shapes = objects.filter((o): o is Shape => o.type === 'shape');
@@ -197,7 +183,7 @@ function BoardView({
             <FrameComponent
               key={frame.id}
               frame={frame}
-              onDragMove={handleFrameDragMoveWithCursor}
+              onDragMove={handleFrameDragMove}
               onDragEnd={handleFrameDragEnd}
               onDelete={removeObject}
               onTitleChange={updateTitle}
@@ -234,7 +220,7 @@ function BoardView({
             <ShapeComponent
               key={shape.id}
               shape={shape}
-              onDragMove={handleDragMoveWithCursor}
+              onDragMove={handleDragMove}
               onDragEnd={handleDragEnd}
               onDelete={removeObject}
               onClick={objectClick}
@@ -249,7 +235,7 @@ function BoardView({
             <StickyNoteComponent
               key={note.id}
               note={note}
-              onDragMove={handleDragMoveWithCursor}
+              onDragMove={handleDragMove}
               onDragEnd={handleDragEnd}
               onTextChange={updateText}
               onDelete={removeObject}

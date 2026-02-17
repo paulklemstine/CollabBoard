@@ -134,20 +134,31 @@ export function Board({ boardId: _boardId, onMouseMove, onTransformChange, child
     notifyTransform(stage);
   }, [notifyTransform]);
 
-  const handleMouseMove = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent>) => {
-      if (!onMouseMove) return;
-      const stage = e.target.getStage();
-      if (!stage) return;
-      const pointer = stage.getPointerPosition();
-      if (!pointer) return;
+  // Use a ref to avoid re-registering the listener when onMouseMove changes
+  const onMouseMoveRef = useRef(onMouseMove);
+  onMouseMoveRef.current = onMouseMove;
 
-      const transform = stage.getAbsoluteTransform().copy().invert();
-      const pos = transform.point(pointer);
-      onMouseMove(pos.x, pos.y);
-    },
-    [onMouseMove]
-  );
+  // Native DOM mousemove listener — fires during Konva child drags too
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const container = stage.container();
+
+    const handleNativeMouseMove = (e: MouseEvent) => {
+      if (!onMouseMoveRef.current) return;
+      const rect = container.getBoundingClientRect();
+      const pointerX = e.clientX - rect.left;
+      const pointerY = e.clientY - rect.top;
+
+      const s = stage.scaleX();
+      const worldX = (pointerX - stage.x()) / s;
+      const worldY = (pointerY - stage.y()) / s;
+      onMouseMoveRef.current(worldX, worldY);
+    };
+
+    container.addEventListener('mousemove', handleNativeMouseMove);
+    return () => container.removeEventListener('mousemove', handleNativeMouseMove);
+  }, []);
 
   const handleDragMove = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
     const stage = e.target.getStage();
@@ -171,7 +182,6 @@ export function Board({ boardId: _boardId, onMouseMove, onTransformChange, child
         height={dimensions.height}
         draggable
         onWheel={handleWheel}
-        onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         onDragMove={handleDragMove}
         scaleX={scale}

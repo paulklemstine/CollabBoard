@@ -1,3 +1,5 @@
+import { useSmoothedPosition } from '../../hooks/useSmoothedPosition';
+
 interface CursorProps {
   x: number;
   y: number;
@@ -6,16 +8,24 @@ interface CursorProps {
 }
 
 export function Cursor({ x, y, name, color }: CursorProps) {
+  // Use predictive interpolation for buttery-smooth cursor movement
+  const [smoothX, smoothY] = useSmoothedPosition(x, y, {
+    smoothingFactor: 0.2,  // Responsive but smooth
+    predictionFactor: 0.4, // Moderate velocity prediction
+    snapInitial: true,     // No animation on first render
+  });
+
   return (
     <div
       data-testid="cursor"
       style={{
         position: 'absolute',
-        left: `${x}px`,
-        top: `${y}px`,
+        left: `${smoothX}px`,
+        top: `${smoothY}px`,
         pointerEvents: 'none',
         zIndex: 1000,
-        transition: 'left 0.1s ease-out, top 0.1s ease-out',
+        // Removed CSS transition - now using JS interpolation for smoother control
+        willChange: 'transform', // Performance optimization
       }}
     >
       <svg

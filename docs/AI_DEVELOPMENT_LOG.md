@@ -6,6 +6,30 @@ A chronological log of all development work on CollabBoard, tracking features, f
 
 ## Development Entries
 
+### [2026-02-16 Late Evening] Sticker Menu Z-Index Fix
+
+**Task:** Fix sticker emoji picker appearing hidden behind the toolbar.
+
+**Approach:**
+- Added z-index: 1001 to emoji picker (higher than toolbar's z-index: 1000)
+- Increased vertical spacing from mb-3 to mb-6 for better visibility
+
+**Changes:**
+- `src/components/Toolbar/Toolbar.tsx` - Added inline style with z-index: 1001 to emoji picker div, increased margin-bottom from mb-3 to mb-6
+
+**Challenges:**
+- **Problem**: Emoji picker was rendering but invisible due to z-index stacking context
+- **Solution**: Added explicit z-index higher than toolbar to ensure proper layering
+
+**Testing:**
+- Manual testing: Clicked sticker button and verified emoji picker appears above toolbar
+
+**Commits:**
+- [982405e] Fix sticker emoji picker z-index to appear above toolbar
+- [e20d794] Increase sticker emoji picker vertical spacing above toolbar
+
+---
+
 ### [2026-02-16 Evening] Presence & Cursor Timeout Systems
 
 **Task:** Fix issue where inactive users and their cursors remained visible after closing tabs or navigating away.

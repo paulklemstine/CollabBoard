@@ -32,6 +32,118 @@ Real-time collaborative whiteboard with AI agent. Firebase backend, React fronte
 - Tailwind CSS for styling
 - ESLint + Prettier
 
+## Git Workflow — Worktrees
+
+**MANDATORY:** Use Git worktrees for all development to enable parallel feature work without branch switching disruptions.
+
+### Why Worktrees?
+- Work on multiple features simultaneously without switching branches
+- Keep dev server running in one worktree while working in another
+- Avoid losing uncommitted changes when switching contexts
+- Test features in isolation without merge conflicts
+- Each worktree has its own working directory and node_modules
+
+### Worktree Setup
+
+**Initial Repository Structure:**
+```
+CollabBoard/              # Main worktree (production/main branch)
+├── .git/                 # Git metadata (shared by all worktrees)
+├── src/
+├── package.json
+└── ...
+
+CollabBoard-feature-1/    # Feature worktree
+├── src/
+├── package.json
+└── ...
+
+CollabBoard-feature-2/    # Another feature worktree
+├── src/
+├── package.json
+└── ...
+```
+
+### Creating a New Worktree
+
+**ALWAYS create a new worktree for new features:**
+
+```bash
+# From main repository directory
+cd c:/Gauntlet/CollabBoard
+
+# Create new worktree for a feature
+git worktree add ../CollabBoard-feature-name -b feature-name
+
+# Navigate to new worktree
+cd ../CollabBoard-feature-name
+
+# Install dependencies (separate node_modules)
+npm install
+
+# Start dev server
+npm run dev
+```
+
+### Worktree Workflow
+
+1. **Create worktree for new feature:**
+   ```bash
+   git worktree add ../CollabBoard-scaling-fix -b fix/scaling-rotation
+   ```
+
+2. **Work in worktree:**
+   ```bash
+   cd ../CollabBoard-scaling-fix
+   npm install
+   # Make changes, commit
+   ```
+
+3. **Merge when ready:**
+   ```bash
+   # From main worktree
+   cd c:/Gauntlet/CollabBoard
+   git checkout main
+   git merge fix/scaling-rotation
+   ```
+
+4. **Remove worktree after merge:**
+   ```bash
+   git worktree remove ../CollabBoard-scaling-fix
+   git branch -d fix/scaling-rotation
+   ```
+
+### Worktree Commands
+
+**List all worktrees:**
+```bash
+git worktree list
+```
+
+**Remove a worktree:**
+```bash
+git worktree remove ../CollabBoard-feature-name
+```
+
+**Prune stale worktrees:**
+```bash
+git worktree prune
+```
+
+### Rules
+- **NEVER switch branches** in main worktree - create new worktree instead
+- **ALWAYS create worktree** for new features, experiments, or bug fixes
+- **Keep main worktree clean** - only merge from feature worktrees
+- **Delete worktrees** after merging to avoid clutter
+- **Run `npm install`** in each worktree after creation (separate node_modules)
+
+### Benefits
+✅ Keep dev server running while working on different features
+✅ No lost work from branch switching
+✅ Test multiple features side-by-side
+✅ Parallel development without conflicts
+✅ Clean separation of concerns
+
 ## Build Priority
 1. Cursor sync (RTDB)
 2. Object sync (Firestore)

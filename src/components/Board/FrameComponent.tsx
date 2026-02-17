@@ -85,9 +85,12 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
       const now = Date.now();
       if (now - lastDragUpdate.current < DRAG_THROTTLE_MS) return;
       lastDragUpdate.current = now;
-      onDragMove(frame.id, e.target.x() - localWidth / 2, e.target.y() - localHeight / 2);
+      // Subtract dragOffset to get the actual position (not the visual position)
+      const actualX = e.target.x() - localWidth / 2 - (dragOffset?.x || 0);
+      const actualY = e.target.y() - localHeight / 2 - (dragOffset?.y || 0);
+      onDragMove(frame.id, actualX, actualY);
     },
-    [frame.id, onDragMove, localWidth, localHeight]
+    [frame.id, onDragMove, localWidth, localHeight, dragOffset]
   );
 
   // Hover animation via Konva Tween — priority: containment isHovered > isMouseHovered > default
@@ -238,7 +241,10 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
       onDragEnd={(e) => {
         const stage = e.target.getStage();
         if (stage) stage.container().style.cursor = isMouseHovered ? 'grab' : 'default';
-        onDragEnd(frame.id, e.target.x() - localWidth / 2, e.target.y() - localHeight / 2);
+        // Subtract dragOffset to get the actual position (not the visual position)
+        const actualX = e.target.x() - localWidth / 2 - (dragOffset?.x || 0);
+        const actualY = e.target.y() - localHeight / 2 - (dragOffset?.y || 0);
+        onDragEnd(frame.id, actualX, actualY);
       }}
       onClick={() => onClick?.(frame.id)}
       onTap={() => onClick?.(frame.id)}

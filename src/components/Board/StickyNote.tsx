@@ -267,40 +267,42 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
       />
       {/* Delete button area (top-right corner) */}
       {onDelete && (
-        <>
-          <Rect
-            x={localWidth - 28}
-            y={4}
-            width={24}
-            height={24}
-            fill={isDeleteHovered ? 'rgba(239,68,68,0.25)' : 'rgba(0,0,0,0.04)'}
-            cornerRadius={8}
-            onClick={() => onDelete(note.id)}
-            onTap={() => onDelete(note.id)}
-            onMouseEnter={(e) => {
-              setIsDeleteHovered(true);
-              const stage = e.target.getStage();
-              if (stage) stage.container().style.cursor = 'pointer';
-            }}
-            onMouseLeave={(e) => {
-              setIsDeleteHovered(false);
-              const stage = e.target.getStage();
-              if (stage && isMouseHovered && !isResizeHovered) {
-                stage.container().style.cursor = 'grab';
-              }
-            }}
+        <Group
+          x={localWidth - 10}
+          y={-10}
+          onClick={() => onDelete(note.id)}
+          onTap={() => onDelete(note.id)}
+          onMouseEnter={(e) => {
+            setIsDeleteHovered(true);
+            const stage = e.target.getStage();
+            if (stage) stage.container().style.cursor = 'pointer';
+          }}
+          onMouseLeave={(e) => {
+            setIsDeleteHovered(false);
+            const stage = e.target.getStage();
+            if (stage && isMouseHovered && !isResizeHovered && !isRotateHovered) {
+              stage.container().style.cursor = 'grab';
+            }
+          }}
+        >
+          <Circle
+            radius={10}
+            fill={isDeleteHovered ? '#ef4444' : '#94a3b8'}
+            opacity={isDeleteHovered ? 1 : 0.4}
           />
           {/* Material delete icon (trash can) */}
           <Path
-            x={localWidth - 22}
-            y={9}
+            x={-5}
+            y={-5}
             data="M3 6h12M5 6V4a1 1 0 011-1h2a1 1 0 011 1v2m3 0V4a1 1 0 011-1h2a1 1 0 011 1v2M4 6v10a1 1 0 001 1h8a1 1 0 001-1V6H4z"
-            fill={isDeleteHovered ? '#ef4444' : '#666'}
+            stroke="white"
+            strokeWidth={1.2}
+            fill="transparent"
             scaleX={0.7}
             scaleY={0.7}
             listening={false}
           />
-        </>
+        </Group>
       )}
       {!isEditing && (
         <Text

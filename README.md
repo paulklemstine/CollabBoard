@@ -2,7 +2,7 @@
 
 A real-time collaborative whiteboard where multiple users create, edit, and organize content together on an infinite canvas.
 
-**Live Demo**: [collabboard-ba094.web.app](https://collabboard-ba094.web.app)
+**Live Demo**: [collabboard-8c0d0.web.app](https://collabboard-8c0d0.web.app)
 
 ## Features
 

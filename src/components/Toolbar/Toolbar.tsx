@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { COLORS } from './ColorPicker';
 import { ColorDrawer } from './ColorDrawer';
 import { ShapeDrawer } from './ShapeDrawer';

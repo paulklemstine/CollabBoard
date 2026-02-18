@@ -10,6 +10,8 @@ const defaultProps = {
   connectMode: false,
   connectingFrom: null,
   onToggleConnectMode: vi.fn(),
+  selectMode: false,
+  onToggleSelectMode: vi.fn(),
 };
 
 describe('Toolbar', () => {

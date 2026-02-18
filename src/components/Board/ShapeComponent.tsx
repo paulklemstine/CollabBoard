@@ -187,7 +187,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
     onResize?.(shape.id, newWidth, newHeight);
     setIsResizing(false);
 
-    // For line shapes, position handle on right edge
+    // For line shapes, position handle on right edge with 20px offset
     if (shape.shapeType === 'line') {
       e.target.position({ x: newWidth - 20, y: localHeight / 2 - 20 });
     } else {
@@ -195,7 +195,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
     }
   };
 
-  // Handle position for line shapes: right edge, vertically centered
+  // Handle position for line shapes: right edge, vertically centered, with 20px offset
   const handleX = localWidth - 20;
   const handleY = shape.shapeType === 'line' ? localHeight / 2 - 20 : localHeight - 20;
 
@@ -263,7 +263,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
         />
       )}
       {/* Delete button */}
-      {onDelete && (
+      {onDelete && isMouseHovered && (
         <Group
           x={localWidth - 20}
           y={-20}
@@ -276,6 +276,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
             onDelete(shape.id);
           }}
           onMouseEnter={(e) => {
+            setIsMouseHovered(true);
             setIsDeleteHovered(true);
             const stage = e.target.getStage();
             if (stage) stage.container().style.cursor = 'pointer';
@@ -289,28 +290,31 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
           }}
         >
           <Rect
-            width={20}
-            height={20}
+            width={40}
+            height={40}
             fill={isDeleteHovered ? '#ef4444' : '#94a3b8'}
             opacity={isDeleteHovered ? 1 : 0.4}
-            cornerRadius={4}
+            cornerRadius={8}
           />
           <Text
             text="❌"
-            fontSize={12}
-            x={4}
-            y={4}
+            fontSize={24}
+            width={40}
+            height={40}
+            align="center"
+            verticalAlign="middle"
             listening={false}
           />
         </Group>
       )}
       {/* Rotate handle (bottom-left) */}
-      {onRotate && (
+      {onRotate && isMouseHovered && (
         <Group
           x={-20}
           y={localHeight - 20}
           draggable
           onMouseEnter={(e) => {
+            setIsMouseHovered(true);
             setIsRotateHovered(true);
             const stage = e.target.getStage();
             if (stage) stage.container().style.cursor = 'alias';
@@ -367,28 +371,31 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
           }}
         >
           <Rect
-            width={20}
-            height={20}
+            width={40}
+            height={40}
             fill={isRotateHovered ? '#8b5cf6' : '#94a3b8'}
             opacity={isRotateHovered ? 1 : 0.4}
-            cornerRadius={4}
+            cornerRadius={8}
           />
           <Text
             text="🔄"
-            fontSize={12}
-            x={4}
-            y={4}
+            fontSize={24}
+            width={40}
+            height={40}
+            align="center"
+            verticalAlign="middle"
             listening={false}
           />
         </Group>
       )}
       {/* Resize handle */}
-      {onResize && (
+      {onResize && isMouseHovered && (
         <Group
           x={handleX}
           y={handleY}
           draggable
           onMouseEnter={(e) => {
+            setIsMouseHovered(true);
             setIsResizeHovered(true);
             const stage = e.target.getStage();
             if (stage) stage.container().style.cursor = 'nwse-resize';
@@ -408,17 +415,19 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
           onDragEnd={handleResizeDragEnd}
         >
           <Rect
-            width={20}
-            height={20}
+            width={40}
+            height={40}
             fill={isResizeHovered ? '#3b82f6' : '#94a3b8'}
             opacity={isResizeHovered ? 1 : 0.4}
-            cornerRadius={4}
+            cornerRadius={8}
           />
           <Text
             text="↔️"
-            fontSize={12}
-            x={4}
-            y={4}
+            fontSize={24}
+            width={40}
+            height={40}
+            align="center"
+            verticalAlign="middle"
             listening={false}
           />
         </Group>

@@ -266,13 +266,14 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
         rotation={-1}
       />
       {/* Delete button area (top-right corner) */}
-      {onDelete && (
+      {onDelete && isMouseHovered && (
         <Group
           x={localWidth - 20}
           y={-20}
           onClick={() => onDelete(note.id)}
           onTap={() => onDelete(note.id)}
           onMouseEnter={(e) => {
+            setIsMouseHovered(true);
             setIsDeleteHovered(true);
             const stage = e.target.getStage();
             if (stage) stage.container().style.cursor = 'pointer';
@@ -286,19 +287,19 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
           }}
         >
           <Rect
-            width={20}
-            height={20}
+            width={40}
+            height={40}
             fill={isDeleteHovered ? '#ef4444' : '#94a3b8'}
             opacity={isDeleteHovered ? 1 : 0.4}
-            cornerRadius={4}
+            cornerRadius={8}
           />
           <Text
             x={0}
             y={0}
-            width={20}
-            height={20}
+            width={40}
+            height={40}
             text="❌"
-            fontSize={12}
+            fontSize={24}
             align="center"
             verticalAlign="middle"
             listening={false}
@@ -333,12 +334,13 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
         />
       )}
       {/* Rotate handle (bottom-left) */}
-      {!isEditing && onRotate && (
+      {!isEditing && onRotate && isMouseHovered && (
         <Group
           x={-20}
           y={localHeight - 20}
           draggable
           onMouseEnter={(e) => {
+            setIsMouseHovered(true);
             setIsRotateHovered(true);
             const stage = e.target.getStage();
             if (stage) stage.container().style.cursor = 'alias';
@@ -395,19 +397,19 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
           }}
         >
           <Rect
-            width={20}
-            height={20}
+            width={40}
+            height={40}
             fill={isRotateHovered ? '#8b5cf6' : '#94a3b8'}
             opacity={isRotateHovered ? 1 : 0.4}
-            cornerRadius={4}
+            cornerRadius={8}
           />
           <Text
             x={0}
             y={0}
-            width={20}
-            height={20}
+            width={40}
+            height={40}
             text="🔄"
-            fontSize={12}
+            fontSize={24}
             align="center"
             verticalAlign="middle"
             listening={false}
@@ -415,12 +417,13 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
         </Group>
       )}
       {/* Resize handle */}
-      {!isEditing && onResize && (
+      {!isEditing && onResize && isMouseHovered && (
         <Group
           x={localWidth - 20}
           y={localHeight - 20}
           draggable
           onMouseEnter={(e) => {
+            setIsMouseHovered(true);
             setIsResizeHovered(true);
             const stage = e.target.getStage();
             if (stage) stage.container().style.cursor = 'nwse-resize';
@@ -461,19 +464,19 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
           }}
         >
           <Rect
-            width={20}
-            height={20}
+            width={40}
+            height={40}
             fill={isResizeHovered ? '#3b82f6' : '#94a3b8'}
             opacity={isResizeHovered ? 1 : 0.4}
-            cornerRadius={4}
+            cornerRadius={8}
           />
           <Text
             x={0}
             y={0}
-            width={20}
-            height={20}
+            width={40}
+            height={40}
             text="↔️"
-            fontSize={12}
+            fontSize={24}
             align="center"
             verticalAlign="middle"
             listening={false}

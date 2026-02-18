@@ -37,7 +37,7 @@ export function StickerComponent({
   parentRotation: _parentRotation,
   isNew: _isNew,
   isSelected: _isSelected,
-  groupDragOffset: _groupDragOffset,
+  groupDragOffset,
   groupTransformPreview: _groupTransformPreview,
   selectionBox: _selectionBox
 }: StickerComponentProps) {
@@ -114,7 +114,7 @@ export function StickerComponent({
       ref={groupRef}
       x={sticker.x + (dragOffset?.x ?? 0)}
       y={sticker.y + (dragOffset?.y ?? 0)}
-      draggable
+      draggable={!groupDragOffset}
       onDragMove={handleDragMove}
       onDragStart={(e) => {
         hoverTweenRef.current?.destroy();
@@ -147,9 +147,9 @@ export function StickerComponent({
         listening={false}
       />
       {/* Delete button */}
-      {onDelete && (
+      {onDelete && isMouseHovered && (
         <Group
-          x={localWidth}
+          x={localWidth - 20}
           y={-20}
           onClick={(e) => {
             e.cancelBubble = true;
@@ -160,6 +160,7 @@ export function StickerComponent({
             onDelete?.(sticker.id);
           }}
           onMouseEnter={(e) => {
+            setIsMouseHovered(true);
             setIsDeleteHovered(true);
             const stage = e.target.getStage();
             if (stage) stage.container().style.cursor = 'pointer';
@@ -173,28 +174,31 @@ export function StickerComponent({
           }}
         >
           <Rect
-            width={20}
-            height={20}
+            width={40}
+            height={40}
             fill={isDeleteHovered ? '#ef4444' : '#94a3b8'}
             opacity={isDeleteHovered ? 1 : 0.4}
-            cornerRadius={4}
+            cornerRadius={8}
           />
           <Text
             text="❌"
-            fontSize={12}
-            x={4}
-            y={4}
+            fontSize={24}
+            width={40}
+            height={40}
+            align="center"
+            verticalAlign="middle"
             listening={false}
           />
         </Group>
       )}
       {/* Resize handle */}
-      {onResize && (
+      {onResize && isMouseHovered && (
         <Group
-          x={localWidth}
-          y={localHeight}
+          x={localWidth - 20}
+          y={localHeight - 20}
           draggable
           onMouseEnter={(e) => {
+            setIsMouseHovered(true);
             setIsResizeHovered(true);
             const stage = e.target.getStage();
             if (stage) stage.container().style.cursor = 'nwse-resize';
@@ -211,7 +215,7 @@ export function StickerComponent({
           onDragMove={(e) => {
             e.cancelBubble = true;
             // Enforce square for stickers
-            const newSize = Math.max(MIN_SIZE, Math.max(e.target.x(), e.target.y()));
+            const newSize = Math.max(MIN_SIZE, Math.max(e.target.x() + 20, e.target.y() + 20));
             setLocalWidth(newSize);
             setLocalHeight(newSize);
             const now = Date.now();
@@ -222,26 +226,28 @@ export function StickerComponent({
           }}
           onDragEnd={(e) => {
             e.cancelBubble = true;
-            const newSize = Math.max(MIN_SIZE, Math.max(e.target.x(), e.target.y()));
+            const newSize = Math.max(MIN_SIZE, Math.max(e.target.x() + 20, e.target.y() + 20));
             setLocalWidth(newSize);
             setLocalHeight(newSize);
             onResize(sticker.id, newSize, newSize);
             setIsResizing(false);
-            e.target.position({ x: newSize, y: newSize });
+            e.target.position({ x: newSize - 20, y: newSize - 20 });
           }}
         >
           <Rect
-            width={20}
-            height={20}
+            width={40}
+            height={40}
             fill={isResizeHovered ? '#3b82f6' : '#94a3b8'}
             opacity={isResizeHovered ? 1 : 0.4}
-            cornerRadius={4}
+            cornerRadius={8}
           />
           <Text
             text="↔️"
-            fontSize={12}
-            x={4}
-            y={4}
+            fontSize={24}
+            width={40}
+            height={40}
+            align="center"
+            verticalAlign="middle"
             listening={false}
           />
         </Group>

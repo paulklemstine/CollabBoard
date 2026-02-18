@@ -6,6 +6,7 @@ export function useAI(boardId: string) {
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<string | null>(null);
 
   const sendCommand = useCallback(
     async (prompt: string) => {
@@ -21,10 +22,11 @@ export function useAI(boardId: string) {
 
       setMessages((prev) => [...prev, userMessage]);
       setIsLoading(true);
+      setProgress(null);
       setError(null);
 
       try {
-        const result = await sendAICommand(boardId, trimmed);
+        const result = await sendAICommand(boardId, trimmed, (p) => setProgress(p));
 
         const assistantMessage: AIMessage = {
           id: `assistant-${Date.now()}`,
@@ -41,6 +43,7 @@ export function useAI(boardId: string) {
         setError(message);
       } finally {
         setIsLoading(false);
+        setProgress(null);
       }
     },
     [boardId, isLoading],
@@ -55,5 +58,5 @@ export function useAI(boardId: string) {
     setError(null);
   }, []);
 
-  return { messages, isLoading, error, sendCommand, clearMessages, dismissError };
+  return { messages, isLoading, error, progress, sendCommand, clearMessages, dismissError };
 }

@@ -50,6 +50,7 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selec
   const [groupDragOffset, setGroupDragOffset] = useState<GroupDragOffset | null>(null);
   const [selectionBox, setSelectionBox] = useState<SelectionBox | null>(null);
   const [transformPreview, setTransformPreview] = useState<GroupTransformPreview | null>(null);
+  const [groupHoveredFrameId, setGroupHoveredFrameId] = useState<string | null>(null);
 
   // Ref mirrors for use inside event callbacks (avoids stale closures)
   const objectsRef = useRef(objects);
@@ -67,6 +68,7 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selec
     setGroupDragOffset(null);
     setSelectionBox(null);
     setTransformPreview(null);
+    setGroupHoveredFrameId(null);
   }, []);
 
   const isSelected = useCallback(
@@ -208,6 +210,25 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selec
 
   const handleGroupDragMove = useCallback((dx: number, dy: number) => {
     setGroupDragOffset({ dx, dy });
+
+    // Detect frame hover during group drag for visual feedback
+    const selected = objectsRef.current.filter((obj) =>
+      selectedIdsRef.current.has(obj.id)
+    );
+    if (selected.length === 0) return;
+
+    const movedObjects = selected.map((obj) => ({
+      ...obj,
+      x: obj.x + dx,
+      y: obj.y + dy,
+    }));
+
+    const frames = objectsRef.current.filter(
+      (o): o is Frame => o.type === 'frame' && !selectedIdsRef.current.has(o.id)
+    );
+
+    const containingFrame = findContainingFrameForGroup(movedObjects, frames);
+    setGroupHoveredFrameId(containingFrame?.id ?? null);
   }, []);
 
   const handleGroupDragEnd = useCallback(
@@ -263,10 +284,20 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selec
             },
           }));
         }
+      } else {
+        // No containing frame — clear parentId for all selected objects
+        updates = updates.map((update) => ({
+          ...update,
+          updates: {
+            ...update.updates,
+            parentId: '',
+          },
+        }));
       }
 
       await batchUpdateObjects(boardId, updates);
 
+      setGroupHoveredFrameId(null);
       setSelectionBox((prev) => {
         if (!prev) return null;
         return { ...prev, x: prev.x + dx, y: prev.y + dy };
@@ -354,6 +385,7 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selec
     groupDragOffset,
     selectionBox,
     transformPreview,
+    groupHoveredFrameId,
     clearSelection,
     isSelected,
     selectObject,

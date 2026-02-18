@@ -4,6 +4,8 @@ import type { AIMessage } from '../../types/board';
 
 interface AIChatProps {
   boardId: string;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 function SparkleIcon({ size = 20 }: { size?: number }) {
@@ -42,29 +44,32 @@ function MessageBubble({ message }: { message: AIMessage }) {
   );
 }
 
-function LoadingDots() {
+function LoadingIndicator({ progress }: { progress: string | null }) {
   return (
     <div className="flex justify-start mb-3">
       <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0 mr-2 mt-1">
         <SparkleIcon size={12} />
       </div>
       <div className="bg-white/60 border border-white/40 rounded-2xl rounded-bl-md px-4 py-3">
-        <div className="flex gap-1.5">
-          <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-          <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-          <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-        </div>
+        {progress ? (
+          <p className="text-xs text-purple-600 font-medium animate-pulse">{progress}</p>
+        ) : (
+          <div className="flex gap-1.5">
+            <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+            <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+            <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-export function AIChat({ boardId }: AIChatProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export function AIChat({ boardId, isOpen, onClose }: AIChatProps) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { messages, isLoading, error, sendCommand, dismissError } = useAI(boardId);
+  const { messages, isLoading, error, progress, sendCommand, dismissError } = useAI(boardId);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -91,22 +96,10 @@ export function AIChat({ boardId }: AIChatProps) {
     }
   };
 
-  // Collapsed: sparkle button
-  if (!isOpen) {
-    return (
-      <button
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-24 right-4 z-[999] w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-200 flex items-center justify-center btn-lift"
-        title="AI Assistant"
-      >
-        <SparkleIcon size={22} />
-      </button>
-    );
-  }
+  if (!isOpen) return null;
 
-  // Expanded panel
   return (
-    <div className="fixed bottom-24 right-4 z-[999] w-[360px] max-h-[480px] flex flex-col glass-playful rounded-2xl shadow-2xl animate-float-up overflow-hidden">
+    <div className="fixed bottom-24 right-4 z-[1100] w-[360px] max-h-[480px] flex flex-col glass-playful rounded-2xl shadow-2xl animate-float-up overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/30">
         <div className="flex items-center gap-2">
@@ -118,7 +111,7 @@ export function AIChat({ boardId }: AIChatProps) {
           </span>
         </div>
         <button
-          onClick={() => setIsOpen(false)}
+          onClick={onClose}
           className="w-7 h-7 rounded-lg hover:bg-black/5 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -145,7 +138,7 @@ export function AIChat({ boardId }: AIChatProps) {
             {messages.map((msg) => (
               <MessageBubble key={msg.id} message={msg} />
             ))}
-            {isLoading && <LoadingDots />}
+            {isLoading && <LoadingIndicator progress={progress} />}
           </>
         )}
         <div ref={messagesEndRef} />

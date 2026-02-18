@@ -14,6 +14,7 @@ interface FrameComponentProps {
   onDragMove: (id: string, x: number, y: number) => void;
   onDragEnd: (id: string, x: number, y: number) => void;
   onDelete?: (id: string) => void;
+  onDissolve?: (id: string) => void;
   onTitleChange: (id: string, title: string) => void;
   onClick?: (id: string) => void;
   isHovered?: boolean;
@@ -31,7 +32,7 @@ interface FrameComponentProps {
   selectionBox?: SelectionBox | null;
 }
 
-export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitleChange, onClick, isHovered, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, dragOffset, parentRotation, isSelected, groupDragOffset, groupTransformPreview, selectionBox }: FrameComponentProps) {
+export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDissolve, onTitleChange, onClick, isHovered, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, dragOffset, parentRotation, isSelected, groupDragOffset, groupTransformPreview, selectionBox }: FrameComponentProps) {
   const lastDragUpdate = useRef(0);
   const lastResizeUpdate = useRef(0);
   const titleRef = useRef<Konva.Text>(null);
@@ -42,6 +43,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
   const [isResizeHovered, setIsResizeHovered] = useState(false);
   const [isRotateHovered, setIsRotateHovered] = useState(false);
   const [isDeleteHovered, setIsDeleteHovered] = useState(false);
+  const [isDissolveHovered, setIsDissolveHovered] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [localWidth, setLocalWidth] = useState(frame.width);
   const [localHeight, setLocalHeight] = useState(frame.height);
@@ -369,8 +371,55 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
         onDblClick={() => setIsEditing(true)}
         onDblTap={() => setIsEditing(true)}
       />
+      {/* Dissolve frame button (top-left) — removes frame, keeps children */}
+      {onDissolve && isMouseHovered && (
+        <Group
+          x={-24}
+          y={-20}
+          onClick={(e) => {
+            e.cancelBubble = true;
+            onDissolve(frame.id);
+          }}
+          onTap={(e) => {
+            e.cancelBubble = true;
+            onDissolve(frame.id);
+          }}
+          onMouseEnter={(e) => {
+            setIsMouseHovered(true);
+            setIsDissolveHovered(true);
+            const stage = e.target.getStage();
+            if (stage) stage.container().style.cursor = 'pointer';
+          }}
+          onMouseLeave={(e) => {
+            setIsDissolveHovered(false);
+            const stage = e.target.getStage();
+            if (stage && isMouseHovered && !isDeleteHovered && !isResizeHovered && !isRotateHovered) {
+              stage.container().style.cursor = 'grab';
+            }
+          }}
+        >
+          <Rect
+            width={40}
+            height={40}
+            fill={isDissolveHovered ? '#f59e0b' : '#94a3b8'}
+            opacity={isDissolveHovered ? 1 : 0.4}
+            cornerRadius={8}
+          />
+          <Text
+            x={0}
+            y={0}
+            width={40}
+            height={40}
+            text="📤"
+            fontSize={24}
+            align="center"
+            verticalAlign="middle"
+            listening={false}
+          />
+        </Group>
+      )}
       {/* Delete button */}
-      {onDelete && (
+      {onDelete && isMouseHovered && (
         <Group
           x={localWidth - 20}
           y={-20}
@@ -383,6 +432,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
             onDelete(frame.id);
           }}
           onMouseEnter={(e) => {
+            setIsMouseHovered(true);
             setIsDeleteHovered(true);
             const stage = e.target.getStage();
             if (stage) stage.container().style.cursor = 'pointer';
@@ -396,19 +446,19 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
           }}
         >
           <Rect
-            width={20}
-            height={20}
+            width={40}
+            height={40}
             fill={isDeleteHovered ? '#ef4444' : '#94a3b8'}
             opacity={isDeleteHovered ? 1 : 0.4}
-            cornerRadius={4}
+            cornerRadius={8}
           />
           <Text
             x={0}
             y={0}
-            width={20}
-            height={20}
+            width={40}
+            height={40}
             text="❌"
-            fontSize={12}
+            fontSize={24}
             align="center"
             verticalAlign="middle"
             listening={false}
@@ -416,12 +466,13 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
         </Group>
       )}
       {/* Rotate handle (bottom-left) */}
-      {!isEditing && onRotate && (
+      {!isEditing && onRotate && isMouseHovered && (
         <Group
           x={-20}
           y={localHeight - 20}
           draggable
           onMouseEnter={(e) => {
+            setIsMouseHovered(true);
             setIsRotateHovered(true);
             const stage = e.target.getStage();
             if (stage) stage.container().style.cursor = 'alias';
@@ -478,19 +529,19 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
           }}
         >
           <Rect
-            width={20}
-            height={20}
+            width={40}
+            height={40}
             fill={isRotateHovered ? '#8b5cf6' : '#94a3b8'}
             opacity={isRotateHovered ? 1 : 0.4}
-            cornerRadius={4}
+            cornerRadius={8}
           />
           <Text
             x={0}
             y={0}
-            width={20}
-            height={20}
+            width={40}
+            height={40}
             text="🔄"
-            fontSize={12}
+            fontSize={24}
             align="center"
             verticalAlign="middle"
             listening={false}
@@ -498,12 +549,13 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
         </Group>
       )}
       {/* Resize handle */}
-      {!isEditing && onResize && (
+      {!isEditing && onResize && isMouseHovered && (
         <Group
           x={localWidth - 20}
           y={localHeight - 20}
           draggable
           onMouseEnter={(e) => {
+            setIsMouseHovered(true);
             setIsResizeHovered(true);
             const stage = e.target.getStage();
             if (stage) stage.container().style.cursor = 'nwse-resize';
@@ -543,19 +595,19 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
           }}
         >
           <Rect
-            width={20}
-            height={20}
+            width={40}
+            height={40}
             fill={isResizeHovered ? '#3b82f6' : '#94a3b8'}
             opacity={isResizeHovered ? 1 : 0.4}
-            cornerRadius={4}
+            cornerRadius={8}
           />
           <Text
             x={0}
             y={0}
-            width={20}
-            height={20}
+            width={40}
+            height={40}
             text="↔️"
-            fontSize={12}
+            fontSize={24}
             align="center"
             verticalAlign="middle"
             listening={false}

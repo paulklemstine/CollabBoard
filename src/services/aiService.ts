@@ -9,6 +9,7 @@ interface AICommandOutput {
 export async function sendAICommand(
   boardId: string,
   prompt: string,
+  onProgress?: (progress: string) => void,
 ): Promise<AICommandOutput> {
   const user = auth.currentUser;
   if (!user) {
@@ -36,6 +37,11 @@ export async function sendAICommand(
       (snapshot) => {
         const data = snapshot.data();
         if (!data) return;
+
+        // Surface progress updates
+        if (data.status === 'processing' && data.progress && onProgress) {
+          onProgress(data.progress);
+        }
 
         if (data.status === 'completed') {
           clearTimeout(timeout);

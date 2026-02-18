@@ -15,6 +15,8 @@ interface ToolbarProps {
   onToggleConnectMode: () => void;
   selectMode: boolean;
   onToggleSelectMode: () => void;
+  onToggleAI: () => void;
+  aiOpen: boolean;
 }
 
 export function Toolbar({
@@ -27,6 +29,8 @@ export function Toolbar({
   onToggleConnectMode,
   selectMode,
   onToggleSelectMode,
+  onToggleAI,
+  aiOpen,
 }: ToolbarProps) {
   const [selectedColor, setSelectedColor] = useState(COLORS[0]);
 
@@ -139,6 +143,30 @@ export function Toolbar({
             <line x1="10" y1="14" x2="21" y2="3" />
           </svg>
           {connectLabel}
+        </div>
+      </button>
+
+      <div className="w-px h-8 mx-0.5" style={{ background: 'linear-gradient(to bottom, rgba(251,146,60,0.2), rgba(168,85,247,0.3), rgba(96,165,250,0.2))' }} />
+
+      {/* AI Assistant */}
+      <button
+        onClick={onToggleAI}
+        className={`btn-lift px-3.5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
+          aiOpen
+            ? 'text-white'
+            : 'text-purple-600 bg-white/50 hover:bg-white/80'
+        }`}
+        style={aiOpen ? {
+          background: 'linear-gradient(135deg, #a855f7 0%, #ec4899 100%)',
+          boxShadow: '0 4px 16px rgba(168, 85, 247, 0.4)',
+        } : undefined}
+        title="AI Assistant"
+      >
+        <div className="flex items-center gap-1.5">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 3l1.912 5.813a2 2 0 0 0 1.275 1.275L21 12l-5.813 1.912a2 2 0 0 0-1.275 1.275L12 21l-1.912-5.813a2 2 0 0 0-1.275-1.275L3 12l5.813-1.912a2 2 0 0 0 1.275-1.275L12 3z" />
+          </svg>
+          AI
         </div>
       </button>
         </div>

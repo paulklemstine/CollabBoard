@@ -64,6 +64,21 @@ const tools = [
     },
   },
   {
+    name: 'createSticker',
+    description: 'Create an emoji sticker on the whiteboard. Stickers are single emoji that can be placed and resized. Returns the created object ID.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        emoji: { type: 'string', description: 'A single emoji character (e.g., "🎉", "❤️", "👍")' },
+        x: { type: 'number', description: 'X position on the canvas in ABSOLUTE coordinates (default: 0)' },
+        y: { type: 'number', description: 'Y position on the canvas in ABSOLUTE coordinates (default: 0)' },
+        size: { type: 'number', description: 'Size in pixels (default: 100)' },
+        parentId: { type: 'string', description: 'ID of a frame to attach this sticker to.' },
+      },
+      required: ['emoji'],
+    },
+  },
+  {
     name: 'createConnector',
     description: 'Create a connector line between two existing objects on the board.',
     input_schema: {
@@ -127,6 +142,17 @@ const tools = [
     },
   },
   {
+    name: 'deleteObject',
+    description: 'Delete an existing object from the board.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        objectId: { type: 'string', description: 'ID of the object to delete' },
+      },
+      required: ['objectId'],
+    },
+  },
+  {
     name: 'getBoardState',
     description: 'Get the current state of all objects on the board. Use this to understand what is already on the board before manipulating existing objects.',
     input_schema: {
@@ -146,6 +172,7 @@ You can create and manipulate objects on the whiteboard using the provided tools
 ## Available Object Types
 - **Sticky Notes**: Text notes with customizable colors. Default size: 200x200px.
 - **Shapes**: Rectangles and circles. Default size: 120x120px.
+- **Stickers**: Single emoji characters that can be placed and resized. Default size: 150x150px. Use any emoji like 🎉, ❤️, 👍, 🚀, etc.
 - **Lines**: Created via createShape with shapeType "line". Use fromX/fromY/toX/toY to specify start and end points — the server automatically computes position, length, and rotation.
   - Example: Horizontal line from (100, 200) to (300, 200): fromX=100, fromY=200, toX=300, toY=200
   - Example: Vertical line from (200, 100) to (200, 300): fromX=200, fromY=100, toX=200, toY=300
@@ -200,9 +227,22 @@ You can create and manipulate objects on the whiteboard using the provided tools
 - Purple sticky: #f3e8ff
 - Orange sticky: #ffedd5
 
+## Multi-Step Planning
+For complex requests (templates, layouts, diagrams), plan your approach before executing:
+1. **Analyze**: Break the request into logical steps (e.g., "create 4 frames, then populate each with sticky notes")
+2. **Execute sequentially**: Create parent objects (frames) first, then children (sticky notes with parentId), then connectors
+3. **Use IDs from prior steps**: When creating children, reference the frame IDs returned from createFrame calls
+4. **Verify if needed**: Call getBoardState() after complex operations to confirm the result
+
+Example multi-step flow for "Create a SWOT analysis":
+  Step 1: Create 4 frames (Strengths, Weaknesses, Opportunities, Threats) in a 2x2 grid
+  Step 2: For each frame, create 2-3 starter sticky notes inside it using the frame's ID as parentId
+  Result: 4 frames with children that move together when dragged
+
 ## Important
 - Always use getBoardState() first if you need to know what's already on the board before manipulating existing objects.
 - When asked to arrange or move existing objects, first call getBoardState() to see current positions and IDs.
+- You can delete objects with deleteObject() when asked to clear, remove, or clean up.
 - Return a brief, helpful text response describing what you did.`;
 
 // ---- Helper: read board state ----
@@ -222,6 +262,8 @@ interface ToolInput {
   shapeType?: string;
   width?: number;
   height?: number;
+  size?: number;
+  emoji?: string;
   title?: string;
   fromId?: string;
   toId?: string;
@@ -311,6 +353,26 @@ async function executeTool(
       return JSON.stringify({ id: docRef.id, type: 'shape', shapeType: input.shapeType });
     }
 
+    case 'createSticker': {
+      const docRef = objectsRef.doc();
+      const size = input.size ?? 150;
+      const data: Record<string, unknown> = {
+        type: 'sticker',
+        emoji: input.emoji ?? '😊',
+        x: input.x ?? 0,
+        y: input.y ?? 0,
+        width: size,
+        height: size,
+        rotation: 0,
+        createdBy: userId,
+        updatedAt: now,
+        parentId: input.parentId ?? '',
+      };
+      await docRef.set(data);
+      objectsCreated.push(docRef.id);
+      return JSON.stringify({ id: docRef.id, type: 'sticker', emoji: input.emoji });
+    }
+
     case 'createFrame': {
       const docRef = objectsRef.doc();
       const data: Record<string, unknown> = {
@@ -388,6 +450,12 @@ async function executeTool(
       return JSON.stringify({ success: true });
     }
 
+    case 'deleteObject': {
+      const docRef = objectsRef.doc(input.objectId!);
+      await docRef.delete();
+      return JSON.stringify({ success: true });
+    }
+
     case 'getBoardState': {
       const objects = await readBoardState(boardId);
       return JSON.stringify({ objects });
@@ -431,9 +499,10 @@ export const processAIRequest = onDocumentCreated(
     }
 
     // Mark as processing
-    await requestRef.update({ status: 'processing' });
+    await requestRef.update({ status: 'processing', progress: 'Planning...' });
 
     const objectsCreated: string[] = [];
+    let stepCount = 0;
 
     try {
       // Read initial board state
@@ -493,8 +562,31 @@ export const processAIRequest = onDocumentCreated(
         messages.push({ role: 'assistant', content: assistantContent });
 
         const toolResults: AnthropicContentBlock[] = [];
+        const toolUseBlocks = response.content.filter((b: { type: string }) => b.type === 'tool_use');
         for (const block of response.content) {
           if (block.type === 'tool_use') {
+            stepCount++;
+            // Build a human-readable progress label
+            const toolLabel: Record<string, string> = {
+              createStickyNote: 'Creating sticky note',
+              createShape: 'Creating shape',
+              createFrame: 'Creating frame',
+              createSticker: 'Creating sticker',
+              createConnector: 'Creating connector',
+              moveObject: 'Moving object',
+              resizeObject: 'Resizing object',
+              updateText: 'Updating text',
+              changeColor: 'Changing color',
+              deleteObject: 'Deleting object',
+              getBoardState: 'Reading board',
+            };
+            const label = toolLabel[block.name] || block.name;
+            const batchInfo = toolUseBlocks.length > 1 ? ` (${toolUseBlocks.indexOf(block) + 1}/${toolUseBlocks.length})` : '';
+            await requestRef.update({
+              progress: `Step ${stepCount}: ${label}${batchInfo}...`,
+              objectsCreated,
+            });
+
             const result = await executeTool(
               block.name,
               block.input as ToolInput,

@@ -13,6 +13,8 @@ const defaultProps = {
   onToggleConnectMode: vi.fn(),
   selectMode: false,
   onToggleSelectMode: vi.fn(),
+  onToggleAI: vi.fn(),
+  aiOpen: false,
 };
 
 describe('Toolbar', () => {

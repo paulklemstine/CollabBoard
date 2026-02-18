@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { FancyColorPicker } from './FancyColorPicker';
 
 interface ColorDrawerProps {
@@ -73,14 +73,24 @@ const getComplementaryColor = (hex: string): string => {
 
 export function ColorDrawer({ selectedColor, onSelectColor }: ColorDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleMouseEnter = useCallback(() => {
+    if (closeTimeout.current) { clearTimeout(closeTimeout.current); closeTimeout.current = null; }
+    setIsOpen(true);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    closeTimeout.current = setTimeout(() => setIsOpen(false), 200);
+  }, []);
 
   const textColor = getComplementaryColor(selectedColor);
 
   return (
     <div
       className="relative"
-      onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => setIsOpen(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       {/* Trigger Button */}
       <button

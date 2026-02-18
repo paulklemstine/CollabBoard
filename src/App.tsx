@@ -219,6 +219,12 @@ function BoardView({
   }, [selectedIds, removeObject, clearSelection]);
 
   const [stageTransform, setStageTransform] = useState<StageTransform>({ x: 0, y: 0, scale: 1 });
+  const [zoomControls, setZoomControls] = useState<{
+    scale: number;
+    zoomIn: () => void;
+    zoomOut: () => void;
+    resetZoom: () => void;
+  } | null>(null);
 
   const handleMouseMove = useCallback(
     (x: number, y: number) => {
@@ -357,6 +363,7 @@ function BoardView({
           onStageMouseMove={connectMode ? undefined : handleStageMouseMove}
           onStageMouseUp={connectMode ? undefined : handleStageMouseUp}
           isPanDisabled={isMarqueeActive}
+          onZoomControlsChange={setZoomControls}
         >
           {/* Render order: Connectors → Frames → Shapes → Sticky Notes (connectors always behind) */}
           {connectors.map((connector) => (
@@ -500,6 +507,10 @@ function BoardView({
         onToggleSelectMode={toggleSelectMode}
         onToggleAI={toggleAI}
         aiOpen={aiOpen}
+        zoomScale={zoomControls?.scale}
+        onZoomIn={zoomControls?.zoomIn}
+        onZoomOut={zoomControls?.zoomOut}
+        onResetZoom={zoomControls?.resetZoom}
       />
       <AIChat boardId={boardId} isOpen={aiOpen} onClose={() => setAiOpen(false)} />
       <div className="absolute top-4 left-4 z-50 flex items-center gap-3">

@@ -3,7 +3,7 @@ import { Group, Rect, Text } from 'react-konva';
 import type Konva from 'konva';
 import type { Marquee, GroupDragOffset, SelectionBox, GroupTransformPreview } from '../../hooks/useMultiSelect';
 
-const HANDLE_SIZE = 16;
+const HANDLE_SIZE = 40;
 
 interface SelectionOverlayProps {
   marquee: Marquee | null;
@@ -253,13 +253,9 @@ export function SelectionOverlay({
           />
 
           {/* Resize handle (bottom-right) */}
-          <Rect
-            x={displayWidth - HANDLE_SIZE / 2}
-            y={displayHeight - HANDLE_SIZE / 2}
-            width={HANDLE_SIZE}
-            height={HANDLE_SIZE}
-            fill="#3b82f6"
-            cornerRadius={3}
+          <Group
+            x={displayWidth - 20}
+            y={displayHeight - 20}
             draggable
             onMouseEnter={(e) => {
               const stage = e.target.getStage();
@@ -272,16 +268,29 @@ export function SelectionOverlay({
             onDragStart={handleResizeDragStart}
             onDragMove={handleResizeDragMove}
             onDragEnd={handleResizeDragEnd}
-          />
+          >
+            <Rect
+              width={HANDLE_SIZE}
+              height={HANDLE_SIZE}
+              fill="#3b82f6"
+              opacity={0.6}
+              cornerRadius={8}
+            />
+            <Text
+              text="↔️"
+              fontSize={24}
+              width={HANDLE_SIZE}
+              height={HANDLE_SIZE}
+              align="center"
+              verticalAlign="middle"
+              listening={false}
+            />
+          </Group>
 
           {/* Rotate handle (bottom-left) */}
-          <Rect
-            x={-HANDLE_SIZE / 2}
-            y={displayHeight - HANDLE_SIZE / 2}
-            width={HANDLE_SIZE}
-            height={HANDLE_SIZE}
-            fill="#8b5cf6"
-            cornerRadius={HANDLE_SIZE / 2}
+          <Group
+            x={-20}
+            y={displayHeight - 20}
             draggable
             onMouseEnter={(e) => {
               const stage = e.target.getStage();
@@ -294,16 +303,29 @@ export function SelectionOverlay({
             onDragStart={handleRotateDragStart}
             onDragMove={handleRotateDragMove}
             onDragEnd={handleRotateDragEnd}
-          />
+          >
+            <Rect
+              width={HANDLE_SIZE}
+              height={HANDLE_SIZE}
+              fill="#8b5cf6"
+              opacity={0.6}
+              cornerRadius={8}
+            />
+            <Text
+              text="🔄"
+              fontSize={24}
+              width={HANDLE_SIZE}
+              height={HANDLE_SIZE}
+              align="center"
+              verticalAlign="middle"
+              listening={false}
+            />
+          </Group>
 
           {/* Delete button (top-right) */}
-          <Rect
-            x={displayWidth - 24}
-            y={-28}
-            width={24}
-            height={24}
-            fill={isDeleteHovered ? 'rgba(239,68,68,0.25)' : 'rgba(0,0,0,0.08)'}
-            cornerRadius={8}
+          <Group
+            x={displayWidth - 20}
+            y={-20}
             onClick={(e) => {
               e.cancelBubble = true;
               onDeleteSelected();
@@ -322,16 +344,24 @@ export function SelectionOverlay({
               const stage = e.target.getStage();
               if (stage) stage.container().style.cursor = 'move';
             }}
-          />
-          <Text
-            x={displayWidth - 19}
-            y={-25}
-            text={'\u00d7'}
-            fontSize={16}
-            fontStyle="bold"
-            fill={isDeleteHovered ? '#ef4444' : '#666'}
-            listening={false}
-          />
+          >
+            <Rect
+              width={HANDLE_SIZE}
+              height={HANDLE_SIZE}
+              fill={isDeleteHovered ? '#ef4444' : '#94a3b8'}
+              opacity={isDeleteHovered ? 1 : 0.4}
+              cornerRadius={8}
+            />
+            <Text
+              text="❌"
+              fontSize={24}
+              width={HANDLE_SIZE}
+              height={HANDLE_SIZE}
+              align="center"
+              verticalAlign="middle"
+              listening={false}
+            />
+          </Group>
 
           {/* Selection count badge */}
           <Text

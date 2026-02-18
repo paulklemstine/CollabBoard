@@ -17,6 +17,10 @@ interface ToolbarProps {
   onToggleSelectMode: () => void;
   onToggleAI: () => void;
   aiOpen: boolean;
+  zoomScale?: number;
+  onZoomIn?: () => void;
+  onZoomOut?: () => void;
+  onResetZoom?: () => void;
 }
 
 export function Toolbar({
@@ -31,8 +35,14 @@ export function Toolbar({
   onToggleSelectMode,
   onToggleAI,
   aiOpen,
+  zoomScale,
+  onZoomIn,
+  onZoomOut,
+  onResetZoom,
 }: ToolbarProps) {
   const [selectedColor, setSelectedColor] = useState(COLORS[0]);
+
+  const zoomPercentage = zoomScale ? Math.round(zoomScale * 100) : 100;
 
   const connectLabel = connectMode
     ? connectingFrom
@@ -169,6 +179,40 @@ export function Toolbar({
           AI
         </div>
       </button>
+
+      {/* Zoom Controls (if provided) */}
+      {onZoomIn && onZoomOut && onResetZoom && (
+        <>
+          <div className="w-px h-8 mx-0.5" style={{ background: 'linear-gradient(to bottom, rgba(251,146,60,0.2), rgba(168,85,247,0.3), rgba(96,165,250,0.2))' }} />
+
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={onZoomOut}
+              className="btn-lift w-8 h-8 flex items-center justify-center rounded-lg text-violet-600 hover:bg-violet-50/60 transition-colors text-lg font-bold"
+              title="Zoom out"
+              aria-label="Zoom out"
+            >
+              -
+            </button>
+            <button
+              onClick={onResetZoom}
+              className="btn-lift px-2 h-8 flex items-center justify-center rounded-lg text-violet-600 hover:bg-violet-50/60 transition-colors text-xs font-semibold min-w-[3rem]"
+              title="Reset zoom"
+              aria-label="Reset zoom"
+            >
+              {zoomPercentage}%
+            </button>
+            <button
+              onClick={onZoomIn}
+              className="btn-lift w-8 h-8 flex items-center justify-center rounded-lg text-violet-600 hover:bg-violet-50/60 transition-colors text-lg font-bold"
+              title="Zoom in"
+              aria-label="Zoom in"
+            >
+              +
+            </button>
+          </div>
+        </>
+      )}
         </div>
       </div>
     </div>

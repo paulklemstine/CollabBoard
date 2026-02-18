@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import type { ShapeType } from '../../types/board';
 
 interface ShapeDrawerProps {
@@ -9,6 +9,16 @@ interface ShapeDrawerProps {
 
 export function ShapeDrawer({ selectedColor, onAddShape, onAddFrame }: ShapeDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleMouseEnter = useCallback(() => {
+    if (closeTimeout.current) { clearTimeout(closeTimeout.current); closeTimeout.current = null; }
+    setIsOpen(true);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    closeTimeout.current = setTimeout(() => setIsOpen(false), 200);
+  }, []);
 
   const shapes: { type: ShapeType | 'frame'; icon: React.ReactNode; label: string; color: string; action: () => void }[] = [
     {
@@ -60,8 +70,8 @@ export function ShapeDrawer({ selectedColor, onAddShape, onAddFrame }: ShapeDraw
   return (
     <div
       className="relative"
-      onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => setIsOpen(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       {/* Trigger Button */}
       <button

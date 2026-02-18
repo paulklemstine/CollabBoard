@@ -32,21 +32,22 @@ export function StickerComponent({
   onDelete,
   onClick,
   onResize,
-  onRotate: _onRotate,
+  onRotate,
   dragOffset,
-  parentRotation: _parentRotation,
-  isNew: _isNew,
-  isSelected: _isSelected,
+  parentRotation,
+  isNew,
+  isSelected,
   groupDragOffset,
-  groupTransformPreview: _groupTransformPreview,
-  selectionBox: _selectionBox
+  groupTransformPreview,
+  selectionBox
 }: StickerComponentProps) {
-  const groupRef = useRef<Konva.Group>(null);
-  const hoverTweenRef = useRef<Konva.Tween | null>(null);
+  const flashOverlayRef = useRef<Konva.Rect>(null);
+  const rotateStartRef = useRef<{ angle: number; rotation: number } | null>(null);
   const lastDragUpdate = useRef(0);
   const lastResizeUpdate = useRef(0);
   const [isMouseHovered, setIsMouseHovered] = useState(false);
   const [isResizeHovered, setIsResizeHovered] = useState(false);
+  const [isRotateHovered, setIsRotateHovered] = useState(false);
   const [isDeleteHovered, setIsDeleteHovered] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [localWidth, setLocalWidth] = useState(sticker.width);
@@ -59,80 +60,119 @@ export function StickerComponent({
     }
   }, [sticker.width, sticker.height, isResizing]);
 
-  // Elastic bounce on hover
+  // Flash animation for new stickers
   useEffect(() => {
-    const group = groupRef.current;
-    if (!group) return;
-
-    if (hoverTweenRef.current) {
-      hoverTweenRef.current.destroy();
-      hoverTweenRef.current = null;
-    }
-
-    if (isMouseHovered) {
-      hoverTweenRef.current = new Konva.Tween({
-        node: group,
-        duration: 0.3,
-        scaleX: 1.15,
-        scaleY: 1.15,
-        easing: Konva.Easings.ElasticEaseOut,
+    if (isNew && flashOverlayRef.current) {
+      const tween = new Konva.Tween({
+        node: flashOverlayRef.current,
+        duration: 0.6,
+        opacity: 0.5,
+        onFinish: () => {
+          const fadeOut = new Konva.Tween({
+            node: flashOverlayRef.current!,
+            duration: 0.4,
+            opacity: 0,
+          });
+          fadeOut.play();
+        },
       });
-      hoverTweenRef.current.play();
-    } else {
-      hoverTweenRef.current = new Konva.Tween({
-        node: group,
-        duration: 0.2,
-        scaleX: 1,
-        scaleY: 1,
-        easing: Konva.Easings.EaseInOut,
-      });
-      hoverTweenRef.current.play();
+      tween.play();
     }
-
-    return () => {
-      if (hoverTweenRef.current) {
-        hoverTweenRef.current.destroy();
-      }
-    };
-  }, [isMouseHovered]);
+  }, [isNew]);
 
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
       const now = Date.now();
       if (now - lastDragUpdate.current < DRAG_THROTTLE_MS) return;
       lastDragUpdate.current = now;
-      onDragMove(sticker.id, e.target.x(), e.target.y());
+      onDragMove(sticker.id, e.target.x() - localWidth / 2, e.target.y() - localHeight / 2);
     },
-    [sticker.id, onDragMove]
+    [sticker.id, onDragMove, localWidth, localHeight]
   );
 
-  // Scale emoji font size proportionally
+  const handleResizeDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
+    e.cancelBubble = true;
+    // Enforce square for stickers
+    const newSize = Math.max(MIN_SIZE, Math.max(e.target.x() + 20, e.target.y() + 20));
+    setLocalWidth(newSize);
+    setLocalHeight(newSize);
+
+    const now = Date.now();
+    if (now - lastResizeUpdate.current >= DRAG_THROTTLE_MS && onResize) {
+      lastResizeUpdate.current = now;
+      onResize(sticker.id, newSize, newSize);
+    }
+  };
+
+  const handleResizeDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
+    e.cancelBubble = true;
+    const newSize = Math.max(MIN_SIZE, Math.max(e.target.x() + 20, e.target.y() + 20));
+    setLocalWidth(newSize);
+    setLocalHeight(newSize);
+    onResize?.(sticker.id, newSize, newSize);
+    setIsResizing(false);
+    e.target.position({ x: newSize - 20, y: newSize - 20 });
+  };
+
+  // Calculate live transform offsets for multi-select
+  const liveTransform = groupTransformPreview && selectionBox && isSelected
+    ? (() => {
+        const { scaleX, scaleY, rotationDelta, newCenterX, newCenterY } = groupTransformPreview;
+        const { centerX, centerY } = selectionBox;
+        const objCenterX = sticker.x + localWidth / 2;
+        const objCenterY = sticker.y + localHeight / 2;
+        const dx = objCenterX - centerX;
+        const dy = objCenterY - centerY;
+        const rad = rotationDelta * (Math.PI / 180);
+        const cos = Math.cos(rad);
+        const sin = Math.sin(rad);
+        const rotatedDx = dx * cos - dy * sin;
+        const rotatedDy = dx * sin + dy * cos;
+        const scaledDx = rotatedDx * scaleX;
+        const scaledDy = rotatedDy * scaleY;
+        return {
+          orbitOffset: {
+            x: newCenterX + scaledDx - objCenterX,
+            y: newCenterY + scaledDy - objCenterY,
+          },
+          scaleX,
+          scaleY,
+          rotationDelta,
+        };
+      })()
+    : null;
+
+  // Scale emoji font size proportionally - make it larger to fill space better
   const fontSize = (localWidth / BASE_SIZE) * BASE_FONT_SIZE;
 
   return (
     <Group
-      ref={groupRef}
-      x={sticker.x + (dragOffset?.x ?? 0)}
-      y={sticker.y + (dragOffset?.y ?? 0)}
+      x={sticker.x + (dragOffset?.x ?? 0) + (groupDragOffset?.dx ?? 0) + (liveTransform?.orbitOffset.x ?? 0) + localWidth / 2}
+      y={sticker.y + (dragOffset?.y ?? 0) + (groupDragOffset?.dy ?? 0) + (liveTransform?.orbitOffset.y ?? 0) + localHeight / 2}
+      offsetX={localWidth / 2}
+      offsetY={localHeight / 2}
+      scaleX={liveTransform?.scaleX ?? 1}
+      scaleY={liveTransform?.scaleY ?? 1}
+      rotation={(sticker.rotation || 0) + (parentRotation || 0) + (liveTransform?.rotationDelta ?? 0)}
       draggable={!groupDragOffset}
       onDragMove={handleDragMove}
       onDragStart={(e) => {
-        hoverTweenRef.current?.destroy();
-        hoverTweenRef.current = null;
         const stage = e.target.getStage();
         if (stage) stage.container().style.cursor = 'grabbing';
       }}
       onDragEnd={(e) => {
         const stage = e.target.getStage();
         if (stage) stage.container().style.cursor = isMouseHovered ? 'grab' : 'default';
-        onDragEnd(sticker.id, e.target.x(), e.target.y());
+        onDragEnd(sticker.id, e.target.x() - localWidth / 2, e.target.y() - localHeight / 2);
       }}
       onClick={() => onClick?.(sticker.id)}
       onTap={() => onClick?.(sticker.id)}
       onMouseEnter={(e) => {
         setIsMouseHovered(true);
         const stage = e.target.getStage();
-        if (stage) stage.container().style.cursor = 'grab';
+        if (stage && !isDeleteHovered && !isResizeHovered && !isRotateHovered) {
+          stage.container().style.cursor = 'grab';
+        }
       }}
       onMouseLeave={(e) => {
         setIsMouseHovered(false);
@@ -140,12 +180,47 @@ export function StickerComponent({
         if (stage) stage.container().style.cursor = 'default';
       }}
     >
-      {/* Just the emoji - no background */}
+      {/* Subtle background rect for visibility and hit detection */}
+      <Rect
+        width={localWidth}
+        height={localHeight}
+        fill="rgba(255, 255, 255, 0.3)"
+        cornerRadius={16}
+        shadowColor="rgba(0,0,0,0.1)"
+        shadowBlur={8}
+        shadowOffsetY={2}
+      />
+      {/* Emoji */}
       <Text
         text={sticker.emoji}
         fontSize={fontSize}
         listening={false}
       />
+      {/* Selection highlight */}
+      {isSelected && (
+        <Rect
+          width={localWidth}
+          height={localHeight}
+          stroke="#3b82f6"
+          strokeWidth={3}
+          dash={[8, 4]}
+          fill="transparent"
+          cornerRadius={16}
+          listening={false}
+        />
+      )}
+      {/* Flash overlay for new objects */}
+      {isNew && (
+        <Rect
+          ref={flashOverlayRef}
+          width={localWidth}
+          height={localHeight}
+          fill="#fbbf24"
+          opacity={0}
+          cornerRadius={16}
+          listening={false}
+        />
+      )}
       {/* Delete button */}
       {onDelete && isMouseHovered && (
         <Group
@@ -153,11 +228,11 @@ export function StickerComponent({
           y={-20}
           onClick={(e) => {
             e.cancelBubble = true;
-            onDelete?.(sticker.id);
+            onDelete(sticker.id);
           }}
           onTap={(e) => {
             e.cancelBubble = true;
-            onDelete?.(sticker.id);
+            onDelete(sticker.id);
           }}
           onMouseEnter={(e) => {
             setIsMouseHovered(true);
@@ -168,7 +243,7 @@ export function StickerComponent({
           onMouseLeave={(e) => {
             setIsDeleteHovered(false);
             const stage = e.target.getStage();
-            if (stage && isMouseHovered && !isResizeHovered) {
+            if (stage && isMouseHovered && !isResizeHovered && !isRotateHovered) {
               stage.container().style.cursor = 'grab';
             }
           }}
@@ -182,6 +257,87 @@ export function StickerComponent({
           />
           <Text
             text="❌"
+            fontSize={24}
+            width={40}
+            height={40}
+            align="center"
+            verticalAlign="middle"
+            listening={false}
+          />
+        </Group>
+      )}
+      {/* Rotate handle (bottom-left) */}
+      {onRotate && isMouseHovered && (
+        <Group
+          x={-20}
+          y={localHeight - 20}
+          draggable
+          onMouseEnter={(e) => {
+            setIsMouseHovered(true);
+            setIsRotateHovered(true);
+            const stage = e.target.getStage();
+            if (stage) stage.container().style.cursor = 'alias';
+          }}
+          onMouseLeave={(e) => {
+            setIsRotateHovered(false);
+            const stage = e.target.getStage();
+            if (stage && isMouseHovered) stage.container().style.cursor = 'grab';
+          }}
+          onDragStart={(e) => {
+            e.cancelBubble = true;
+            const stage = e.target.getStage();
+            if (!stage) return;
+            const pointer = stage.getPointerPosition();
+            if (!pointer) return;
+            const group = e.target.getParent();
+            if (!group) return;
+            const center = group.absolutePosition();
+            const initialAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
+            rotateStartRef.current = { angle: initialAngle, rotation: sticker.rotation || 0 };
+          }}
+          onDragMove={(e) => {
+            e.cancelBubble = true;
+            if (!rotateStartRef.current) return;
+            const stage = e.target.getStage();
+            if (!stage) return;
+            const pointer = stage.getPointerPosition();
+            if (!pointer) return;
+            const group = e.target.getParent();
+            if (!group) return;
+            const center = group.absolutePosition();
+            const currentAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
+            const delta = currentAngle - rotateStartRef.current.angle;
+            onRotate(sticker.id, rotateStartRef.current.rotation + delta);
+          }}
+          onDragEnd={(e) => {
+            e.cancelBubble = true;
+            if (rotateStartRef.current) {
+              const stage = e.target.getStage();
+              if (stage) {
+                const pointer = stage.getPointerPosition();
+                if (pointer) {
+                  const group = e.target.getParent();
+                  if (!group) return;
+                  const center = group.absolutePosition();
+                  const currentAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
+                  const delta = currentAngle - rotateStartRef.current.angle;
+                  onRotate(sticker.id, rotateStartRef.current.rotation + delta);
+                }
+              }
+            }
+            rotateStartRef.current = null;
+            e.target.position({ x: -20, y: localHeight - 20 });
+          }}
+        >
+          <Rect
+            width={40}
+            height={40}
+            fill={isRotateHovered ? '#8b5cf6' : '#94a3b8'}
+            opacity={isRotateHovered ? 1 : 0.4}
+            cornerRadius={8}
+          />
+          <Text
+            text="🔄"
             fontSize={24}
             width={40}
             height={40}
@@ -212,27 +368,8 @@ export function StickerComponent({
             e.cancelBubble = true;
             setIsResizing(true);
           }}
-          onDragMove={(e) => {
-            e.cancelBubble = true;
-            // Enforce square for stickers
-            const newSize = Math.max(MIN_SIZE, Math.max(e.target.x() + 20, e.target.y() + 20));
-            setLocalWidth(newSize);
-            setLocalHeight(newSize);
-            const now = Date.now();
-            if (now - lastResizeUpdate.current >= DRAG_THROTTLE_MS) {
-              lastResizeUpdate.current = now;
-              onResize(sticker.id, newSize, newSize);
-            }
-          }}
-          onDragEnd={(e) => {
-            e.cancelBubble = true;
-            const newSize = Math.max(MIN_SIZE, Math.max(e.target.x() + 20, e.target.y() + 20));
-            setLocalWidth(newSize);
-            setLocalHeight(newSize);
-            onResize(sticker.id, newSize, newSize);
-            setIsResizing(false);
-            e.target.position({ x: newSize - 20, y: newSize - 20 });
-          }}
+          onDragMove={handleResizeDragMove}
+          onDragEnd={handleResizeDragEnd}
         >
           <Rect
             width={40}

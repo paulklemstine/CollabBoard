@@ -1,12 +1,18 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Stage, Layer } from 'react-konva';
 import type Konva from 'konva';
-import { ZoomControls } from './ZoomControls';
 
 export interface StageTransform {
   x: number;
   y: number;
   scale: number;
+}
+
+export interface ZoomControls {
+  scale: number;
+  zoomIn: () => void;
+  zoomOut: () => void;
+  resetZoom: () => void;
 }
 
 interface BoardProps {
@@ -17,6 +23,7 @@ interface BoardProps {
   onStageMouseMove?: (e: Konva.KonvaEventObject<MouseEvent>) => void;
   onStageMouseUp?: (e: Konva.KonvaEventObject<MouseEvent>) => void;
   isPanDisabled?: boolean;
+  onZoomControlsChange?: (controls: ZoomControls) => void;
   children?: React.ReactNode;
 }
 
@@ -24,7 +31,7 @@ const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 5;
 const ZOOM_STEP = 1.2;
 
-export function Board({ boardId: _boardId, onMouseMove, onTransformChange, onStageMouseDown, onStageMouseMove, onStageMouseUp, isPanDisabled, children }: BoardProps) {
+export function Board({ boardId: _boardId, onMouseMove, onTransformChange, onStageMouseDown, onStageMouseMove, onStageMouseUp, isPanDisabled, onZoomControlsChange, children }: BoardProps) {
   const [dimensions, setDimensions] = useState({
     width: window.innerWidth,
     height: window.innerHeight,
@@ -178,6 +185,18 @@ export function Board({ boardId: _boardId, onMouseMove, onTransformChange, onSta
     }
   }, []);
 
+  // Notify parent of zoom controls
+  useEffect(() => {
+    if (onZoomControlsChange) {
+      onZoomControlsChange({
+        scale,
+        zoomIn,
+        zoomOut,
+        resetZoom,
+      });
+    }
+  }, [scale, zoomIn, zoomOut, resetZoom, onZoomControlsChange]);
+
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <Stage
@@ -196,12 +215,6 @@ export function Board({ boardId: _boardId, onMouseMove, onTransformChange, onSta
       >
         <Layer>{children}</Layer>
       </Stage>
-      <ZoomControls
-        scale={scale}
-        onZoomIn={zoomIn}
-        onZoomOut={zoomOut}
-        onResetZoom={resetZoom}
-      />
     </div>
   );
 }

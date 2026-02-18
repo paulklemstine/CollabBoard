@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 
 interface StickerDrawerProps {
   onAddSticker: (emoji: string) => void;
@@ -7,6 +7,16 @@ interface StickerDrawerProps {
 export function StickerDrawer({ onAddSticker }: StickerDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [page, setPage] = useState(0);
+  const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleMouseEnter = useCallback(() => {
+    if (closeTimeout.current) { clearTimeout(closeTimeout.current); closeTimeout.current = null; }
+    setIsOpen(true);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    closeTimeout.current = setTimeout(() => setIsOpen(false), 200);
+  }, []);
 
   // Comprehensive emoji list organized by category
   const allStickers = [
@@ -78,8 +88,8 @@ export function StickerDrawer({ onAddSticker }: StickerDrawerProps) {
   return (
     <div
       className="relative"
-      onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => setIsOpen(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       {/* Trigger Button */}
       <button

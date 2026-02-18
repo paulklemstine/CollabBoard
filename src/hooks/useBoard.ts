@@ -170,6 +170,9 @@ export function useBoard(boardId: string, userId: string) {
 
   const addSticker = useCallback(
     (emoji: string, x: number = 250, y: number = 250) => {
+      // Get highest updatedAt to ensure new object appears on top
+      const maxUpdatedAt = Math.max(0, ...objectsRef.current.map(o => o.updatedAt));
+
       const sticker: Sticker = {
         id: crypto.randomUUID(),
         type: 'sticker',
@@ -179,12 +182,13 @@ export function useBoard(boardId: string, userId: string) {
         height: 56,
         rotation: 0,
         createdBy: userId,
-        updatedAt: Date.now(),
+        updatedAt: maxUpdatedAt + 1, // Ensure it's on top
         emoji,
       };
       addObject(boardId, sticker);
+      trackNewObject(sticker.id);
     },
-    [boardId, userId]
+    [boardId, userId, trackNewObject]
   );
 
   const moveObject = useCallback(
@@ -440,6 +444,10 @@ export function useBoard(boardId: string, userId: string) {
         setConnectingFrom(objectId);
       } else {
         if (objectId === connectingFrom) return; // Can't connect to self
+
+        // Get highest updatedAt to ensure new object appears on top
+        const maxUpdatedAt = Math.max(0, ...objectsRef.current.map(o => o.updatedAt));
+
         const connector: Connector = {
           id: crypto.randomUUID(),
           type: 'connector',
@@ -449,17 +457,18 @@ export function useBoard(boardId: string, userId: string) {
           height: 0,
           rotation: 0,
           createdBy: userId,
-          updatedAt: Date.now(),
+          updatedAt: maxUpdatedAt + 1, // Ensure it's on top
           fromId: connectingFrom,
           toId: objectId,
           style: 'straight',
         };
         addObject(boardId, connector);
+        trackNewObject(connector.id);
         setConnectingFrom(null);
         setConnectMode(false);
       }
     },
-    [connectMode, connectingFrom, objects, boardId, userId]
+    [connectMode, connectingFrom, objects, boardId, userId, trackNewObject]
   );
 
   const cancelConnecting = useCallback(() => {

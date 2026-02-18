@@ -11,6 +11,12 @@ body {
   font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv05', 'cv08', 'cv11', 'ss01', 'ss02';
+  letter-spacing: -0.011em;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* ---- Animated gradient background for auth screen ---- */
@@ -106,45 +112,63 @@ body {
 
 /* ---- Glassmorphism utility ---- */
 .glass {
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow:
+    0 8px 32px 0 rgba(31, 38, 135, 0.07),
+    inset 0 1px 2px 0 rgba(255, 255, 255, 0.6);
 }
 
 .glass-dark {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 23, 42, 0.78);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 8px 32px 0 rgba(0, 0, 0, 0.3),
+    inset 0 1px 2px 0 rgba(255, 255, 255, 0.05);
 }
 
 .glass-playful {
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.95) 0%,
-    rgba(254, 243, 199, 0.92) 30%,
-    rgba(237, 233, 254, 0.92) 60%,
-    rgba(252, 231, 243, 0.92) 100%
+    rgba(255, 255, 255, 0.96) 0%,
+    rgba(254, 243, 199, 0.94) 30%,
+    rgba(237, 233, 254, 0.94) 60%,
+    rgba(252, 231, 243, 0.94) 100%
   );
-  backdrop-filter: blur(20px) saturate(200%);
-  -webkit-backdrop-filter: blur(20px) saturate(200%);
-  border: 1.5px solid rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border: 1.5px solid rgba(255, 255, 255, 0.8);
+  box-shadow:
+    0 12px 40px 0 rgba(139, 92, 246, 0.12),
+    0 4px 16px 0 rgba(236, 72, 153, 0.08),
+    inset 0 1px 3px 0 rgba(255, 255, 255, 0.7);
 }
 
 /* ---- Toolbar button hover lift ---- */
 .btn-lift {
-  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
 }
 
 .btn-lift:hover {
-  transform: translateY(-3px) scale(1.02);
-  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.15), 0 2px 8px rgba(0, 0, 0, 0.08);
+  transform: translateY(-4px) scale(1.03);
+  box-shadow:
+    0 8px 24px rgba(139, 92, 246, 0.18),
+    0 4px 12px rgba(236, 72, 153, 0.12),
+    0 2px 6px rgba(0, 0, 0, 0.08);
+  filter: brightness(1.05) saturate(1.1);
 }
 
 .btn-lift:active {
-  transform: translateY(0px) scale(0.97);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px) scale(0.98);
+  box-shadow:
+    0 2px 8px rgba(139, 92, 246, 0.15),
+    0 1px 4px rgba(0, 0, 0, 0.12);
+  transition: all 0.1s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* ---- Toolbar scroll (hide scrollbar on narrow viewports) ---- */
@@ -157,11 +181,11 @@ body {
   background-color: #fef7f0;
   background-image:
     /* Lavender vertical lines */
-    linear-gradient(90deg, rgba(196, 181, 253, 0.18) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(196, 181, 253, 0.2) 1px, transparent 1px),
     /* Pink horizontal lines */
-    linear-gradient(0deg, rgba(251, 191, 207, 0.18) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(251, 191, 207, 0.2) 1px, transparent 1px),
     /* Coral accent dots at intersections */
-    radial-gradient(circle, rgba(251, 146, 60, 0.12) 1.5px, transparent 1.5px),
+    radial-gradient(circle, rgba(251, 146, 60, 0.14) 1.5px, transparent 1.5px),
     /* Pastel rainbow gradient wash */
     linear-gradient(135deg, #fef7f0 0%, #fdf2f8 25%, #f0f9ff 50%, #fefce8 75%, #f0fdf4 100%);
   background-size:
@@ -169,4 +193,64 @@ body {
     32px 32px,
     32px 32px,
     100% 100%;
+}
+
+/* ---- Smooth focus states ---- */
+input:focus,
+textarea:focus,
+button:focus-visible {
+  outline: 2px solid rgba(139, 92, 246, 0.5);
+  outline-offset: 2px;
+  transition: outline 0.2s ease;
+}
+
+/* ---- Smooth scrollbar styling ---- */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(236, 72, 153, 0.3));
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.5), rgba(236, 72, 153, 0.5));
+  background-clip: padding-box;
+}
+
+/* ---- Micro-interaction: Gentle hover glow ---- */
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.hover-glow:hover::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(236, 72, 153, 0.15));
+  border-radius: inherit;
+  z-index: -1;
+  filter: blur(8px);
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+/* ---- Selection highlight enhancement ---- */
+::selection {
+  background: rgba(139, 92, 246, 0.25);
+  color: inherit;
+}
+
+::-moz-selection {
+  background: rgba(139, 92, 246, 0.25);
+  color: inherit;
 }

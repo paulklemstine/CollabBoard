@@ -476,3 +476,150 @@ describe('useBoard containment', () => {
     expect(boardService.deleteObject).toHaveBeenCalledWith('board-1', 'f1');
   });
 });
+
+describe('useBoard z-index (updatedAt)', () => {
+  beforeEach(() => {
+    // Re-establish subscribeCb capture
+    vi.mocked(boardService.subscribeToBoard).mockImplementation(
+      (_boardId: string, cb: (objects: AnyBoardObject[]) => void) => {
+        subscribeCb = cb;
+        return vi.fn();
+      }
+    );
+  });
+
+  it('addStickyNote creates object with higher updatedAt than existing objects', () => {
+    const { result } = renderHook(() => useBoard('board-1', 'user-1'));
+
+    const existingObjects: AnyBoardObject[] = [
+      makeSticky({ id: 's1', updatedAt: 1000 }),
+      makeSticky({ id: 's2', updatedAt: 2000 }),
+      makeFrame({ id: 'f1', updatedAt: 1500 }),
+    ];
+    setObjects(existingObjects);
+
+    act(() => {
+      result.current.addStickyNote({ x: 0, y: 0, scale: 1 }, 100, 150);
+    });
+
+    expect(boardService.addObject).toHaveBeenCalledWith(
+      'board-1',
+      expect.objectContaining({
+        type: 'sticky',
+        updatedAt: 2001, // maxUpdatedAt (2000) + 1
+      })
+    );
+  });
+
+  it('addShape creates object with higher updatedAt than existing objects', () => {
+    const { result } = renderHook(() => useBoard('board-1', 'user-1'));
+
+    const existingObjects: AnyBoardObject[] = [
+      makeSticky({ id: 's1', updatedAt: 1000 }),
+      makeSticky({ id: 's2', updatedAt: 3000 }),
+    ];
+    setObjects(existingObjects);
+
+    act(() => {
+      result.current.addShape({ x: 0, y: 0, scale: 1 }, 'rect', '#ef4444', 200, 200);
+    });
+
+    expect(boardService.addObject).toHaveBeenCalledWith(
+      'board-1',
+      expect.objectContaining({
+        type: 'shape',
+        updatedAt: 3001, // maxUpdatedAt (3000) + 1
+      })
+    );
+  });
+
+  it('addFrame creates object with higher updatedAt than existing objects', () => {
+    const { result } = renderHook(() => useBoard('board-1', 'user-1'));
+
+    const existingObjects: AnyBoardObject[] = [
+      makeSticky({ id: 's1', updatedAt: 5000 }),
+      makeFrame({ id: 'f1', updatedAt: 4000 }),
+    ];
+    setObjects(existingObjects);
+
+    act(() => {
+      result.current.addFrame({ x: 0, y: 0, scale: 1 }, 300, 300);
+    });
+
+    expect(boardService.addObject).toHaveBeenCalledWith(
+      'board-1',
+      expect.objectContaining({
+        type: 'frame',
+        updatedAt: 5001, // maxUpdatedAt (5000) + 1
+      })
+    );
+  });
+
+  it('addSticker creates object with higher updatedAt than existing objects', () => {
+    const { result } = renderHook(() => useBoard('board-1', 'user-1'));
+
+    const existingObjects: AnyBoardObject[] = [
+      makeSticky({ id: 's1', updatedAt: 7000 }),
+      makeSticky({ id: 's2', updatedAt: 8000 }),
+    ];
+    setObjects(existingObjects);
+
+    act(() => {
+      result.current.addSticker('👍', 400, 400);
+    });
+
+    expect(boardService.addObject).toHaveBeenCalledWith(
+      'board-1',
+      expect.objectContaining({
+        type: 'sticker',
+        updatedAt: 8001, // maxUpdatedAt (8000) + 1
+      })
+    );
+  });
+
+  it('connector creation uses higher updatedAt than existing objects', () => {
+    const { result } = renderHook(() => useBoard('board-1', 'user-1'));
+
+    const note1 = makeSticky({ id: 'n1', updatedAt: 9000 });
+    const note2 = makeSticky({ id: 'n2', updatedAt: 10000 });
+    setObjects([note1, note2]);
+
+    act(() => {
+      result.current.toggleConnectMode();
+    });
+
+    act(() => {
+      result.current.handleObjectClickForConnect('n1');
+    });
+
+    act(() => {
+      result.current.handleObjectClickForConnect('n2');
+    });
+
+    expect(boardService.addObject).toHaveBeenCalledWith(
+      'board-1',
+      expect.objectContaining({
+        type: 'connector',
+        updatedAt: 10001, // maxUpdatedAt (10000) + 1
+      })
+    );
+  });
+
+  it('new object has updatedAt of 1 when board is empty', () => {
+    const { result } = renderHook(() => useBoard('board-1', 'user-1'));
+
+    // No objects on the board
+    setObjects([]);
+
+    act(() => {
+      result.current.addStickyNote({ x: 0, y: 0, scale: 1 }, 100, 150);
+    });
+
+    expect(boardService.addObject).toHaveBeenCalledWith(
+      'board-1',
+      expect.objectContaining({
+        updatedAt: 1, // Math.max(0, ...[]) + 1 = 0 + 1 = 1
+      })
+    );
+  });
+});

@@ -180,15 +180,11 @@ export function StickerComponent({
         if (stage) stage.container().style.cursor = 'default';
       }}
     >
-      {/* Subtle background rect for visibility and hit detection */}
+      {/* Transparent background rect for hit detection */}
       <Rect
         width={localWidth}
         height={localHeight}
-        fill="rgba(255, 255, 255, 0.3)"
-        cornerRadius={16}
-        shadowColor="rgba(0,0,0,0.1)"
-        shadowBlur={8}
-        shadowOffsetY={2}
+        fill="transparent"
       />
       {/* Emoji */}
       <Text

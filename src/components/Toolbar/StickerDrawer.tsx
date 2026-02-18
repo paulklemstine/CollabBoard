@@ -6,8 +6,74 @@ interface StickerDrawerProps {
 
 export function StickerDrawer({ onAddSticker }: StickerDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [page, setPage] = useState(0);
 
-  const stickers = ['👍', '❤️', '🎉', '⭐', '🔥', '😊', '🚀', '💡', '✨', '🎯'];
+  // Comprehensive emoji list organized by category
+  const allStickers = [
+    // Smileys & Emotion
+    '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃',
+    '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙',
+    '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔',
+    '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥',
+    '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕', '🤢', '🤮',
+    '🤧', '🥵', '🥶', '🥴', '😵', '🤯', '🤠', '🥳', '😎', '🤓',
+    '🧐', '😕', '😟', '🙁', '☹️', '😮', '😯', '😲', '😳', '🥺',
+    '😦', '😧', '😨', '😰', '😥', '😢', '😭', '😱', '😖', '😣',
+    '😞', '😓', '😩', '😫', '🥱', '😤', '😡', '😠', '🤬', '😈',
+    '👿', '💀', '☠️', '💩', '🤡', '👹', '👺', '👻', '👽', '👾',
+    // Gestures & People
+    '👍', '👎', '👊', '✊', '🤛', '🤜', '🤞', '✌️', '🤟', '🤘',
+    '👌', '🤏', '👈', '👉', '👆', '👇', '☝️', '👋', '🤚', '🖐',
+    '✋', '🖖', '👏', '🙌', '👐', '🤲', '🤝', '🙏', '✍️', '💅',
+    '🤳', '💪', '🦾', '🦿', '🦵', '🦶', '👂', '🦻', '👃', '🧠',
+    // Hearts & Symbols
+    '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔',
+    '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '☮️',
+    '✝️', '☪️', '🕉', '☸️', '✡️', '🔯', '🕎', '☯️', '☦️', '🛐',
+    '⛎', '♈', '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐',
+    '♑', '♒', '♓', '🆔', '⚛️', '🉑', '☢️', '☣️', '📴', '📳',
+    // Objects & Activities
+    '🎉', '🎊', '🎈', '🎀', '🎁', '🎂', '🎄', '🎃', '🎆', '🎇',
+    '🧨', '✨', '🎋', '🎍', '🎎', '🎏', '🎐', '🎑', '🧧', '🎖',
+    '🏆', '🏅', '🥇', '🥈', '🥉', '⚽', '⚾', '🥎', '🏀', '🏐',
+    '🏈', '🏉', '🎾', '🥏', '🎳', '🏏', '🏑', '🏒', '🥍', '🏓',
+    '🏸', '🥊', '🥋', '🥅', '⛳', '⛸', '🎣', '🤿', '🎽', '🎿',
+    // Nature & Animals
+    '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯',
+    '🦁', '🐮', '🐷', '🐽', '🐸', '🐵', '🙈', '🙉', '🙊', '🐒',
+    '🐔', '🐧', '🐦', '🐤', '🐣', '🐥', '🦆', '🦅', '🦉', '🦇',
+    '🐺', '🐗', '🐴', '🦄', '🐝', '🐛', '🦋', '🐌', '🐞', '🐜',
+    '🌸', '💐', '🌹', '🥀', '🌺', '🌻', '🌼', '🌷', '🌱', '🌲',
+    '🌳', '🌴', '🌵', '🌾', '🌿', '☘️', '🍀', '🍁', '🍂', '🍃',
+    // Food & Drink
+    '🍇', '🍈', '🍉', '🍊', '🍋', '🍌', '🍍', '🥭', '🍎', '🍏',
+    '🍐', '🍑', '🍒', '🍓', '🥝', '🍅', '🥥', '🥑', '🍆', '🥔',
+    '🥕', '🌽', '🌶', '🥒', '🥬', '🥦', '🧄', '🧅', '🍄', '🥜',
+    '🌰', '🍞', '🥐', '🥖', '🥨', '🥯', '🥞', '🧇', '🧀', '🍖',
+    '🍗', '🥩', '🥓', '🍔', '🍟', '🍕', '🌭', '🥪', '🌮', '🌯',
+    // Tech & Tools
+    '⌚', '📱', '📲', '💻', '⌨️', '🖥', '🖨', '🖱', '🖲', '🕹',
+    '🗜', '💾', '💿', '📀', '📼', '📷', '📸', '📹', '🎥', '📽',
+    '🎞', '📞', '☎️', '📟', '📠', '📺', '📻', '🎙', '🎚', '🎛',
+    '🧭', '⏱', '⏲', '⏰', '🕰', '⌛', '⏳', '📡', '🔋', '🔌',
+    '💡', '🔦', '🕯', '🧯', '🛢', '💸', '💵', '💴', '💶', '💷',
+    // Common Symbols
+    '⭐', '🌟', '✨', '⚡', '☄️', '💥', '🔥', '🌈', '☀️', '🌤',
+    '⛅', '🌥', '☁️', '🌦', '🌧', '⛈', '🌩', '🌨', '❄️', '☃️',
+    '⛄', '🌬', '💨', '💧', '💦', '☔', '☂️', '🌊', '🌫', '🌪',
+    '🚀', '🛸', '🛰', '💺', '🚁', '🛶', '⛵', '🚤', '🛥', '🛳',
+    '⚓', '🪝', '⛽', '🚧', '🚦', '🚥', '🗺', '🗿', '🗽', '🗼',
+    // Arrows & Shapes
+    '✅', '❌', '⭕', '🔴', '🟠', '🟡', '🟢', '🔵', '🟣', '🟤',
+    '⚫', '⚪', '🟥', '🟧', '🟨', '🟩', '🟦', '🟪', '🟫', '⬛',
+    '⬜', '◼️', '◻️', '◾', '◽', '▪️', '▫️', '🔶', '🔷', '🔸',
+    '🔹', '🔺', '🔻', '💠', '🔘', '🔳', '🔲', '🏁', '🚩', '🎌',
+  ];
+
+  const ITEMS_PER_PAGE = 10;
+  const totalPages = Math.ceil(allStickers.length / ITEMS_PER_PAGE);
+  const startIndex = page * ITEMS_PER_PAGE;
+  const visibleStickers = allStickers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   return (
     <div
@@ -36,21 +102,68 @@ export function StickerDrawer({ onAddSticker }: StickerDrawerProps) {
           className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 animate-bounce-in"
           style={{ zIndex: 1001 }}
         >
-          <div className="glass-playful rounded-2xl shadow-2xl p-5 flex gap-4">
-            {stickers.map((emoji) => (
+          <div className="glass-playful rounded-2xl shadow-2xl p-5">
+            <div className="flex items-center gap-2">
+              {/* Left Arrow */}
               <button
-                key={emoji}
-                onClick={() => onAddSticker(emoji)}
-                className="flex items-center justify-center w-16 h-16 rounded-xl transition-all duration-200 hover:scale-110"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.2) 100%)',
-                  border: '1.5px solid rgba(16, 185, 129, 0.3)',
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPage((p) => Math.max(0, p - 1));
                 }}
-                title={`Add ${emoji}`}
+                disabled={page === 0}
+                className="flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200 hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(16, 185, 129, 0.3) 100%)',
+                  border: '1.5px solid rgba(16, 185, 129, 0.4)',
+                }}
+                title="Previous page"
               >
-                <span style={{ fontSize: '36px' }}>{emoji}</span>
+                <span style={{ fontSize: '20px' }}>←</span>
               </button>
-            ))}
+
+              {/* Sticker Grid */}
+              <div className="flex gap-3">
+                {visibleStickers.map((emoji, index) => (
+                  <button
+                    key={`${emoji}-${startIndex + index}`}
+                    onClick={() => {
+                      onAddSticker(emoji);
+                      setIsOpen(false);
+                    }}
+                    className="flex items-center justify-center w-14 h-14 rounded-xl transition-all duration-200 hover:scale-110"
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.2) 100%)',
+                      border: '1.5px solid rgba(16, 185, 129, 0.3)',
+                    }}
+                    title={`Add ${emoji}`}
+                  >
+                    <span style={{ fontSize: '32px' }}>{emoji}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Right Arrow */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPage((p) => Math.min(totalPages - 1, p + 1));
+                }}
+                disabled={page === totalPages - 1}
+                className="flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200 hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(16, 185, 129, 0.3) 100%)',
+                  border: '1.5px solid rgba(16, 185, 129, 0.4)',
+                }}
+                title="Next page"
+              >
+                <span style={{ fontSize: '20px' }}>→</span>
+              </button>
+            </div>
+
+            {/* Page Indicator */}
+            <div className="mt-2 text-center text-xs text-gray-600 font-medium">
+              Page {page + 1} of {totalPages}
+            </div>
           </div>
         </div>
       )}

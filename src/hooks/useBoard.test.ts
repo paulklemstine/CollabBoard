@@ -126,9 +126,10 @@ describe('useBoard', () => {
 
   it('addSticker calls addObject with a sticker', () => {
     const { result } = renderHook(() => useBoard('board-1', 'user-1'));
+    const mockTransform = { x: 0, y: 0, scale: 1 };
 
     act(() => {
-      result.current.addSticker('👍');
+      result.current.addSticker(mockTransform, '👍');
     });
 
     expect(boardService.addObject).toHaveBeenCalledWith(
@@ -564,8 +565,10 @@ describe('useBoard z-index (updatedAt)', () => {
     ];
     setObjects(existingObjects);
 
+    const mockTransform = { x: 0, y: 0, scale: 1 };
+
     act(() => {
-      result.current.addSticker('👍', 400, 400);
+      result.current.addSticker(mockTransform, '👍', 400, 400);
     });
 
     expect(boardService.addObject).toHaveBeenCalledWith(

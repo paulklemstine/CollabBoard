@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ref, set, remove } from 'firebase/database';
 import { rtdb } from './services/firebase';
 import { signOutUser } from './services/authService';
@@ -16,13 +16,16 @@ import { StickyNoteComponent } from './components/Board/StickyNote';
 import { ShapeComponent } from './components/Board/ShapeComponent';
 import { FrameComponent } from './components/Board/FrameComponent';
 import { ConnectorComponent } from './components/Board/ConnectorComponent';
+import { StickerComponent } from './components/Board/StickerComponent';
 import { PreviewConnector } from './components/Board/PreviewConnector';
 import { SelectionOverlay } from './components/Board/SelectionOverlay';
 import { CursorsOverlay } from './components/Cursors/CursorsOverlay';
 import { PresencePanel } from './components/Presence/PresencePanel';
 import { Toolbar } from './components/Toolbar/Toolbar';
 import { AIChat } from './components/AIChat/AIChat';
-import type { StickyNote, Shape, Frame, Connector, BoardMetadata } from './types/board';
+import type { StickyNote, Shape, Frame, Sticker, Connector, BoardMetadata } from './types/board';
+import { calculateGroupObjectTransform } from './utils/groupTransform';
+import type { AnyBoardObject } from './services/boardService';
 
 function App() {
   const { user, loading, refreshUser } = useAuth();
@@ -156,10 +159,13 @@ function BoardView({
     handleDragEnd,
     handleFrameDragMove,
     handleFrameDragEnd,
+    dissolveFrame,
   } = useBoard(boardId, user.uid);
 
   const [selectMode, setSelectMode] = useState(false);
   const toggleSelectMode = useCallback(() => setSelectMode((prev) => !prev), []);
+  const [aiOpen, setAiOpen] = useState(false);
+  const toggleAI = useCallback(() => setAiOpen((prev) => !prev), []);
 
   const {
     selectedIds,
@@ -170,6 +176,7 @@ function BoardView({
     transformPreview,
     clearSelection,
     isSelected: isObjectSelected,
+    groupHoveredFrameId,
     handleStageMouseDown,
     handleStageMouseMove,
     handleStageMouseUp,
@@ -232,6 +239,8 @@ function BoardView({
     .sort((a, b) => a.updatedAt - b.updatedAt);
   const connectors = objects.filter((o): o is Connector => o.type === 'connector')
     .sort((a, b) => a.updatedAt - b.updatedAt);
+  const stickers = objects.filter((o): o is Sticker => o.type === 'sticker')
+    .sort((a, b) => a.updatedAt - b.updatedAt);
 
   // Build a map of frames for child transform lookups
   const frameMap = new Map<string, Frame>();
@@ -279,6 +288,60 @@ function BoardView({
     return f ? (f.rotation || 0) : undefined;
   }
 
+  // Compute visual objects with live offsets applied for connector rendering.
+  // This ensures connectors track objects in real-time during group drag/resize/rotate
+  // and frame drag, instead of snapping on mouseup.
+  const visualObjects = useMemo((): AnyBoardObject[] => {
+    const needsAdjustment =
+      (groupDragOffset && selectedIds.size > 0) ||
+      (transformPreview && selectedIds.size > 0) ||
+      frameDragOffset;
+
+    if (!needsAdjustment) return objects;
+
+    return objects.map((obj) => {
+      if (obj.type === 'connector') return obj;
+
+      // Group drag/transform for selected objects
+      if (selectedIds.size > 1 && selectedIds.has(obj.id)) {
+        let x = obj.x;
+        let y = obj.y;
+        let width = obj.width;
+        let height = obj.height;
+        let rotation = obj.rotation;
+
+        // Apply group drag offset
+        if (groupDragOffset) {
+          x += groupDragOffset.dx;
+          y += groupDragOffset.dy;
+        }
+
+        // Apply group transform preview (resize/rotate)
+        if (transformPreview && selectionBox) {
+          const transform = calculateGroupObjectTransform(obj, selectionBox, transformPreview);
+          x += transform.orbitOffset.x;
+          y += transform.orbitOffset.y;
+          width *= transform.scaleX;
+          height *= transform.scaleY;
+          rotation += transform.rotationDelta;
+        }
+
+        return { ...obj, x, y, width, height, rotation };
+      }
+
+      // Frame drag offset for children of the dragged frame
+      if (frameDragOffset && obj.parentId === frameDragOffset.frameId) {
+        return {
+          ...obj,
+          x: obj.x + frameDragOffset.dx,
+          y: obj.y + frameDragOffset.dy,
+        };
+      }
+
+      return obj;
+    });
+  }, [objects, selectedIds, groupDragOffset, transformPreview, selectionBox, frameDragOffset]);
+
   const objectClick = connectMode ? handleObjectClickForConnect : selectObject;
   const objectHoverEnter = connectMode ? (id: string) => handleObjectHover(id) : undefined;
   const objectHoverLeave = connectMode ? () => handleObjectHover(null) : undefined;
@@ -300,21 +363,21 @@ function BoardView({
             <ConnectorComponent
               key={connector.id}
               connector={connector}
-              objects={objects}
+              objects={visualObjects}
               onDelete={selectMode ? removeObject : undefined}
             />
           ))}
           {/* Preview connector while connecting */}
           {connectMode && connectingFrom && cursorPosition && (() => {
-            const fromObject = objects.find((o) => o.id === connectingFrom);
-            const toObject = hoveredObjectId ? objects.find((o) => o.id === hoveredObjectId) || null : null;
+            const fromObject = visualObjects.find((o) => o.id === connectingFrom);
+            const toObject = hoveredObjectId ? visualObjects.find((o) => o.id === hoveredObjectId) || null : null;
             return fromObject ? (
               <PreviewConnector
                 fromObject={fromObject}
                 toObject={toObject}
                 toX={cursorPosition.x}
                 toY={cursorPosition.y}
-                objects={objects}
+                objects={visualObjects}
               />
             ) : null;
           })()}
@@ -325,9 +388,10 @@ function BoardView({
               onDragMove={handleFrameDragMove}
               onDragEnd={handleFrameDragEnd}
               onDelete={selectMode ? removeObject : undefined}
+              onDissolve={selectMode ? dissolveFrame : undefined}
               onTitleChange={updateTitle}
               onClick={objectClick}
-              isHovered={hoveredFrameId === frame.id}
+              isHovered={hoveredFrameId === frame.id || groupHoveredFrameId === frame.id}
               onResize={selectMode ? resizeObject : undefined}
               onRotate={selectMode ? rotateObject : undefined}
               dragOffset={getChildOffset(frame)}
@@ -387,6 +451,25 @@ function BoardView({
               selectionBox={selectedIds.size > 1 && isObjectSelected(note.id) ? selectionBox : null}
             />
           ))}
+          {stickers.map((sticker) => (
+            <StickerComponent
+              key={sticker.id}
+              sticker={sticker}
+              onDragMove={handleDragMove}
+              onDragEnd={handleDragEnd}
+              onDelete={selectMode ? removeObject : undefined}
+              onClick={objectClick}
+              onResize={selectMode ? resizeObject : undefined}
+              onRotate={selectMode ? rotateObject : undefined}
+              dragOffset={getChildOffset(sticker)}
+              parentRotation={getParentRotation(sticker.parentId)}
+              isNew={newObjectIds.has(sticker.id)}
+              isSelected={isObjectSelected(sticker.id)}
+              groupDragOffset={selectedIds.size > 1 && isObjectSelected(sticker.id) ? groupDragOffset : null}
+              groupTransformPreview={selectedIds.size > 1 && isObjectSelected(sticker.id) ? transformPreview : null}
+              selectionBox={selectedIds.size > 1 && isObjectSelected(sticker.id) ? selectionBox : null}
+            />
+          ))}
           <SelectionOverlay
             marquee={marquee}
             selectedIds={selectedIds}
@@ -409,14 +492,16 @@ function BoardView({
         onAddStickyNote={(color) => addStickyNote(stageTransform, undefined, undefined, color)}
         onAddShape={(shapeType, color) => addShape(stageTransform, shapeType, color)}
         onAddFrame={() => addFrame(stageTransform)}
-        onAddSticker={(emoji) => addSticker(emoji)}
+        onAddSticker={(emoji) => addSticker(stageTransform, emoji)}
         connectMode={connectMode}
         connectingFrom={connectingFrom}
         onToggleConnectMode={toggleConnectMode}
         selectMode={selectMode}
         onToggleSelectMode={toggleSelectMode}
+        onToggleAI={toggleAI}
+        aiOpen={aiOpen}
       />
-      <AIChat boardId={boardId} />
+      <AIChat boardId={boardId} isOpen={aiOpen} onClose={() => setAiOpen(false)} />
       <div className="absolute top-4 left-4 z-50 flex items-center gap-3">
         <button
           onClick={onNavigateBack}

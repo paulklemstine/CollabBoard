@@ -4,21 +4,43 @@ import Konva from 'konva';
 import type { Sticker } from '../../types/board';
 
 const DRAG_THROTTLE_MS = 50;
-const MIN_SIZE = 32;
-const BASE_FONT_SIZE = 48;
-const BASE_SIZE = 56;
+const MIN_SIZE = 50;
+const BASE_FONT_SIZE = 120;
+const BASE_SIZE = 150;
 
 interface StickerComponentProps {
   sticker: Sticker;
   onDragMove: (id: string, x: number, y: number) => void;
   onDragEnd: (id: string, x: number, y: number) => void;
-  onDelete: (id: string) => void;
+  onDelete?: (id: string) => void;
   onClick?: (id: string) => void;
   onResize?: (id: string, width: number, height: number) => void;
+  onRotate?: (id: string, rotation: number) => void;
   dragOffset?: { x: number; y: number };
+  parentRotation?: number;
+  isNew?: boolean;
+  isSelected?: boolean;
+  groupDragOffset?: { dx: number; dy: number } | null;
+  groupTransformPreview?: any;
+  selectionBox?: any;
 }
 
-export function StickerComponent({ sticker, onDragMove, onDragEnd, onDelete, onClick, onResize, dragOffset }: StickerComponentProps) {
+export function StickerComponent({
+  sticker,
+  onDragMove,
+  onDragEnd,
+  onDelete,
+  onClick,
+  onResize,
+  onRotate: _onRotate,
+  dragOffset,
+  parentRotation: _parentRotation,
+  isNew: _isNew,
+  isSelected: _isSelected,
+  groupDragOffset: _groupDragOffset,
+  groupTransformPreview: _groupTransformPreview,
+  selectionBox: _selectionBox
+}: StickerComponentProps) {
   const groupRef = useRef<Konva.Group>(null);
   const hoverTweenRef = useRef<Konva.Tween | null>(null);
   const lastDragUpdate = useRef(0);
@@ -118,72 +140,59 @@ export function StickerComponent({ sticker, onDragMove, onDragEnd, onDelete, onC
         if (stage) stage.container().style.cursor = 'default';
       }}
     >
-      {/* Hit area with playful colored glow */}
-      <Rect
-        width={localWidth + 12}
-        height={localHeight + 12}
-        x={-6}
-        y={-6}
-        fill={isMouseHovered ? 'rgba(251, 191, 36, 0.2)' : 'rgba(255,255,255,0.35)'}
-        cornerRadius={16}
-        shadowColor={isMouseHovered ? '#fbbf24' : 'rgba(0,0,0,0.06)'}
-        shadowBlur={isMouseHovered ? 24 : 10}
-        shadowOffsetY={isMouseHovered ? 4 : 2}
-        shadowOpacity={isMouseHovered ? 0.5 : 0.3}
-      />
+      {/* Just the emoji - no background */}
       <Text
         text={sticker.emoji}
         fontSize={fontSize}
         listening={false}
-        shadowColor="rgba(0,0,0,0.2)"
-        shadowBlur={isMouseHovered ? 8 : 5}
-        shadowOffsetY={isMouseHovered ? 4 : 2}
       />
       {/* Delete button */}
-      <Group
-        x={localWidth - 20}
-        y={-20}
-        onClick={(e) => {
-          e.cancelBubble = true;
-          onDelete(sticker.id);
-        }}
-        onTap={(e) => {
-          e.cancelBubble = true;
-          onDelete(sticker.id);
-        }}
-        onMouseEnter={(e) => {
-          setIsDeleteHovered(true);
-          const stage = e.target.getStage();
-          if (stage) stage.container().style.cursor = 'pointer';
-        }}
-        onMouseLeave={(e) => {
-          setIsDeleteHovered(false);
-          const stage = e.target.getStage();
-          if (stage && isMouseHovered && !isResizeHovered) {
-            stage.container().style.cursor = 'grab';
-          }
-        }}
-      >
-        <Rect
-          width={20}
-          height={20}
-          fill={isDeleteHovered ? '#ef4444' : '#94a3b8'}
-          opacity={isDeleteHovered ? 1 : 0.4}
-          cornerRadius={4}
-        />
-        <Text
-          text="❌"
-          fontSize={12}
-          x={4}
-          y={4}
-          listening={false}
-        />
-      </Group>
+      {onDelete && (
+        <Group
+          x={localWidth}
+          y={-20}
+          onClick={(e) => {
+            e.cancelBubble = true;
+            onDelete?.(sticker.id);
+          }}
+          onTap={(e) => {
+            e.cancelBubble = true;
+            onDelete?.(sticker.id);
+          }}
+          onMouseEnter={(e) => {
+            setIsDeleteHovered(true);
+            const stage = e.target.getStage();
+            if (stage) stage.container().style.cursor = 'pointer';
+          }}
+          onMouseLeave={(e) => {
+            setIsDeleteHovered(false);
+            const stage = e.target.getStage();
+            if (stage && isMouseHovered && !isResizeHovered) {
+              stage.container().style.cursor = 'grab';
+            }
+          }}
+        >
+          <Rect
+            width={20}
+            height={20}
+            fill={isDeleteHovered ? '#ef4444' : '#94a3b8'}
+            opacity={isDeleteHovered ? 1 : 0.4}
+            cornerRadius={4}
+          />
+          <Text
+            text="❌"
+            fontSize={12}
+            x={4}
+            y={4}
+            listening={false}
+          />
+        </Group>
+      )}
       {/* Resize handle */}
       {onResize && (
         <Group
-          x={localWidth - 20}
-          y={localHeight - 20}
+          x={localWidth}
+          y={localHeight}
           draggable
           onMouseEnter={(e) => {
             setIsResizeHovered(true);
@@ -202,7 +211,7 @@ export function StickerComponent({ sticker, onDragMove, onDragEnd, onDelete, onC
           onDragMove={(e) => {
             e.cancelBubble = true;
             // Enforce square for stickers
-            const newSize = Math.max(MIN_SIZE, Math.max(e.target.x() + 20, e.target.y() + 20));
+            const newSize = Math.max(MIN_SIZE, Math.max(e.target.x(), e.target.y()));
             setLocalWidth(newSize);
             setLocalHeight(newSize);
             const now = Date.now();
@@ -213,12 +222,12 @@ export function StickerComponent({ sticker, onDragMove, onDragEnd, onDelete, onC
           }}
           onDragEnd={(e) => {
             e.cancelBubble = true;
-            const newSize = Math.max(MIN_SIZE, Math.max(e.target.x() + 20, e.target.y() + 20));
+            const newSize = Math.max(MIN_SIZE, Math.max(e.target.x(), e.target.y()));
             setLocalWidth(newSize);
             setLocalHeight(newSize);
             onResize(sticker.id, newSize, newSize);
             setIsResizing(false);
-            e.target.position({ x: newSize - 20, y: newSize - 20 });
+            e.target.position({ x: newSize, y: newSize });
           }}
         >
           <Rect

@@ -24,6 +24,7 @@ export function useBoard(boardId: string, userId: string) {
   const [newObjectIds, setNewObjectIds] = useState<Set<string>>(new Set());
   const [frameDragOffset, setFrameDragOffset] = useState<{ frameId: string; dx: number; dy: number } | null>(null);
   const frameDragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const connectorDragStartRef = useRef<Map<string, { x: number; y: number }>>(new Map());
 
   // Keep a ref to objects so drag callbacks always see the latest state
   const objectsRef = useRef(objects);
@@ -169,17 +170,33 @@ export function useBoard(boardId: string, userId: string) {
   );
 
   const addSticker = useCallback(
-    (emoji: string, x: number = 250, y: number = 250) => {
+    (transform: StageTransform, emoji: string, x?: number, y?: number) => {
+      // Calculate screen coordinates for toolbar button position
+      const screenX = window.innerWidth / 2 - 75; // Center horizontally (sticker is 150px wide)
+      const screenY = window.innerHeight - 300; // 300px from bottom (150px height + 150px for toolbar space)
+
+      // Convert to world coordinates if no coordinates provided
+      let worldX: number;
+      let worldY: number;
+      if (x !== undefined && y !== undefined) {
+        worldX = x;
+        worldY = y;
+      } else {
+        const world = screenToWorld(screenX, screenY, transform);
+        worldX = world.x;
+        worldY = world.y;
+      }
+
       // Get highest updatedAt to ensure new object appears on top
       const maxUpdatedAt = Math.max(0, ...objectsRef.current.map(o => o.updatedAt));
 
       const sticker: Sticker = {
         id: crypto.randomUUID(),
         type: 'sticker',
-        x,
-        y,
-        width: 56,
-        height: 56,
+        x: worldX,
+        y: worldY,
+        width: 150,
+        height: 150,
         rotation: 0,
         createdBy: userId,
         updatedAt: maxUpdatedAt + 1, // Ensure it's on top
@@ -274,13 +291,52 @@ export function useBoard(boardId: string, userId: string) {
       // Record the original position on first move
       if (!frameDragStartRef.current) {
         frameDragStartRef.current = { x: frame.x, y: frame.y };
+
+        // Also record original connector positions
+        const children = getChildrenOfFrame(frameId, objectsRef.current);
+        const frameAndChildrenIds = new Set([frameId, ...children.map(c => c.id)]);
+        const connectors = objectsRef.current.filter(
+          (o): o is Connector => o.type === 'connector' &&
+            (frameAndChildrenIds.has(o.fromId) || frameAndChildrenIds.has(o.toId))
+        );
+
+        connectorDragStartRef.current = new Map();
+        for (const connector of connectors) {
+          connectorDragStartRef.current.set(connector.id, { x: connector.x, y: connector.y });
+        }
       }
 
       const dx = newX - frameDragStartRef.current.x;
       const dy = newY - frameDragStartRef.current.y;
 
-      // Only write the frame's own position to Firestore
-      updateObject(boardId, frameId, { x: newX, y: newY });
+      // Prepare batch updates for frame and connectors
+      const batchUpdates: Array<{ id: string; updates: Partial<AnyBoardObject> }> = [
+        { id: frameId, updates: { x: newX, y: newY } },
+      ];
+
+      // Move connectors that are attached to the frame or its children
+      const children = getChildrenOfFrame(frameId, objectsRef.current);
+      const frameAndChildrenIds = new Set([frameId, ...children.map(c => c.id)]);
+      const connectors = objectsRef.current.filter(
+        (o): o is Connector => o.type === 'connector' &&
+          (frameAndChildrenIds.has(o.fromId) || frameAndChildrenIds.has(o.toId))
+      );
+
+      for (const connector of connectors) {
+        const originalPos = connectorDragStartRef.current.get(connector.id);
+        if (originalPos) {
+          batchUpdates.push({
+            id: connector.id,
+            updates: {
+              x: originalPos.x + dx,
+              y: originalPos.y + dy,
+            },
+          });
+        }
+      }
+
+      // Update frame and connectors
+      batchUpdateObjects(boardId, batchUpdates);
 
       // Track offset locally — children apply this visually without Firestore round-trip
       setFrameDragOffset({ frameId, dx, dy });
@@ -303,6 +359,7 @@ export function useBoard(boardId: string, userId: string) {
       if (!frame || frame.type !== 'frame') {
         updateObject(boardId, frameId, { x: newX, y: newY });
         frameDragStartRef.current = null;
+        connectorDragStartRef.current.clear();
         setFrameDragOffset(null);
         setHoveredFrameId(null);
         return;
@@ -377,6 +434,7 @@ export function useBoard(boardId: string, userId: string) {
 
       // Clear frame drag state
       frameDragStartRef.current = null;
+      connectorDragStartRef.current.clear();
       setHoveredFrameId(null);
 
       // Keep the offset active for a short time to prevent flickering
@@ -423,6 +481,30 @@ export function useBoard(boardId: string, userId: string) {
         deleteObject(boardId, connector.id);
       }
       deleteObject(boardId, objectId);
+    },
+    [boardId, objects]
+  );
+
+  /** Delete a frame but leave its children in place (unparented) */
+  const dissolveFrame = useCallback(
+    (frameId: string) => {
+      const children = getChildrenOfFrame(frameId, objects);
+      const updates: Array<{ id: string; updates: Partial<AnyBoardObject> }> = children.map(
+        (child) => ({ id: child.id, updates: { parentId: '' } })
+      );
+      if (updates.length > 0) {
+        batchUpdateObjects(boardId, updates);
+      }
+
+      // Auto-delete connectors attached to the frame itself (not its children)
+      const orphanedConnectors = objects.filter(
+        (o): o is Connector =>
+          o.type === 'connector' && (o.fromId === frameId || o.toId === frameId)
+      );
+      for (const connector of orphanedConnectors) {
+        deleteObject(boardId, connector.id);
+      }
+      deleteObject(boardId, frameId);
     },
     [boardId, objects]
   );
@@ -522,5 +604,6 @@ export function useBoard(boardId: string, userId: string) {
     newObjectIds,
     handleFrameDragMove,
     handleFrameDragEnd,
+    dissolveFrame,
   };
 }

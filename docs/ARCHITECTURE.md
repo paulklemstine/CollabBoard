@@ -454,6 +454,52 @@ User Interaction
 **Visual Feedback**:
 - Frame highlights when object is dragged over it (`hoveredFrameId`)
 
+### Multi-Select and Group Operations
+
+**Feature**: Users can select multiple objects and transform them together (move, resize, rotate).
+
+**Implementation** ([src/hooks/useMultiSelect.ts](src/hooks/useMultiSelect.ts)):
+
+**Selection Methods**:
+1. **Shift+Click**: Toggle individual object selection
+2. **Drag-to-Select**: Rectangle selection tool that selects all objects within bounds
+
+**Group Operations**:
+1. **Group Drag**: All selected objects move together
+   - Uses `groupDragOffset` prop passed to all selected objects
+   - Delta calculated from selection box movement
+
+2. **Group Resize**: Scale all objects around selection center
+   - Live transform preview during drag
+   - Uses `calculateGroupObjectTransform()` to compute scale and orbit offset
+   - Final positions persisted to Firestore on dragEnd
+
+3. **Group Rotate**: Rotate all objects around selection center
+   - Live transform preview with rotation delta
+   - Objects orbit around selection center while maintaining their own rotation
+   - Visual feedback: rotate cursor icon on handle
+
+**Selection Box** ([src/components/Board/SelectionOverlay.tsx](src/components/Board/SelectionOverlay.tsx)):
+- Bounding box calculated from all selected objects
+- Handles for resize (bottom-right) and rotate (bottom-left)
+- Live preview: box scales/rotates during drag before objects update
+- Blue dashed outline with semi-transparent background
+
+**Transform Mathematics** ([src/utils/groupTransform.ts](src/utils/groupTransform.ts)):
+```typescript
+// For each object in selection:
+1. Calculate vector from selection center to object center
+2. Apply rotation transform to vector
+3. Apply scale to rotated vector
+4. Calculate orbit offset (new position - old position)
+5. Apply to object: position += orbitOffset, rotation += delta, scale *= factor
+```
+
+**Performance**:
+- Transform preview updates local React state (no Firestore writes)
+- Only dragEnd persists final positions to Firestore
+- All selected objects update simultaneously in single render
+
 ---
 
 ## Backend Architecture
@@ -637,6 +683,44 @@ const updateCursor = useCallback((x, y) => {
 
 **Result**: 10 updates/sec per user (acceptable trade-off)
 
+### Predictive Interpolation System
+
+**Problem**: Cursor throttling (100ms) + network latency creates visible jitter and lag in remote cursor movement.
+
+**Solution**: Predictive interpolation using velocity-based prediction and exponential smoothing ([src/utils/interpolation.ts](src/utils/interpolation.ts), [docs/INTERPOLATION.md](docs/INTERPOLATION.md)).
+
+**Algorithm**:
+```typescript
+// 1. Calculate velocity from position deltas
+velocity.x = (newTarget.x - oldTarget.x) / deltaTime
+velocity.y = (newTarget.y - oldTarget.y) / deltaTime
+
+// 2. Predict target ahead of actual position
+predictedTarget.x = target.x + velocity.x * deltaTime * predictionFactor
+predictedTarget.y = target.y + velocity.y * deltaTime * predictionFactor
+
+// 3. Smooth current position toward predicted target
+newPosition.x = current.x + (predicted.x - current.x) * smoothingFactor
+newPosition.y = current.y + (predicted.y - current.y) * smoothingFactor
+```
+
+**Parameters**:
+- **Cursors**: `smoothingFactor: 0.2, predictionFactor: 0.4`
+  - More responsive for pointing/clicking
+- **Objects**: `smoothingFactor: 0.15, predictionFactor: 0.5`
+  - Smoother for dragging large objects
+
+**Implementation**:
+- `PositionInterpolator` class manages state and requestAnimationFrame loop
+- React hooks `useSmoothedPosition` and `useSmoothedObjectPosition`
+- Velocity calculated from target deltas between updates
+- Exponential smoothing prevents overshooting
+
+**Benefits**:
+- Smooth 60 FPS animation even with 10 Hz network updates
+- Predictive positioning compensates for network lag
+- Feels responsive and fluid to users
+
 ---
 
 ## Security Model
@@ -806,18 +890,28 @@ Read/write allowed
 ### Planned Features
 
 #### 1. AI Agent (Cloud Functions)
-**Status**: Planned
+**Status**: ✅ IMPLEMENTED
 
 **Architecture**:
-- Cloud Function v2 endpoint: `POST /aiAgent`
+- Cloud Function v2 endpoint with Firestore trigger
 - Claude Sonnet 4.5 with function calling
-- Tools: `createStickyNote`, `moveObject`, `deleteObject`, `createDiagram`
+- Tools: `createStickyNote`, `createShape`, `createFrame`, `createConnector`, `deleteObject`
+- Automatic frame-child attachment with absolute coordinate calculation
+- minInstances=1 for faster cold start response
+
+**Implementation Details**:
+- AI writes commands to `ai_commands` collection
+- Cloud Function triggered on document creation
+- Processes natural language, calls Claude API
+- Creates board objects directly in Firestore
+- Returns results to UI via command status updates
 
 **Example**:
 ```
-User: "Create 3 sticky notes with TODO items"
-AI: [calls createStickyNote 3 times]
-Result: 3 sticky notes appear on board
+User: "Create a task breakdown frame with 3 TODO sticky notes"
+AI: Creates frame at (100, 100), then creates 3 sticky notes inside
+    with correct parentId and positioned within frame bounds
+Result: Frame with 3 child sticky notes appears on board
 ```
 
 #### 2. Advanced Collaboration

@@ -537,7 +537,7 @@ export const processAIRequest = onDocumentCreated(
 
       // Tool execution loop
       let response = await client.messages.create({
-        model: 'claude-sonnet-4-5-20250929',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 4096,
         system: SYSTEM_PROMPT,
         tools: tools as never,
@@ -605,7 +605,7 @@ export const processAIRequest = onDocumentCreated(
         messages.push({ role: 'user', content: toolResults });
 
         response = await client.messages.create({
-          model: 'claude-sonnet-4-5-20250929',
+          model: 'claude-haiku-4-5-20251001',
           max_tokens: 4096,
           system: SYSTEM_PROMPT,
           tools: tools as never,

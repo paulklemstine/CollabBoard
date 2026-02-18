@@ -176,3 +176,134 @@ export function scaleToFitFrame(
     height: newHeight,
   };
 }
+
+/**
+ * Calculate the bounding box of a group of objects.
+ */
+export function getGroupBoundingBox(objects: BoardObject[]): {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  centerX: number;
+  centerY: number;
+} | null {
+  if (objects.length === 0) return null;
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  for (const obj of objects) {
+    minX = Math.min(minX, obj.x);
+    minY = Math.min(minY, obj.y);
+    maxX = Math.max(maxX, obj.x + obj.width);
+    maxY = Math.max(maxY, obj.y + obj.height);
+  }
+
+  const width = maxX - minX;
+  const height = maxY - minY;
+
+  return {
+    x: minX,
+    y: minY,
+    width,
+    height,
+    centerX: minX + width / 2,
+    centerY: minY + height / 2,
+  };
+}
+
+/**
+ * Find the containing frame for a group of objects based on their bounding box center.
+ */
+export function findContainingFrameForGroup(
+  objects: BoardObject[],
+  frames: Frame[]
+): Frame | null {
+  const groupBox = getGroupBoundingBox(objects);
+  if (!groupBox) return null;
+
+  const center: Point = {
+    x: groupBox.centerX,
+    y: groupBox.centerY,
+  };
+
+  let bestFrame: Frame | null = null;
+  let bestArea = Infinity;
+
+  for (const frame of frames) {
+    if (isPointInsideFrame(center, frame)) {
+      const area = frame.width * frame.height;
+      if (area < bestArea) {
+        bestArea = area;
+        bestFrame = frame;
+      }
+    }
+  }
+
+  return bestFrame;
+}
+
+/**
+ * Scale a group of objects to fit inside a frame, preserving their relative positions.
+ * Scales around the center of the group's bounding box.
+ * Returns updates for each object, or null if the group already fits.
+ */
+export function scaleGroupToFitFrame(
+  objects: BoardObject[],
+  frame: Frame
+): Array<{ id: string; x: number; y: number; width: number; height: number }> | null {
+  const groupBox = getGroupBoundingBox(objects);
+  if (!groupBox) return null;
+
+  // Leave 10% padding (5% on each side)
+  const padding = 0.9;
+  const maxWidth = frame.width * padding;
+  const maxHeight = frame.height * padding;
+
+  // If group already fits, no scaling needed
+  if (groupBox.width <= maxWidth && groupBox.height <= maxHeight) {
+    return null;
+  }
+
+  // Calculate scale factors
+  const scaleX = maxWidth / groupBox.width;
+  const scaleY = maxHeight / groupBox.height;
+  const scale = Math.min(scaleX, scaleY);
+
+  const groupCenterX = groupBox.centerX;
+  const groupCenterY = groupBox.centerY;
+
+  // Scale each object around the group center
+  const updates = objects.map((obj) => {
+    // Calculate object center relative to group center
+    const objCenterX = obj.x + obj.width / 2;
+    const objCenterY = obj.y + obj.height / 2;
+    const relX = objCenterX - groupCenterX;
+    const relY = objCenterY - groupCenterY;
+
+    // Scale the relative position and dimensions
+    const newRelX = relX * scale;
+    const newRelY = relY * scale;
+    const newWidth = obj.width * scale;
+    const newHeight = obj.height * scale;
+
+    // Calculate new object position
+    const newObjCenterX = groupCenterX + newRelX;
+    const newObjCenterY = groupCenterY + newRelY;
+    const newX = newObjCenterX - newWidth / 2;
+    const newY = newObjCenterY - newHeight / 2;
+
+    return {
+      id: obj.id,
+      x: newX,
+      y: newY,
+      width: newWidth,
+      height: newHeight,
+    };
+  });
+
+  return updates;
+}

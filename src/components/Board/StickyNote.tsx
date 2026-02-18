@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { Group, Rect, Text } from 'react-konva';
+import { Group, Rect, Text, Path, Circle } from 'react-konva';
 import Konva from 'konva';
 import type { StickyNote as StickyNoteType } from '../../types/board';
 import { getContrastTextColor, getComplementaryColor } from '../../utils/colors';
@@ -290,13 +290,14 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
               }
             }}
           />
-          <Text
+          {/* Material delete icon (trash can) */}
+          <Path
             x={localWidth - 22}
-            y={7}
-            text={'\u00d7'}
-            fontSize={16}
-            fontStyle="bold"
+            y={9}
+            data="M3 6h12M5 6V4a1 1 0 011-1h2a1 1 0 011 1v2m3 0V4a1 1 0 011-1h2a1 1 0 011 1v2M4 6v10a1 1 0 001 1h8a1 1 0 001-1V6H4z"
             fill={isDeleteHovered ? '#ef4444' : '#666'}
+            scaleX={0.7}
+            scaleY={0.7}
             listening={false}
           />
         </>
@@ -330,14 +331,9 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
       )}
       {/* Rotate handle (bottom-left) */}
       {!isEditing && onRotate && (
-        <Rect
+        <Group
           x={-10}
           y={localHeight - 10}
-          width={20}
-          height={20}
-          fill={isRotateHovered ? '#8b5cf6' : '#94a3b8'}
-          opacity={isRotateHovered ? 1 : 0.4}
-          cornerRadius={10}
           draggable
           onMouseEnter={(e) => {
             setIsRotateHovered(true);
@@ -394,18 +390,31 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
             rotateStartRef.current = null;
             e.target.position({ x: -10, y: localHeight - 10 });
           }}
-        />
+        >
+          <Circle
+            radius={10}
+            fill={isRotateHovered ? '#8b5cf6' : '#94a3b8'}
+            opacity={isRotateHovered ? 1 : 0.4}
+          />
+          {/* Material rotate icon */}
+          <Path
+            x={-5}
+            y={-5}
+            data="M7.5 2L4 5.5 7.5 9M4 5.5h6a3.5 3.5 0 110 7h-1"
+            stroke="white"
+            strokeWidth={1.2}
+            fill="transparent"
+            scaleX={0.8}
+            scaleY={0.8}
+            listening={false}
+          />
+        </Group>
       )}
       {/* Resize handle */}
       {!isEditing && onResize && (
-        <Rect
+        <Group
           x={localWidth - 10}
           y={localHeight - 10}
-          width={20}
-          height={20}
-          fill={isResizeHovered ? '#3b82f6' : '#94a3b8'}
-          opacity={isResizeHovered ? 1 : 0.4}
-          cornerRadius={3}
           draggable
           onMouseEnter={(e) => {
             setIsResizeHovered(true);
@@ -446,7 +455,27 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
             // Reset handle position to bottom-right of new size
             e.target.position({ x: newWidth - 10, y: newHeight - 10 });
           }}
-        />
+        >
+          <Rect
+            width={20}
+            height={20}
+            fill={isResizeHovered ? '#3b82f6' : '#94a3b8'}
+            opacity={isResizeHovered ? 1 : 0.4}
+            cornerRadius={3}
+          />
+          {/* Material resize icon (diagonal arrows) */}
+          <Path
+            x={4}
+            y={4}
+            data="M10 2L2 10M2 10h6M2 10V4"
+            stroke="white"
+            strokeWidth={1.2}
+            fill="transparent"
+            scaleX={0.75}
+            scaleY={0.75}
+            listening={false}
+          />
+        </Group>
       )}
     </Group>
   );

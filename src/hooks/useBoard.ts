@@ -353,6 +353,23 @@ export function useBoard(boardId: string, userId: string) {
             },
           });
         }
+
+        // Move connectors that are attached to the frame or its children
+        const frameAndChildrenIds = new Set([frameId, ...children.map(c => c.id)]);
+        const connectors = objectsRef.current.filter(
+          (o): o is Connector => o.type === 'connector' &&
+            (frameAndChildrenIds.has(o.fromId) || frameAndChildrenIds.has(o.toId))
+        );
+
+        for (const connector of connectors) {
+          batchUpdates.push({
+            id: connector.id,
+            updates: {
+              x: connector.x + dx,
+              y: connector.y + dy,
+            },
+          });
+        }
       }
 
       // Update all objects atomically to prevent flickering

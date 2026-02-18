@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import type Konva from 'konva';
 import type { AnyBoardObject } from '../services/boardService';
+import type { Frame } from '../types/board';
 import { batchUpdateObjects } from '../services/boardService';
 import {
   getBoundingBox,
@@ -10,6 +11,10 @@ import {
   transformGroupRotate,
   type BBox,
 } from '../utils/selectionMath';
+import {
+  findContainingFrameForGroup,
+  scaleGroupToFitFrame,
+} from '../utils/containment';
 
 export interface Marquee {
   startX: number;
@@ -212,7 +217,54 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selec
       );
       if (selected.length === 0) return;
 
-      const updates = transformGroupMove(selected, dx, dy);
+      // Move all selected objects
+      let updates = transformGroupMove(selected, dx, dy);
+
+      // Check if the moved group should be placed inside a frame
+      const movedObjects = selected.map((obj) => ({
+        ...obj,
+        x: obj.x + dx,
+        y: obj.y + dy,
+      }));
+
+      const frames = objectsRef.current.filter(
+        (o): o is Frame => o.type === 'frame' && !selectedIdsRef.current.has(o.id)
+      );
+
+      const containingFrame = findContainingFrameForGroup(movedObjects, frames);
+
+      if (containingFrame) {
+        // Scale the group to fit inside the frame if needed
+        const scaleUpdates = scaleGroupToFitFrame(movedObjects, containingFrame);
+
+        if (scaleUpdates) {
+          // Replace position/size updates with scaled versions
+          updates = scaleUpdates.map((scaled) => {
+            const original = updates.find((u) => u.id === scaled.id);
+            return {
+              id: scaled.id,
+              updates: {
+                ...original?.updates,
+                x: scaled.x,
+                y: scaled.y,
+                width: scaled.width,
+                height: scaled.height,
+                parentId: containingFrame.id,
+              },
+            };
+          });
+        } else {
+          // Group fits, just set parentId
+          updates = updates.map((update) => ({
+            ...update,
+            updates: {
+              ...update.updates,
+              parentId: containingFrame.id,
+            },
+          }));
+        }
+      }
+
       await batchUpdateObjects(boardId, updates);
 
       setSelectionBox((prev) => {

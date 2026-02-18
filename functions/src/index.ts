@@ -165,6 +165,85 @@ const tools = [
     },
   },
   {
+    name: 'alignObjects',
+    description: 'Align multiple objects along a specified axis. Useful for organizing layouts.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        objectIds: { type: 'array', items: { type: 'string' }, description: 'Array of object IDs to align' },
+        alignment: { type: 'string', enum: ['left', 'right', 'top', 'bottom', 'center-horizontal', 'center-vertical'], description: 'Alignment direction' },
+      },
+      required: ['objectIds', 'alignment'],
+    },
+  },
+  {
+    name: 'arrangeInGrid',
+    description: 'Arrange objects in a grid pattern with specified columns and spacing.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        objectIds: { type: 'array', items: { type: 'string' }, description: 'Array of object IDs to arrange' },
+        columns: { type: 'number', description: 'Number of columns in the grid' },
+        spacing: { type: 'number', description: 'Spacing between objects in pixels (default: 20)' },
+        startX: { type: 'number', description: 'Starting X position (default: 0)' },
+        startY: { type: 'number', description: 'Starting Y position (default: 0)' },
+      },
+      required: ['objectIds', 'columns'],
+    },
+  },
+  {
+    name: 'duplicateObject',
+    description: 'Duplicate an object one or more times with optional offset.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        objectId: { type: 'string', description: 'ID of the object to duplicate' },
+        count: { type: 'number', description: 'Number of copies to create (default: 1)' },
+        offsetX: { type: 'number', description: 'X offset for each duplicate (default: 20)' },
+        offsetY: { type: 'number', description: 'Y offset for each duplicate (default: 20)' },
+      },
+      required: ['objectId'],
+    },
+  },
+  {
+    name: 'setZIndex',
+    description: 'Control the layering order of an object (send to back, bring to front).',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        objectId: { type: 'string', description: 'ID of the object to reorder' },
+        operation: { type: 'string', enum: ['toFront', 'toBack', 'forward', 'backward'], description: 'Layering operation' },
+      },
+      required: ['objectId', 'operation'],
+    },
+  },
+  {
+    name: 'rotateObject',
+    description: 'Rotate an object to a specific angle (in degrees).',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        objectId: { type: 'string', description: 'ID of the object to rotate' },
+        rotation: { type: 'number', description: 'Rotation angle in degrees (0-360)' },
+      },
+      required: ['objectId', 'rotation'],
+    },
+  },
+  {
+    name: 'generateFromTemplate',
+    description: 'Generate common whiteboard templates (SWOT, Kanban, retrospective, etc.).',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        templateType: { type: 'string', enum: ['swot', 'kanban', 'retrospective', 'eisenhower', 'mind-map'], description: 'Template type to generate' },
+        x: { type: 'number', description: 'Starting X position (default: 0)' },
+        y: { type: 'number', description: 'Starting Y position (default: 0)' },
+        title: { type: 'string', description: 'Optional title for the template' },
+      },
+      required: ['templateType'],
+    },
+  },
+  {
     name: 'getBoardState',
     description: 'Get the current state of all objects on the board. Use this to understand what is already on the board before manipulating existing objects.',
     input_schema: {
@@ -290,6 +369,17 @@ interface ToolInput {
   fromY?: number;
   toX?: number;
   toY?: number;
+  objectIds?: string[];
+  alignment?: string;
+  columns?: number;
+  spacing?: number;
+  startX?: number;
+  startY?: number;
+  count?: number;
+  offsetX?: number;
+  offsetY?: number;
+  operation?: string;
+  templateType?: string;
 }
 
 async function executeTool(
@@ -478,6 +568,336 @@ async function executeTool(
       return JSON.stringify({ success: true, objectId: input.objectId, newParentId: input.newParentId });
     }
 
+    case 'alignObjects': {
+      const ids = input.objectIds ?? [];
+      if (ids.length === 0) return JSON.stringify({ error: 'No objects to align' });
+
+      // Fetch all objects
+      const objects = await Promise.all(ids.map(id => objectsRef.doc(id).get()));
+      const objectData = objects.map((doc, i) => ({ id: ids[i], ...doc.data() as any }));
+
+      // Calculate alignment position
+      let targetValue: number;
+      switch (input.alignment) {
+        case 'left':
+          targetValue = Math.min(...objectData.map(o => o.x));
+          await Promise.all(objectData.map(o => objectsRef.doc(o.id).update({ x: targetValue, updatedAt: now })));
+          break;
+        case 'right':
+          targetValue = Math.max(...objectData.map(o => o.x + (o.width || 0)));
+          await Promise.all(objectData.map(o => objectsRef.doc(o.id).update({ x: targetValue - (o.width || 0), updatedAt: now })));
+          break;
+        case 'top':
+          targetValue = Math.min(...objectData.map(o => o.y));
+          await Promise.all(objectData.map(o => objectsRef.doc(o.id).update({ y: targetValue, updatedAt: now })));
+          break;
+        case 'bottom':
+          targetValue = Math.max(...objectData.map(o => o.y + (o.height || 0)));
+          await Promise.all(objectData.map(o => objectsRef.doc(o.id).update({ y: targetValue - (o.height || 0), updatedAt: now })));
+          break;
+        case 'center-horizontal':
+          const avgX = objectData.reduce((sum, o) => sum + o.x + (o.width || 0) / 2, 0) / objectData.length;
+          await Promise.all(objectData.map(o => objectsRef.doc(o.id).update({ x: avgX - (o.width || 0) / 2, updatedAt: now })));
+          break;
+        case 'center-vertical':
+          const avgY = objectData.reduce((sum, o) => sum + o.y + (o.height || 0) / 2, 0) / objectData.length;
+          await Promise.all(objectData.map(o => objectsRef.doc(o.id).update({ y: avgY - (o.height || 0) / 2, updatedAt: now })));
+          break;
+      }
+      return JSON.stringify({ success: true, aligned: ids.length });
+    }
+
+    case 'arrangeInGrid': {
+      const ids = input.objectIds ?? [];
+      const columns = input.columns ?? 3;
+      const spacing = input.spacing ?? 20;
+      const startX = input.startX ?? 0;
+      const startY = input.startY ?? 0;
+
+      if (ids.length === 0) return JSON.stringify({ error: 'No objects to arrange' });
+
+      // Fetch all objects to get their dimensions
+      const objects = await Promise.all(ids.map(id => objectsRef.doc(id).get()));
+      const objectData = objects.map((doc, i) => ({ id: ids[i], ...doc.data() as any }));
+
+      // Arrange in grid
+      const updates = objectData.map((obj, index) => {
+        const col = index % columns;
+        const row = Math.floor(index / columns);
+        const x = startX + col * (spacing + (obj.width || 200));
+        const y = startY + row * (spacing + (obj.height || 200));
+        return objectsRef.doc(obj.id).update({ x, y, updatedAt: now });
+      });
+
+      await Promise.all(updates);
+      return JSON.stringify({ success: true, arranged: ids.length });
+    }
+
+    case 'duplicateObject': {
+      const sourceDoc = await objectsRef.doc(input.objectId!).get();
+      if (!sourceDoc.exists) return JSON.stringify({ error: 'Object not found' });
+
+      const sourceData = sourceDoc.data() as any;
+      const count = input.count ?? 1;
+      const offsetX = input.offsetX ?? 20;
+      const offsetY = input.offsetY ?? 20;
+
+      const duplicates = [];
+      for (let i = 1; i <= count; i++) {
+        const docRef = objectsRef.doc();
+        const duplicate = {
+          ...sourceData,
+          id: docRef.id,
+          x: sourceData.x + (offsetX * i),
+          y: sourceData.y + (offsetY * i),
+          createdBy: userId,
+          updatedAt: now,
+        };
+        await docRef.set(duplicate);
+        objectsCreated.push(docRef.id);
+        duplicates.push(docRef.id);
+      }
+
+      return JSON.stringify({ success: true, duplicates });
+    }
+
+    case 'setZIndex': {
+      const targetDoc = await objectsRef.doc(input.objectId!).get();
+      if (!targetDoc.exists) return JSON.stringify({ error: 'Object not found' });
+
+      const allObjects = await readBoardState(boardId);
+      const targetData = targetDoc.data() as any;
+      const currentZIndex = targetData.zIndex ?? 0;
+
+      // Simple z-index manipulation (in real app, would need better strategy)
+      let newZIndex: number;
+      switch (input.operation) {
+        case 'toFront':
+          newZIndex = Math.max(...allObjects.map((o: any) => o.zIndex ?? 0)) + 1;
+          break;
+        case 'toBack':
+          newZIndex = Math.min(...allObjects.map((o: any) => o.zIndex ?? 0)) - 1;
+          break;
+        case 'forward':
+          newZIndex = currentZIndex + 1;
+          break;
+        case 'backward':
+          newZIndex = currentZIndex - 1;
+          break;
+        default:
+          newZIndex = currentZIndex;
+      }
+
+      await objectsRef.doc(input.objectId!).update({ zIndex: newZIndex, updatedAt: now });
+      return JSON.stringify({ success: true, newZIndex });
+    }
+
+    case 'rotateObject': {
+      const docRef = objectsRef.doc(input.objectId!);
+      await docRef.update({
+        rotation: input.rotation ?? 0,
+        updatedAt: now,
+      });
+      return JSON.stringify({ success: true, rotation: input.rotation });
+    }
+
+    case 'generateFromTemplate': {
+      const templateType = input.templateType!;
+      const startX = input.x ?? 0;
+      const startY = input.y ?? 0;
+      const created: string[] = [];
+
+      switch (templateType) {
+        case 'swot': {
+          // Create 2x2 grid of frames
+          const frameWidth = 400;
+          const frameHeight = 300;
+          const gap = 20;
+          const titles = ['Strengths', 'Weaknesses', 'Opportunities', 'Threats'];
+          const colors = ['#dcfce7', '#fce7f3', '#dbeafe', '#ffedd5'];
+
+          for (let i = 0; i < 4; i++) {
+            const col = i % 2;
+            const row = Math.floor(i / 2);
+            const frameRef = objectsRef.doc();
+            const frameData = {
+              type: 'frame',
+              title: titles[i],
+              x: startX + col * (frameWidth + gap),
+              y: startY + row * (frameHeight + gap),
+              width: frameWidth,
+              height: frameHeight,
+              rotation: 0,
+              createdBy: userId,
+              updatedAt: now,
+              parentId: '',
+            };
+            await frameRef.set(frameData);
+            objectsCreated.push(frameRef.id);
+            created.push(frameRef.id);
+          }
+          break;
+        }
+
+        case 'kanban': {
+          // Create 3 columns
+          const frameWidth = 350;
+          const frameHeight = 600;
+          const gap = 20;
+          const titles = ['To Do', 'In Progress', 'Done'];
+
+          for (let i = 0; i < 3; i++) {
+            const frameRef = objectsRef.doc();
+            const frameData = {
+              type: 'frame',
+              title: titles[i],
+              x: startX + i * (frameWidth + gap),
+              y: startY,
+              width: frameWidth,
+              height: frameHeight,
+              rotation: 0,
+              createdBy: userId,
+              updatedAt: now,
+              parentId: '',
+            };
+            await frameRef.set(frameData);
+            objectsCreated.push(frameRef.id);
+            created.push(frameRef.id);
+          }
+          break;
+        }
+
+        case 'retrospective': {
+          // What went well, What didn't, Action items
+          const frameWidth = 400;
+          const frameHeight = 500;
+          const gap = 20;
+          const titles = ['What Went Well 😊', 'What Didn\'t Go Well 😞', 'Action Items 🎯'];
+
+          for (let i = 0; i < 3; i++) {
+            const frameRef = objectsRef.doc();
+            const frameData = {
+              type: 'frame',
+              title: titles[i],
+              x: startX + i * (frameWidth + gap),
+              y: startY,
+              width: frameWidth,
+              height: frameHeight,
+              rotation: 0,
+              createdBy: userId,
+              updatedAt: now,
+              parentId: '',
+            };
+            await frameRef.set(frameData);
+            objectsCreated.push(frameRef.id);
+            created.push(frameRef.id);
+          }
+          break;
+        }
+
+        case 'eisenhower': {
+          // Urgent/Important matrix
+          const frameWidth = 400;
+          const frameHeight = 300;
+          const gap = 20;
+          const titles = ['Urgent & Important', 'Not Urgent & Important', 'Urgent & Not Important', 'Neither'];
+
+          for (let i = 0; i < 4; i++) {
+            const col = i % 2;
+            const row = Math.floor(i / 2);
+            const frameRef = objectsRef.doc();
+            const frameData = {
+              type: 'frame',
+              title: titles[i],
+              x: startX + col * (frameWidth + gap),
+              y: startY + row * (frameHeight + gap),
+              width: frameWidth,
+              height: frameHeight,
+              rotation: 0,
+              createdBy: userId,
+              updatedAt: now,
+              parentId: '',
+            };
+            await frameRef.set(frameData);
+            objectsCreated.push(frameRef.id);
+            created.push(frameRef.id);
+          }
+          break;
+        }
+
+        case 'mind-map': {
+          // Central node + 4 branches
+          const centerRef = objectsRef.doc();
+          const centerData = {
+            type: 'sticky',
+            text: input.title ?? 'Central Idea',
+            x: startX + 400,
+            y: startY + 300,
+            width: 200,
+            height: 200,
+            color: '#fef9c3',
+            rotation: 0,
+            createdBy: userId,
+            updatedAt: now,
+            parentId: '',
+          };
+          await centerRef.set(centerData);
+          objectsCreated.push(centerRef.id);
+          created.push(centerRef.id);
+
+          // Create 4 branches around it
+          const positions = [
+            { x: startX, y: startY + 300 },
+            { x: startX + 800, y: startY + 300 },
+            { x: startX + 400, y: startY },
+            { x: startX + 400, y: startY + 600 },
+          ];
+
+          for (let i = 0; i < 4; i++) {
+            const branchRef = objectsRef.doc();
+            const branchData = {
+              type: 'sticky',
+              text: `Branch ${i + 1}`,
+              x: positions[i].x,
+              y: positions[i].y,
+              width: 200,
+              height: 200,
+              color: '#dbeafe',
+              rotation: 0,
+              createdBy: userId,
+              updatedAt: now,
+              parentId: '',
+            };
+            await branchRef.set(branchData);
+            objectsCreated.push(branchRef.id);
+            created.push(branchRef.id);
+
+            // Create connector
+            const connectorRef = objectsRef.doc();
+            const connectorData = {
+              type: 'connector',
+              fromId: centerRef.id,
+              toId: branchRef.id,
+              style: 'curved',
+              x: 0,
+              y: 0,
+              width: 0,
+              height: 0,
+              rotation: 0,
+              createdBy: userId,
+              updatedAt: now,
+            };
+            await connectorRef.set(connectorData);
+            objectsCreated.push(connectorRef.id);
+            created.push(connectorRef.id);
+          }
+          break;
+        }
+      }
+
+      return JSON.stringify({ success: true, template: templateType, created });
+    }
+
     case 'getBoardState': {
       const objects = await readBoardState(boardId);
       return JSON.stringify({ objects });
@@ -601,6 +1021,12 @@ export const processAIRequest = onDocumentCreated(
               changeColor: 'Changing color',
               deleteObject: 'Deleting object',
               updateParent: 'Changing parent relationship',
+              alignObjects: 'Aligning objects',
+              arrangeInGrid: 'Arranging in grid',
+              duplicateObject: 'Duplicating object',
+              setZIndex: 'Changing layer order',
+              rotateObject: 'Rotating object',
+              generateFromTemplate: 'Generating template',
               getBoardState: 'Reading board',
             };
             const label = toolLabel[block.name] || block.name;

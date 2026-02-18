@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { Group, Rect, Text } from 'react-konva';
+import { Group, Rect, Text, Path, Circle } from 'react-konva';
 import Konva from 'konva';
 import type { Frame } from '../../types/board';
 import { calculateGroupObjectTransform } from '../../utils/groupTransform';
@@ -371,56 +371,54 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
       />
       {/* Delete button */}
       {onDelete && (
-        <>
-          <Rect
-            x={localWidth - 28}
-            y={-32}
-            width={22}
-            height={22}
-            fill={isDeleteHovered ? 'rgba(239,68,68,0.25)' : 'rgba(0,0,0,0.05)'}
-            cornerRadius={8}
-            onClick={(e) => {
-              e.cancelBubble = true;
-              onDelete(frame.id);
-            }}
-            onTap={(e) => {
-              e.cancelBubble = true;
-              onDelete(frame.id);
-            }}
-            onMouseEnter={(e) => {
-              setIsDeleteHovered(true);
-              const stage = e.target.getStage();
-              if (stage) stage.container().style.cursor = 'pointer';
-            }}
-            onMouseLeave={(e) => {
-              setIsDeleteHovered(false);
-              const stage = e.target.getStage();
-              if (stage && isMouseHovered && !isResizeHovered) {
-                stage.container().style.cursor = 'grab';
-              }
-            }}
+        <Group
+          x={localWidth - 10}
+          y={-10}
+          onClick={(e) => {
+            e.cancelBubble = true;
+            onDelete(frame.id);
+          }}
+          onTap={(e) => {
+            e.cancelBubble = true;
+            onDelete(frame.id);
+          }}
+          onMouseEnter={(e) => {
+            setIsDeleteHovered(true);
+            const stage = e.target.getStage();
+            if (stage) stage.container().style.cursor = 'pointer';
+          }}
+          onMouseLeave={(e) => {
+            setIsDeleteHovered(false);
+            const stage = e.target.getStage();
+            if (stage && isMouseHovered && !isResizeHovered && !isRotateHovered) {
+              stage.container().style.cursor = 'grab';
+            }
+          }}
+        >
+          <Circle
+            radius={10}
+            fill={isDeleteHovered ? '#ef4444' : '#94a3b8'}
+            opacity={isDeleteHovered ? 1 : 0.4}
           />
-          <Text
-            x={localWidth - 23}
-            y={-29}
-            text={'\u00d7'}
-            fontSize={16}
-            fontStyle="bold"
-            fill={isDeleteHovered ? '#ef4444' : '#666'}
+          {/* Material delete icon (trash can) */}
+          <Path
+            x={-5}
+            y={-5}
+            data="M3 6h12M5 6V4a1 1 0 011-1h2a1 1 0 011 1v2m3 0V4a1 1 0 011-1h2a1 1 0 011 1v2M4 6v10a1 1 0 001 1h8a1 1 0 001-1V6H4z"
+            stroke="white"
+            strokeWidth={1.2}
+            fill="transparent"
+            scaleX={0.7}
+            scaleY={0.7}
             listening={false}
           />
-        </>
+        </Group>
       )}
       {/* Rotate handle (bottom-left) */}
       {!isEditing && onRotate && (
-        <Rect
+        <Group
           x={-10}
           y={localHeight - 10}
-          width={20}
-          height={20}
-          fill={isRotateHovered ? '#8b5cf6' : '#94a3b8'}
-          opacity={isRotateHovered ? 1 : 0.4}
-          cornerRadius={10}
           draggable
           onMouseEnter={(e) => {
             setIsRotateHovered(true);
@@ -477,18 +475,31 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
             rotateStartRef.current = null;
             e.target.position({ x: -10, y: localHeight - 10 });
           }}
-        />
+        >
+          <Circle
+            radius={10}
+            fill={isRotateHovered ? '#8b5cf6' : '#94a3b8'}
+            opacity={isRotateHovered ? 1 : 0.4}
+          />
+          {/* Material rotate icon */}
+          <Path
+            x={-5}
+            y={-5}
+            data="M7.5 2L4 5.5 7.5 9M4 5.5h6a3.5 3.5 0 110 7h-1"
+            stroke="white"
+            strokeWidth={1.2}
+            fill="transparent"
+            scaleX={0.8}
+            scaleY={0.8}
+            listening={false}
+          />
+        </Group>
       )}
       {/* Resize handle */}
       {!isEditing && onResize && (
-        <Rect
+        <Group
           x={localWidth - 10}
           y={localHeight - 10}
-          width={20}
-          height={20}
-          fill={isResizeHovered ? '#3b82f6' : '#94a3b8'}
-          opacity={isResizeHovered ? 1 : 0.4}
-          cornerRadius={3}
           draggable
           onMouseEnter={(e) => {
             setIsResizeHovered(true);
@@ -528,7 +539,27 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
             setIsResizing(false);
             e.target.position({ x: newWidth - 10, y: newHeight - 10 });
           }}
-        />
+        >
+          <Rect
+            width={20}
+            height={20}
+            fill={isResizeHovered ? '#3b82f6' : '#94a3b8'}
+            opacity={isResizeHovered ? 1 : 0.4}
+            cornerRadius={3}
+          />
+          {/* Material resize icon (diagonal arrows) */}
+          <Path
+            x={4}
+            y={4}
+            data="M10 2L2 10M2 10h6M2 10V4"
+            stroke="white"
+            strokeWidth={1.2}
+            fill="transparent"
+            scaleX={0.75}
+            scaleY={0.75}
+            listening={false}
+          />
+        </Group>
       )}
     </Group>
   );

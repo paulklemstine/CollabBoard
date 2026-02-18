@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { Group, Text, Rect } from 'react-konva';
+import { Group, Text, Rect, Circle, Path } from 'react-konva';
 import Konva from 'konva';
 import type { Sticker } from '../../types/board';
 
@@ -140,13 +140,9 @@ export function StickerComponent({ sticker, onDragMove, onDragEnd, onDelete, onC
         shadowOffsetY={isMouseHovered ? 4 : 2}
       />
       {/* Delete button */}
-      <Rect
-        x={localWidth - 14}
-        y={-2}
-        width={18}
-        height={18}
-        fill={isDeleteHovered ? 'rgba(239,68,68,0.15)' : 'rgba(0,0,0,0.06)'}
-        cornerRadius={5}
+      <Group
+        x={localWidth - 10}
+        y={-10}
         onClick={(e) => {
           e.cancelBubble = true;
           onDelete(sticker.id);
@@ -163,18 +159,28 @@ export function StickerComponent({ sticker, onDragMove, onDragEnd, onDelete, onC
         onMouseLeave={(e) => {
           setIsDeleteHovered(false);
           const stage = e.target.getStage();
-          if (stage) stage.container().style.cursor = 'grab';
+          if (stage && isMouseHovered && !isResizeHovered) {
+            stage.container().style.cursor = 'grab';
+          }
         }}
-      />
-      <Text
-        x={localWidth - 10}
-        y={0}
-        text={'\u00d7'}
-        fontSize={14}
-        fontStyle="bold"
-        fill={isDeleteHovered ? '#ef4444' : '#666'}
-        listening={false}
-      />
+      >
+        <Circle
+          radius={10}
+          fill={isDeleteHovered ? '#ef4444' : '#94a3b8'}
+          opacity={isDeleteHovered ? 1 : 0.4}
+        />
+        <Path
+          x={-5}
+          y={-5}
+          data="M3 6h12M5 6V4a1 1 0 011-1h2a1 1 0 011 1v2m3 0V4a1 1 0 011-1h2a1 1 0 011 1v2M4 6v10a1 1 0 001 1h8a1 1 0 001-1V6H4z"
+          stroke="white"
+          strokeWidth={1.2}
+          fill="transparent"
+          scaleX={0.7}
+          scaleY={0.7}
+          listening={false}
+        />
+      </Group>
       {/* Resize handle */}
       {onResize && (
         <Rect

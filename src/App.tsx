@@ -289,7 +289,7 @@ function BoardView({
               key={connector.id}
               connector={connector}
               objects={objects}
-              onDelete={removeObject}
+              onDelete={selectMode ? removeObject : undefined}
             />
           ))}
           {/* Preview connector while connecting */}

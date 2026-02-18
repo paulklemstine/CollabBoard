@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { Group, Text, Rect, Circle, Path } from 'react-konva';
+import { Group, Text, Rect } from 'react-konva';
 import Konva from 'konva';
 import type { Sticker } from '../../types/board';
 
@@ -141,8 +141,8 @@ export function StickerComponent({ sticker, onDragMove, onDragEnd, onDelete, onC
       />
       {/* Delete button */}
       <Group
-        x={localWidth - 10}
-        y={-10}
+        x={localWidth - 20}
+        y={-20}
         onClick={(e) => {
           e.cancelBubble = true;
           onDelete(sticker.id);
@@ -164,33 +164,26 @@ export function StickerComponent({ sticker, onDragMove, onDragEnd, onDelete, onC
           }
         }}
       >
-        <Circle
-          radius={10}
+        <Rect
+          width={20}
+          height={20}
           fill={isDeleteHovered ? '#ef4444' : '#94a3b8'}
           opacity={isDeleteHovered ? 1 : 0.4}
+          cornerRadius={4}
         />
-        <Path
-          x={-5}
-          y={-5}
-          data="M3 6h12M5 6V4a1 1 0 011-1h2a1 1 0 011 1v2m3 0V4a1 1 0 011-1h2a1 1 0 011 1v2M4 6v10a1 1 0 001 1h8a1 1 0 001-1V6H4z"
-          stroke="white"
-          strokeWidth={1.2}
-          fill="transparent"
-          scaleX={0.7}
-          scaleY={0.7}
+        <Text
+          text="❌"
+          fontSize={12}
+          x={4}
+          y={4}
           listening={false}
         />
       </Group>
       {/* Resize handle */}
       {onResize && (
-        <Rect
-          x={localWidth - 6}
-          y={localHeight - 6}
-          width={12}
-          height={12}
-          fill={isResizeHovered ? '#3b82f6' : '#94a3b8'}
-          opacity={isResizeHovered ? 1 : 0.4}
-          cornerRadius={2}
+        <Group
+          x={localWidth - 20}
+          y={localHeight - 20}
           draggable
           onMouseEnter={(e) => {
             setIsResizeHovered(true);
@@ -209,7 +202,7 @@ export function StickerComponent({ sticker, onDragMove, onDragEnd, onDelete, onC
           onDragMove={(e) => {
             e.cancelBubble = true;
             // Enforce square for stickers
-            const newSize = Math.max(MIN_SIZE, Math.max(e.target.x() + 6, e.target.y() + 6));
+            const newSize = Math.max(MIN_SIZE, Math.max(e.target.x() + 20, e.target.y() + 20));
             setLocalWidth(newSize);
             setLocalHeight(newSize);
             const now = Date.now();
@@ -220,14 +213,29 @@ export function StickerComponent({ sticker, onDragMove, onDragEnd, onDelete, onC
           }}
           onDragEnd={(e) => {
             e.cancelBubble = true;
-            const newSize = Math.max(MIN_SIZE, Math.max(e.target.x() + 6, e.target.y() + 6));
+            const newSize = Math.max(MIN_SIZE, Math.max(e.target.x() + 20, e.target.y() + 20));
             setLocalWidth(newSize);
             setLocalHeight(newSize);
             onResize(sticker.id, newSize, newSize);
             setIsResizing(false);
-            e.target.position({ x: newSize - 6, y: newSize - 6 });
+            e.target.position({ x: newSize - 20, y: newSize - 20 });
           }}
-        />
+        >
+          <Rect
+            width={20}
+            height={20}
+            fill={isResizeHovered ? '#3b82f6' : '#94a3b8'}
+            opacity={isResizeHovered ? 1 : 0.4}
+            cornerRadius={4}
+          />
+          <Text
+            text="↔️"
+            fontSize={12}
+            x={4}
+            y={4}
+            listening={false}
+          />
+        </Group>
       )}
     </Group>
   );

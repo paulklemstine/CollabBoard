@@ -134,6 +134,7 @@ function BoardView({
     addStickyNote,
     addShape,
     addFrame,
+    addSticker,
     moveObject: _moveObject,
     resizeObject,
     rotateObject,
@@ -181,15 +182,26 @@ function BoardView({
     selectObject,
   } = useMultiSelect(objects, boardId, selectMode);
 
-  // Escape key to clear selection
+  // Keyboard shortcuts: Escape to clear selection, Shift to toggle select mode
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && selectedIds.size > 0) {
         clearSelection();
+      } else if (e.key === 'Shift') {
+        setSelectMode(true);
+      }
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') {
+        setSelectMode(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
   }, [selectedIds.size, clearSelection]);
 
   const handleDeleteSelected = useCallback(() => {
@@ -397,6 +409,7 @@ function BoardView({
         onAddStickyNote={(color) => addStickyNote(stageTransform, undefined, undefined, color)}
         onAddShape={(shapeType, color) => addShape(stageTransform, shapeType, color)}
         onAddFrame={() => addFrame(stageTransform)}
+        onAddSticker={(emoji) => addSticker(emoji)}
         connectMode={connectMode}
         connectingFrom={connectingFrom}
         onToggleConnectMode={toggleConnectMode}

@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { Group, Rect, Circle, Line, Path } from 'react-konva';
+import { Group, Rect, Circle, Line, Text } from 'react-konva';
 import Konva from 'konva';
 import type { Shape } from '../../types/board';
 import { calculateGroupObjectTransform } from '../../utils/groupTransform';
@@ -148,7 +148,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
 
   const handleResizeDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
     e.cancelBubble = true;
-    let newWidth = Math.max(MIN_WIDTH, e.target.x() + 10);
+    let newWidth = Math.max(MIN_WIDTH, e.target.x() + 20);
     let newHeight: number;
 
     if (shape.shapeType === 'circle') {
@@ -156,7 +156,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
     } else if (shape.shapeType === 'line') {
       newHeight = localHeight; // lock height for lines
     } else {
-      newHeight = Math.max(MIN_HEIGHT, e.target.y() + 10);
+      newHeight = Math.max(MIN_HEIGHT, e.target.y() + 20);
     }
 
     setLocalWidth(newWidth);
@@ -171,7 +171,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
 
   const handleResizeDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
     e.cancelBubble = true;
-    let newWidth = Math.max(MIN_WIDTH, e.target.x() + 10);
+    let newWidth = Math.max(MIN_WIDTH, e.target.x() + 20);
     let newHeight: number;
 
     if (shape.shapeType === 'circle') {
@@ -179,7 +179,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
     } else if (shape.shapeType === 'line') {
       newHeight = localHeight;
     } else {
-      newHeight = Math.max(MIN_HEIGHT, e.target.y() + 10);
+      newHeight = Math.max(MIN_HEIGHT, e.target.y() + 20);
     }
 
     setLocalWidth(newWidth);
@@ -189,15 +189,15 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
 
     // For line shapes, position handle on right edge
     if (shape.shapeType === 'line') {
-      e.target.position({ x: newWidth - 10, y: localHeight / 2 - 10 });
+      e.target.position({ x: newWidth - 20, y: localHeight / 2 - 20 });
     } else {
-      e.target.position({ x: newWidth - 10, y: newHeight - 10 });
+      e.target.position({ x: newWidth - 20, y: newHeight - 20 });
     }
   };
 
   // Handle position for line shapes: right edge, vertically centered
-  const handleX = localWidth - 10;
-  const handleY = shape.shapeType === 'line' ? localHeight / 2 - 10 : localHeight - 10;
+  const handleX = localWidth - 20;
+  const handleY = shape.shapeType === 'line' ? localHeight / 2 - 20 : localHeight - 20;
 
   return (
     <Group
@@ -265,8 +265,8 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
       {/* Delete button */}
       {onDelete && (
         <Group
-          x={localWidth - 10}
-          y={-10}
+          x={localWidth - 20}
+          y={-20}
           onClick={(e) => {
             e.cancelBubble = true;
             onDelete(shape.id);
@@ -288,20 +288,18 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
             }
           }}
         >
-          <Circle
-            radius={10}
+          <Rect
+            width={20}
+            height={20}
             fill={isDeleteHovered ? '#ef4444' : '#94a3b8'}
             opacity={isDeleteHovered ? 1 : 0.4}
+            cornerRadius={4}
           />
-          <Path
-            x={-5}
-            y={-5}
-            data="M3 6h12M5 6V4a1 1 0 011-1h2a1 1 0 011 1v2m3 0V4a1 1 0 011-1h2a1 1 0 011 1v2M4 6v10a1 1 0 001 1h8a1 1 0 001-1V6H4z"
-            stroke="white"
-            strokeWidth={1.2}
-            fill="transparent"
-            scaleX={0.7}
-            scaleY={0.7}
+          <Text
+            text="❌"
+            fontSize={12}
+            x={4}
+            y={4}
             listening={false}
           />
         </Group>
@@ -309,8 +307,8 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
       {/* Rotate handle (bottom-left) */}
       {onRotate && (
         <Group
-          x={-10}
-          y={localHeight - 10}
+          x={-20}
+          y={localHeight - 20}
           draggable
           onMouseEnter={(e) => {
             setIsRotateHovered(true);
@@ -365,23 +363,21 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
               }
             }
             rotateStartRef.current = null;
-            e.target.position({ x: -10, y: localHeight - 10 });
+            e.target.position({ x: -20, y: localHeight - 20 });
           }}
         >
-          <Circle
-            radius={10}
+          <Rect
+            width={20}
+            height={20}
             fill={isRotateHovered ? '#8b5cf6' : '#94a3b8'}
             opacity={isRotateHovered ? 1 : 0.4}
+            cornerRadius={4}
           />
-          <Path
-            x={-5}
-            y={-5}
-            data="M7.5 2L4 5.5 7.5 9M4 5.5h6a3.5 3.5 0 110 7h-1"
-            stroke="white"
-            strokeWidth={1.2}
-            fill="transparent"
-            scaleX={0.8}
-            scaleY={0.8}
+          <Text
+            text="🔄"
+            fontSize={12}
+            x={4}
+            y={4}
             listening={false}
           />
         </Group>
@@ -416,17 +412,13 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
             height={20}
             fill={isResizeHovered ? '#3b82f6' : '#94a3b8'}
             opacity={isResizeHovered ? 1 : 0.4}
-            cornerRadius={3}
+            cornerRadius={4}
           />
-          <Path
+          <Text
+            text="↔️"
+            fontSize={12}
             x={4}
             y={4}
-            data="M10 2L2 10M2 10h6M2 10V4"
-            stroke="white"
-            strokeWidth={1.2}
-            fill="transparent"
-            scaleX={0.75}
-            scaleY={0.75}
             listening={false}
           />
         </Group>

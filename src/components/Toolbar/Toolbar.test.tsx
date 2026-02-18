@@ -7,6 +7,7 @@ const defaultProps = {
   onAddStickyNote: vi.fn(),
   onAddShape: vi.fn(),
   onAddFrame: vi.fn(),
+  onAddSticker: vi.fn(),
   connectMode: false,
   connectingFrom: null,
   onToggleConnectMode: vi.fn(),

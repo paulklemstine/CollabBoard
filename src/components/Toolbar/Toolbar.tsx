@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { COLORS } from './ColorPicker';
 import { ColorDrawer } from './ColorDrawer';
 import { ShapeDrawer } from './ShapeDrawer';
+import { StickerDrawer } from './StickerDrawer';
 import type { ShapeType } from '../../types/board';
 
 interface ToolbarProps {
   onAddStickyNote: (color: string) => void;
   onAddShape: (shapeType: ShapeType, color: string) => void;
   onAddFrame: () => void;
+  onAddSticker: (emoji: string) => void;
   connectMode: boolean;
   connectingFrom: string | null;
   onToggleConnectMode: () => void;
@@ -19,6 +21,7 @@ export function Toolbar({
   onAddStickyNote,
   onAddShape,
   onAddFrame,
+  onAddSticker,
   connectMode,
   connectingFrom,
   onToggleConnectMode,
@@ -107,6 +110,11 @@ export function Toolbar({
 
       {/* Shape Drawer */}
       <ShapeDrawer selectedColor={selectedColor} onAddShape={onAddShape} onAddFrame={onAddFrame} />
+
+      <div className="w-px h-8 mx-0.5" style={{ background: 'linear-gradient(to bottom, rgba(251,146,60,0.2), rgba(168,85,247,0.3), rgba(96,165,250,0.2))' }} />
+
+      {/* Sticker Drawer */}
+      <StickerDrawer onAddSticker={onAddSticker} />
 
       <div className="w-px h-8 mx-0.5" style={{ background: 'linear-gradient(to bottom, rgba(251,146,60,0.2), rgba(168,85,247,0.3), rgba(96,165,250,0.2))' }} />
 

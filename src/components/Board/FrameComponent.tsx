@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { Group, Rect, Text, Path, Circle } from 'react-konva';
+import { Group, Rect, Text } from 'react-konva';
 import Konva from 'konva';
 import type { Frame } from '../../types/board';
 import { calculateGroupObjectTransform } from '../../utils/groupTransform';
@@ -372,8 +372,8 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
       {/* Delete button */}
       {onDelete && (
         <Group
-          x={localWidth - 10}
-          y={-10}
+          x={localWidth - 20}
+          y={-20}
           onClick={(e) => {
             e.cancelBubble = true;
             onDelete(frame.id);
@@ -395,21 +395,22 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
             }
           }}
         >
-          <Circle
-            radius={10}
+          <Rect
+            width={20}
+            height={20}
             fill={isDeleteHovered ? '#ef4444' : '#94a3b8'}
             opacity={isDeleteHovered ? 1 : 0.4}
+            cornerRadius={4}
           />
-          {/* Material delete icon (trash can) */}
-          <Path
-            x={-5}
-            y={-5}
-            data="M3 6h12M5 6V4a1 1 0 011-1h2a1 1 0 011 1v2m3 0V4a1 1 0 011-1h2a1 1 0 011 1v2M4 6v10a1 1 0 001 1h8a1 1 0 001-1V6H4z"
-            stroke="white"
-            strokeWidth={1.2}
-            fill="transparent"
-            scaleX={0.7}
-            scaleY={0.7}
+          <Text
+            x={0}
+            y={0}
+            width={20}
+            height={20}
+            text="❌"
+            fontSize={12}
+            align="center"
+            verticalAlign="middle"
             listening={false}
           />
         </Group>
@@ -417,8 +418,8 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
       {/* Rotate handle (bottom-left) */}
       {!isEditing && onRotate && (
         <Group
-          x={-10}
-          y={localHeight - 10}
+          x={-20}
+          y={localHeight - 20}
           draggable
           onMouseEnter={(e) => {
             setIsRotateHovered(true);
@@ -473,24 +474,25 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
               }
             }
             rotateStartRef.current = null;
-            e.target.position({ x: -10, y: localHeight - 10 });
+            e.target.position({ x: -20, y: localHeight - 20 });
           }}
         >
-          <Circle
-            radius={10}
+          <Rect
+            width={20}
+            height={20}
             fill={isRotateHovered ? '#8b5cf6' : '#94a3b8'}
             opacity={isRotateHovered ? 1 : 0.4}
+            cornerRadius={4}
           />
-          {/* Material rotate icon */}
-          <Path
-            x={-5}
-            y={-5}
-            data="M7.5 2L4 5.5 7.5 9M4 5.5h6a3.5 3.5 0 110 7h-1"
-            stroke="white"
-            strokeWidth={1.2}
-            fill="transparent"
-            scaleX={0.8}
-            scaleY={0.8}
+          <Text
+            x={0}
+            y={0}
+            width={20}
+            height={20}
+            text="🔄"
+            fontSize={12}
+            align="center"
+            verticalAlign="middle"
             listening={false}
           />
         </Group>
@@ -498,8 +500,8 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
       {/* Resize handle */}
       {!isEditing && onResize && (
         <Group
-          x={localWidth - 10}
-          y={localHeight - 10}
+          x={localWidth - 20}
+          y={localHeight - 20}
           draggable
           onMouseEnter={(e) => {
             setIsResizeHovered(true);
@@ -519,8 +521,8 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
           }}
           onDragMove={(e) => {
             e.cancelBubble = true;
-            const newWidth = Math.max(MIN_WIDTH, e.target.x() + 10);
-            const newHeight = Math.max(MIN_HEIGHT, e.target.y() + 10);
+            const newWidth = Math.max(MIN_WIDTH, e.target.x() + 20);
+            const newHeight = Math.max(MIN_HEIGHT, e.target.y() + 20);
             setLocalWidth(newWidth);
             setLocalHeight(newHeight);
             const now = Date.now();
@@ -531,13 +533,13 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
           }}
           onDragEnd={(e) => {
             e.cancelBubble = true;
-            const newWidth = Math.max(MIN_WIDTH, e.target.x() + 10);
-            const newHeight = Math.max(MIN_HEIGHT, e.target.y() + 10);
+            const newWidth = Math.max(MIN_WIDTH, e.target.x() + 20);
+            const newHeight = Math.max(MIN_HEIGHT, e.target.y() + 20);
             setLocalWidth(newWidth);
             setLocalHeight(newHeight);
             onResize(frame.id, newWidth, newHeight);
             setIsResizing(false);
-            e.target.position({ x: newWidth - 10, y: newHeight - 10 });
+            e.target.position({ x: newWidth - 20, y: newHeight - 20 });
           }}
         >
           <Rect
@@ -545,18 +547,17 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
             height={20}
             fill={isResizeHovered ? '#3b82f6' : '#94a3b8'}
             opacity={isResizeHovered ? 1 : 0.4}
-            cornerRadius={3}
+            cornerRadius={4}
           />
-          {/* Material resize icon (diagonal arrows) */}
-          <Path
-            x={4}
-            y={4}
-            data="M10 2L2 10M2 10h6M2 10V4"
-            stroke="white"
-            strokeWidth={1.2}
-            fill="transparent"
-            scaleX={0.75}
-            scaleY={0.75}
+          <Text
+            x={0}
+            y={0}
+            width={20}
+            height={20}
+            text="↔️"
+            fontSize={12}
+            align="center"
+            verticalAlign="middle"
             listening={false}
           />
         </Group>

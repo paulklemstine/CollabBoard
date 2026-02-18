@@ -2,11 +2,16 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { defineSecret } from 'firebase-functions/params';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import type { BaseMessage } from '@langchain/core/messages';
 
 initializeApp();
 const db = getFirestore();
 
 const anthropicApiKey = defineSecret('ANTHROPIC_API_KEY');
+const langchainApiKey = defineSecret('LANGCHAIN_API_KEY');
+const langfuseSecretKey = defineSecret('LANGFUSE_SECRET_KEY');
+const langfusePublicKey = defineSecret('LANGFUSE_PUBLIC_KEY');
+const langfuseHost = defineSecret('LANGFUSE_HOST');
 
 // ---- Tool definitions for Claude ----
 
@@ -915,7 +920,7 @@ async function executeTool(
 export const processAIRequest = onDocumentCreated(
   {
     document: 'boards/{boardId}/aiRequests/{requestId}',
-    secrets: [anthropicApiKey],
+    secrets: [anthropicApiKey, langchainApiKey, langfuseSecretKey, langfusePublicKey, langfuseHost],
     timeoutSeconds: 300,
     memory: '512MiB',
     maxInstances: 10,
@@ -946,125 +951,124 @@ export const processAIRequest = onDocumentCreated(
     const objectsCreated: string[] = [];
     let stepCount = 0;
 
+    // Set LangSmith tracing env vars
+    process.env.LANGCHAIN_TRACING_V2 = 'true';
+    process.env.LANGCHAIN_API_KEY = langchainApiKey.value();
+    process.env.LANGCHAIN_PROJECT = 'CollabBoard';
+
+    // Lazy-load LangChain and Langfuse to avoid deployment timeouts
+    const { ChatAnthropic } = await import('@langchain/anthropic');
+    const { HumanMessage, SystemMessage, ToolMessage } = await import('@langchain/core/messages');
+    const { CallbackHandler } = await import('langfuse-langchain');
+
+    // Create Langfuse callback handler for observability
+    const langfuseHandler = new CallbackHandler({
+      secretKey: langfuseSecretKey.value(),
+      publicKey: langfusePublicKey.value(),
+      baseUrl: langfuseHost.value(),
+      sessionId: requestId,
+      userId: userId,
+    });
+
     try {
       // Read initial board state
       const boardState = await readBoardState(boardId);
 
-      // Lazy-load Anthropic SDK
-      const { default: Anthropic } = await import('@anthropic-ai/sdk');
-      const client = new Anthropic({ apiKey: anthropicApiKey.value() });
+      // Create LangChain ChatAnthropic model with tools
+      const model = new ChatAnthropic({
+        model: 'claude-haiku-4-5-20251001',
+        maxTokens: 4096,
+        anthropicApiKey: anthropicApiKey.value(),
+      });
+      const modelWithTools = model.bindTools(tools as never);
 
-      // Message types
-      interface AnthropicMessage {
-        role: 'user' | 'assistant';
-        content: string | AnthropicContentBlock[];
-      }
-
-      interface AnthropicContentBlock {
-        type: string;
-        text?: string;
-        id?: string;
-        name?: string;
-        input?: unknown;
-        tool_use_id?: string;
-        content?: string;
-      }
-
-      const messages: AnthropicMessage[] = [
-        {
-          role: 'user',
-          content: `Current board state:\n${JSON.stringify(boardState, null, 2)}\n\nUser request: ${prompt}`,
-        },
+      // Build LangChain message array
+      const messages: BaseMessage[] = [
+        new SystemMessage(SYSTEM_PROMPT),
+        new HumanMessage(
+          `Current board state:\n${JSON.stringify(boardState, null, 2)}\n\nUser request: ${prompt}`,
+        ),
       ];
 
       // Tool execution loop
-      let response = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 4096,
-        system: SYSTEM_PROMPT,
-        tools: tools as never,
-        messages: messages as never,
+      let response = await modelWithTools.invoke(messages, {
+        callbacks: [langfuseHandler],
       });
+      messages.push(response);
 
-      while (response.stop_reason === 'tool_use') {
-        const assistantContent: AnthropicContentBlock[] = response.content
-          .filter((block: { type: string }) => block.type === 'text' || block.type === 'tool_use')
-          .map((block: { type: string; text?: string; id?: string; name?: string; input?: unknown }) => {
-            if (block.type === 'text') {
-              return { type: 'text', text: block.text };
-            }
-            return {
-              type: 'tool_use',
-              id: block.id,
-              name: block.name,
-              input: block.input,
-            };
+      while (response.tool_calls && response.tool_calls.length > 0) {
+        const toolCalls = response.tool_calls;
+
+        for (let i = 0; i < toolCalls.length; i++) {
+          const toolCall = toolCalls[i];
+          stepCount++;
+
+          // Build a human-readable progress label
+          const toolLabel: Record<string, string> = {
+            createStickyNote: 'Creating sticky note',
+            createShape: 'Creating shape',
+            createFrame: 'Creating frame',
+            createSticker: 'Creating sticker',
+            createConnector: 'Creating connector',
+            moveObject: 'Moving object',
+            resizeObject: 'Resizing object',
+            updateText: 'Updating text',
+            changeColor: 'Changing color',
+            deleteObject: 'Deleting object',
+            updateParent: 'Changing parent relationship',
+            alignObjects: 'Aligning objects',
+            arrangeInGrid: 'Arranging in grid',
+            duplicateObject: 'Duplicating object',
+            setZIndex: 'Changing layer order',
+            rotateObject: 'Rotating object',
+            generateFromTemplate: 'Generating template',
+            getBoardState: 'Reading board',
+          };
+          const label = toolLabel[toolCall.name] || toolCall.name;
+          const batchInfo =
+            toolCalls.length > 1
+              ? ` (${i + 1}/${toolCalls.length})`
+              : '';
+          await requestRef.update({
+            progress: `Step ${stepCount}: ${label}${batchInfo}...`,
+            objectsCreated,
           });
 
-        messages.push({ role: 'assistant', content: assistantContent });
+          const result = await executeTool(
+            toolCall.name,
+            toolCall.args as ToolInput,
+            boardId,
+            userId,
+            objectsCreated,
+          );
 
-        const toolResults: AnthropicContentBlock[] = [];
-        const toolUseBlocks = response.content.filter((b: { type: string }) => b.type === 'tool_use');
-        for (const block of response.content) {
-          if (block.type === 'tool_use') {
-            stepCount++;
-            // Build a human-readable progress label
-            const toolLabel: Record<string, string> = {
-              createStickyNote: 'Creating sticky note',
-              createShape: 'Creating shape',
-              createFrame: 'Creating frame',
-              createSticker: 'Creating sticker',
-              createConnector: 'Creating connector',
-              moveObject: 'Moving object',
-              resizeObject: 'Resizing object',
-              updateText: 'Updating text',
-              changeColor: 'Changing color',
-              deleteObject: 'Deleting object',
-              updateParent: 'Changing parent relationship',
-              alignObjects: 'Aligning objects',
-              arrangeInGrid: 'Arranging in grid',
-              duplicateObject: 'Duplicating object',
-              setZIndex: 'Changing layer order',
-              rotateObject: 'Rotating object',
-              generateFromTemplate: 'Generating template',
-              getBoardState: 'Reading board',
-            };
-            const label = toolLabel[block.name] || block.name;
-            const batchInfo = toolUseBlocks.length > 1 ? ` (${toolUseBlocks.indexOf(block) + 1}/${toolUseBlocks.length})` : '';
-            await requestRef.update({
-              progress: `Step ${stepCount}: ${label}${batchInfo}...`,
-              objectsCreated,
-            });
-
-            const result = await executeTool(
-              block.name,
-              block.input as ToolInput,
-              boardId,
-              userId,
-              objectsCreated,
-            );
-            toolResults.push({
-              type: 'tool_result',
-              tool_use_id: block.id,
+          messages.push(
+            new ToolMessage({
               content: result,
-            });
-          }
+              tool_call_id: toolCall.id ?? '',
+            }),
+          );
         }
 
-        messages.push({ role: 'user', content: toolResults });
-
-        response = await client.messages.create({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 4096,
-          system: SYSTEM_PROMPT,
-          tools: tools as never,
-          messages: messages as never,
+        response = await modelWithTools.invoke(messages, {
+          callbacks: [langfuseHandler],
         });
+        messages.push(response);
       }
 
       // Extract final text response
-      const textBlocks = response.content.filter((b: { type: string }) => b.type === 'text');
-      const responseText = textBlocks.map((b: { type: string; text?: string }) => b.text ?? '').join('\n') || 'Done!';
+      const responseText =
+        typeof response.content === 'string'
+          ? response.content
+          : Array.isArray(response.content)
+            ? response.content
+                .filter(
+                  (b): b is { type: 'text'; text: string } =>
+                    typeof b === 'object' && 'type' in b && b.type === 'text',
+                )
+                .map((b) => b.text)
+                .join('\n') || 'Done!'
+            : 'Done!';
 
       // Update request document with response
       await requestRef.update({
@@ -1081,6 +1085,8 @@ export const processAIRequest = onDocumentCreated(
         error: message,
         completedAt: Date.now(),
       });
+    } finally {
+      await langfuseHandler.flushAsync();
     }
   },
 );

@@ -326,6 +326,8 @@ function BoardView({
               isNew={newObjectIds.has(frame.id)}
               isSelected={isObjectSelected(frame.id)}
               groupDragOffset={selectedIds.size > 1 && isObjectSelected(frame.id) ? groupDragOffset : null}
+              groupTransformPreview={selectedIds.size > 1 && isObjectSelected(frame.id) ? transformPreview : null}
+              selectionBox={selectedIds.size > 1 && isObjectSelected(frame.id) ? selectionBox : null}
             />
           ))}
           {shapes.map((shape) => (
@@ -346,6 +348,8 @@ function BoardView({
               isNew={newObjectIds.has(shape.id)}
               isSelected={isObjectSelected(shape.id)}
               groupDragOffset={selectedIds.size > 1 && isObjectSelected(shape.id) ? groupDragOffset : null}
+              groupTransformPreview={selectedIds.size > 1 && isObjectSelected(shape.id) ? transformPreview : null}
+              selectionBox={selectedIds.size > 1 && isObjectSelected(shape.id) ? selectionBox : null}
             />
           ))}
           {stickyNotes.map((note) => (
@@ -367,6 +371,8 @@ function BoardView({
               isNew={newObjectIds.has(note.id)}
               isSelected={isObjectSelected(note.id)}
               groupDragOffset={selectedIds.size > 1 && isObjectSelected(note.id) ? groupDragOffset : null}
+              groupTransformPreview={selectedIds.size > 1 && isObjectSelected(note.id) ? transformPreview : null}
+              selectionBox={selectedIds.size > 1 && isObjectSelected(note.id) ? selectionBox : null}
             />
           ))}
           <SelectionOverlay

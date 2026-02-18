@@ -2,6 +2,8 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { Group, Rect, Circle, Line, Text } from 'react-konva';
 import Konva from 'konva';
 import type { Shape } from '../../types/board';
+import { calculateGroupObjectTransform } from '../../utils/groupTransform';
+import type { GroupTransformPreview, SelectionBox } from '../../hooks/useMultiSelect';
 
 const DRAG_THROTTLE_MS = 50;
 const MIN_WIDTH = 40;
@@ -23,9 +25,11 @@ interface ShapeComponentProps {
   dragOffset?: { x: number; y: number };
   isSelected?: boolean;
   groupDragOffset?: { dx: number; dy: number } | null;
+  groupTransformPreview?: GroupTransformPreview | null;
+  selectionBox?: SelectionBox | null;
 }
 
-export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, parentRotation, dragOffset, isSelected, groupDragOffset }: ShapeComponentProps) {
+export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, parentRotation, dragOffset, isSelected, groupDragOffset, groupTransformPreview, selectionBox }: ShapeComponentProps) {
   const lastDragUpdate = useRef(0);
   const lastResizeUpdate = useRef(0);
   const [isMouseHovered, setIsMouseHovered] = useState(false);
@@ -85,6 +89,11 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
     },
     [shape.id, onDragMove, localWidth, localHeight]
   );
+
+  // Calculate live transform when part of a multi-select group
+  const liveTransform = groupTransformPreview && selectionBox
+    ? calculateGroupObjectTransform(shape, selectionBox, groupTransformPreview)
+    : null;
 
   const renderShape = () => {
     const highlighted = isConnectorHighlighted || isMouseHovered;
@@ -192,11 +201,13 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
 
   return (
     <Group
-      x={shape.x + (dragOffset?.x ?? 0) + (groupDragOffset?.dx ?? 0) + localWidth / 2}
-      y={shape.y + (dragOffset?.y ?? 0) + (groupDragOffset?.dy ?? 0) + localHeight / 2}
+      x={shape.x + (dragOffset?.x ?? 0) + (groupDragOffset?.dx ?? 0) + (liveTransform?.orbitOffset.x ?? 0) + localWidth / 2}
+      y={shape.y + (dragOffset?.y ?? 0) + (groupDragOffset?.dy ?? 0) + (liveTransform?.orbitOffset.y ?? 0) + localHeight / 2}
       offsetX={localWidth / 2}
       offsetY={localHeight / 2}
-      rotation={(shape.rotation || 0) + (parentRotation || 0)}
+      scaleX={liveTransform?.scaleX ?? 1}
+      scaleY={liveTransform?.scaleY ?? 1}
+      rotation={(shape.rotation || 0) + (parentRotation || 0) + (liveTransform?.rotationDelta ?? 0)}
       draggable={!groupDragOffset}
       onDragMove={handleDragMove}
       onDragStart={(e) => {

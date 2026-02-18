@@ -3,6 +3,8 @@ import { Group, Rect, Text } from 'react-konva';
 import Konva from 'konva';
 import type { StickyNote as StickyNoteType } from '../../types/board';
 import { getContrastTextColor, getComplementaryColor } from '../../utils/colors';
+import { calculateGroupObjectTransform } from '../../utils/groupTransform';
+import type { GroupTransformPreview, SelectionBox } from '../../hooks/useMultiSelect';
 
 const DRAG_THROTTLE_MS = 50;
 const MIN_WIDTH = 100;
@@ -25,9 +27,11 @@ interface StickyNoteProps {
   dragOffset?: { x: number; y: number };
   isSelected?: boolean;
   groupDragOffset?: { dx: number; dy: number } | null;
+  groupTransformPreview?: GroupTransformPreview | null;
+  selectionBox?: SelectionBox | null;
 }
 
-export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange, onDelete, onClick, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, parentRotation, dragOffset, isSelected, groupDragOffset }: StickyNoteProps) {
+export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange, onDelete, onClick, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, parentRotation, dragOffset, isSelected, groupDragOffset, groupTransformPreview, selectionBox }: StickyNoteProps) {
   const textRef = useRef<Konva.Text>(null);
   const [isEditing, setIsEditing] = useState(false);
   const lastDragUpdate = useRef(0);
@@ -89,6 +93,11 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
     },
     [note.id, onDragMove, localWidth, localHeight]
   );
+
+  // Calculate live transform when part of a multi-select group
+  const liveTransform = groupTransformPreview && selectionBox
+    ? calculateGroupObjectTransform(note, selectionBox, groupTransformPreview)
+    : null;
 
   useEffect(() => {
     if (!isEditing) return;
@@ -167,11 +176,13 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
 
   return (
     <Group
-      x={note.x + (dragOffset?.x ?? 0) + (groupDragOffset?.dx ?? 0) + localWidth / 2}
-      y={note.y + (dragOffset?.y ?? 0) + (groupDragOffset?.dy ?? 0) + localHeight / 2}
+      x={note.x + (dragOffset?.x ?? 0) + (groupDragOffset?.dx ?? 0) + (liveTransform?.orbitOffset.x ?? 0) + localWidth / 2}
+      y={note.y + (dragOffset?.y ?? 0) + (groupDragOffset?.dy ?? 0) + (liveTransform?.orbitOffset.y ?? 0) + localHeight / 2}
       offsetX={localWidth / 2}
       offsetY={localHeight / 2}
-      rotation={(note.rotation || 0) + (parentRotation || 0)}
+      scaleX={liveTransform?.scaleX ?? 1}
+      scaleY={liveTransform?.scaleY ?? 1}
+      rotation={(note.rotation || 0) + (parentRotation || 0) + (liveTransform?.rotationDelta ?? 0)}
       draggable={!groupDragOffset}
       onDragMove={handleDragMove}
       onDragStart={(e) => {

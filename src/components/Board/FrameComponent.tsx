@@ -2,6 +2,8 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { Group, Rect, Text } from 'react-konva';
 import Konva from 'konva';
 import type { Frame } from '../../types/board';
+import { calculateGroupObjectTransform } from '../../utils/groupTransform';
+import type { GroupTransformPreview, SelectionBox } from '../../hooks/useMultiSelect';
 
 const DRAG_THROTTLE_MS = 50;
 const MIN_WIDTH = 200;
@@ -25,9 +27,11 @@ interface FrameComponentProps {
   parentRotation?: number;
   isSelected?: boolean;
   groupDragOffset?: { dx: number; dy: number } | null;
+  groupTransformPreview?: GroupTransformPreview | null;
+  selectionBox?: SelectionBox | null;
 }
 
-export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitleChange, onClick, isHovered, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, dragOffset, parentRotation, isSelected, groupDragOffset }: FrameComponentProps) {
+export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitleChange, onClick, isHovered, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, dragOffset, parentRotation, isSelected, groupDragOffset, groupTransformPreview, selectionBox }: FrameComponentProps) {
   const lastDragUpdate = useRef(0);
   const lastResizeUpdate = useRef(0);
   const titleRef = useRef<Konva.Text>(null);
@@ -227,10 +231,15 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
     };
   }, [isEditing, frame.id, frame.title, frame.rotation, localWidth, onTitleChange, parentRotation]);
 
-  // Apply parent drag offset, group drag offset, and rotation
-  const displayX = frame.x + (dragOffset?.x || 0) + (groupDragOffset?.dx ?? 0);
-  const displayY = frame.y + (dragOffset?.y || 0) + (groupDragOffset?.dy ?? 0);
-  const displayRotation = (frame.rotation || 0) + (parentRotation || 0);
+  // Calculate live transform when part of a multi-select group
+  const liveTransform = groupTransformPreview && selectionBox
+    ? calculateGroupObjectTransform(frame, selectionBox, groupTransformPreview)
+    : null;
+
+  // Apply parent drag offset, group drag offset, live transform, and rotation
+  const displayX = frame.x + (dragOffset?.x || 0) + (groupDragOffset?.dx ?? 0) + (liveTransform?.orbitOffset.x ?? 0);
+  const displayY = frame.y + (dragOffset?.y || 0) + (groupDragOffset?.dy ?? 0) + (liveTransform?.orbitOffset.y ?? 0);
+  const displayRotation = (frame.rotation || 0) + (parentRotation || 0) + (liveTransform?.rotationDelta ?? 0);
 
   return (
     <Group
@@ -238,6 +247,8 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
       y={displayY + localHeight / 2}
       offsetX={localWidth / 2}
       offsetY={localHeight / 2}
+      scaleX={liveTransform?.scaleX ?? 1}
+      scaleY={liveTransform?.scaleY ?? 1}
       rotation={displayRotation}
       draggable={!groupDragOffset}
       onDragMove={handleDragMove}
@@ -359,43 +370,47 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onTitle
         onDblTap={() => setIsEditing(true)}
       />
       {/* Delete button */}
-      <Rect
-        x={localWidth - 28}
-        y={-32}
-        width={22}
-        height={22}
-        fill={isDeleteHovered ? 'rgba(239,68,68,0.25)' : 'rgba(0,0,0,0.05)'}
-        cornerRadius={8}
-        onClick={(e) => {
-          e.cancelBubble = true;
-          onDelete(frame.id);
-        }}
-        onTap={(e) => {
-          e.cancelBubble = true;
-          onDelete(frame.id);
-        }}
-        onMouseEnter={(e) => {
-          setIsDeleteHovered(true);
-          const stage = e.target.getStage();
-          if (stage) stage.container().style.cursor = 'pointer';
-        }}
-        onMouseLeave={(e) => {
-          setIsDeleteHovered(false);
-          const stage = e.target.getStage();
-          if (stage && isMouseHovered && !isResizeHovered) {
-            stage.container().style.cursor = 'grab';
-          }
-        }}
-      />
-      <Text
-        x={localWidth - 23}
-        y={-29}
-        text={'\u00d7'}
-        fontSize={16}
-        fontStyle="bold"
-        fill={isDeleteHovered ? '#ef4444' : '#666'}
-        listening={false}
-      />
+      {onDelete && (
+        <>
+          <Rect
+            x={localWidth - 28}
+            y={-32}
+            width={22}
+            height={22}
+            fill={isDeleteHovered ? 'rgba(239,68,68,0.25)' : 'rgba(0,0,0,0.05)'}
+            cornerRadius={8}
+            onClick={(e) => {
+              e.cancelBubble = true;
+              onDelete(frame.id);
+            }}
+            onTap={(e) => {
+              e.cancelBubble = true;
+              onDelete(frame.id);
+            }}
+            onMouseEnter={(e) => {
+              setIsDeleteHovered(true);
+              const stage = e.target.getStage();
+              if (stage) stage.container().style.cursor = 'pointer';
+            }}
+            onMouseLeave={(e) => {
+              setIsDeleteHovered(false);
+              const stage = e.target.getStage();
+              if (stage && isMouseHovered && !isResizeHovered) {
+                stage.container().style.cursor = 'grab';
+              }
+            }}
+          />
+          <Text
+            x={localWidth - 23}
+            y={-29}
+            text={'\u00d7'}
+            fontSize={16}
+            fontStyle="bold"
+            fill={isDeleteHovered ? '#ef4444' : '#666'}
+            listening={false}
+          />
+        </>
+      )}
       {/* Rotate handle (bottom-left) */}
       {!isEditing && onRotate && (
         <Rect

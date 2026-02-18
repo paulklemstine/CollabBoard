@@ -153,6 +153,18 @@ const tools = [
     },
   },
   {
+    name: 'updateParent',
+    description: 'Change the parent of an existing object. Use this to attach/detach objects to/from frames or change frame nesting. Set newParentId to empty string to make object independent (no parent).',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        objectId: { type: 'string', description: 'ID of the object whose parent you want to change' },
+        newParentId: { type: 'string', description: 'ID of the new parent frame, or empty string ("") to make object independent' },
+      },
+      required: ['objectId', 'newParentId'],
+    },
+  },
+  {
     name: 'getBoardState',
     description: 'Get the current state of all objects on the board. Use this to understand what is already on the board before manipulating existing objects.',
     input_schema: {
@@ -272,6 +284,7 @@ interface ToolInput {
   newText?: string;
   newColor?: string;
   parentId?: string;
+  newParentId?: string;
   rotation?: number;
   fromX?: number;
   fromY?: number;
@@ -456,6 +469,15 @@ async function executeTool(
       return JSON.stringify({ success: true });
     }
 
+    case 'updateParent': {
+      const docRef = objectsRef.doc(input.objectId!);
+      await docRef.update({
+        parentId: input.newParentId ?? '',
+        updatedAt: now,
+      });
+      return JSON.stringify({ success: true, objectId: input.objectId, newParentId: input.newParentId });
+    }
+
     case 'getBoardState': {
       const objects = await readBoardState(boardId);
       return JSON.stringify({ objects });
@@ -578,6 +600,7 @@ export const processAIRequest = onDocumentCreated(
               updateText: 'Updating text',
               changeColor: 'Changing color',
               deleteObject: 'Deleting object',
+              updateParent: 'Changing parent relationship',
               getBoardState: 'Reading board',
             };
             const label = toolLabel[block.name] || block.name;

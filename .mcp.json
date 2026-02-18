@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "serena": {
+      "command": "uvx",
+      "args": ["--from", "serena-agent", "serena-mcp-server", "--project-from-cwd"],
+      "env": {
+        "PATH": "/home/raver1975/.local/bin:${PATH}"
+      }
+    },
+    "semantic-navigator": {
+      "command": "python3",
+      "args": ["/mnt/c/Gauntlet/CollabBoard/mcp-semantic-navigator/server.py"],
+      "env": {
+        "PYTHONPATH": "/mnt/c/Gauntlet/CollabBoard/mcp-semantic-navigator"
+      }
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"]
+    }
+  }
+}

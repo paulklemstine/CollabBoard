@@ -134,6 +134,63 @@ Add this to your `claude_desktop_config.json`:
 
 After saving the configuration, restart Claude Code for changes to take effect.
 
+### Step 4: Verify Serena is Working
+
+After restarting Claude Code, verify Serena is integrated:
+
+#### Method 1: Ask Claude to Use Serena
+In a new conversation with Claude Code, ask:
+```
+"Use Serena to find the useBoard symbol"
+```
+
+If Serena is working, you'll see me call a tool like `serena_find_symbol` and return results.
+
+#### Method 2: Check MCP Status in Claude Code
+- Look for MCP server indicators in Claude Code's UI
+- Check for "serena" in the list of active MCP servers
+- Verify there are no error messages about Serena failing to start
+
+#### Method 3: Check if Tools are Available
+Ask me:
+```
+"What Serena tools do you have access to?"
+```
+
+If configured correctly, I should list 26 tools including:
+- `serena_find_symbol`
+- `serena_get_symbols_overview`
+- `serena_find_referencing_symbols`
+- `serena_replace_symbol_body`
+- etc.
+
+#### What Success Looks Like
+
+**✅ Working:** You'll see me use tools prefixed with `serena_` in our conversation
+```
+Using tool: serena_find_symbol
+Input: {"pattern": "useBoard", "include_body": false}
+Result: Found 1 symbol in src/hooks/useBoard.ts...
+```
+
+**❌ Not Working:** I'll say something like "I don't have access to Serena tools" or use standard Read/Grep tools instead
+
+#### Common Issues
+
+**Issue: "Serena tools not available"**
+- **Fix**: Restart Claude Code completely (close all windows)
+- **Fix**: Check the config file path is correct
+- **Fix**: Verify `serena-mcp-server.exe` exists at the specified path
+
+**Issue: "Command not found"**
+- **Fix**: Use full absolute path in the config (not just `serena-mcp-server`)
+- **Fix**: Check PATH environment variable includes the serena bin directory
+
+**Issue: "No project found"**
+- **Fix**: Make sure you're in the CollabBoard directory when starting conversations
+- **Fix**: Add `"args": ["--project-from-cwd"]` to the config
+- **Fix**: Verify `.serena/project.yml` exists in CollabBoard root
+
 ---
 
 ## How to Use Serena Tools

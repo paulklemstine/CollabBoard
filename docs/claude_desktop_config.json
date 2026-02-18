@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "serena": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "serena-agent",
+        "serena-mcp-server",
+        "--project-from-cwd"
+      ],
+      "env": {
+        "PATH": "C:\\Users\\paulk\\.local\\bin;${PATH}"
+      }
+    },
+    "semantic-navigator": {
+      "command": "python",
+      "args": [
+        "C:\\Gauntlet\\CollabBoard\\mcp-semantic-navigator\\server.py"
+      ],
+      "env": {
+        "PYTHONPATH": "C:\\Gauntlet\\CollabBoard\\mcp-semantic-navigator"
+      }
+    }
+  }
+}

@@ -197,7 +197,6 @@ function BoardView({
   const {
     selectedIds,
     marquee,
-    isMarqueeActive,
     groupDragOffset,
     selectionBox,
     selectionHidden,
@@ -482,7 +481,6 @@ function BoardView({
           onStageMouseDown={connectMode ? undefined : handleStageMouseDown}
           onStageMouseMove={connectMode ? undefined : handleStageMouseMove}
           onStageMouseUp={connectMode ? undefined : handleStageMouseUp}
-          isPanDisabled={isMarqueeActive}
           onZoomControlsChange={setZoomControls}
         >
           {/* Render order: Connectors → Frames → Shapes → Sticky Notes (connectors always behind) */}

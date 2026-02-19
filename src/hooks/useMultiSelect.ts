@@ -118,7 +118,10 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string) {
   const handleStageMouseDown = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
       if (e.target !== e.target.getStage()) return;
-      if (e.evt.button !== 0) return;
+      // Marquee on right-click or shift+left-click
+      const isRightClick = e.evt.button === 2;
+      const isShiftLeftClick = e.evt.button === 0 && e.evt.shiftKey;
+      if (!isRightClick && !isShiftLeftClick) return;
 
       // Clear selection on any empty-canvas click
       setSelectedIds(new Set());
@@ -126,10 +129,6 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string) {
 
       const stage = e.target.getStage();
       if (!stage) return;
-
-      // Stop pan immediately so it doesn't interfere with marquee coordinates
-      stage.stopDrag();
-      stage.draggable(false);
 
       const pointer = stage.getPointerPosition();
       if (!pointer) return;
@@ -175,10 +174,6 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string) {
 
       isMarqueeActiveRef.current = false;
       setIsMarqueeActive(false);
-
-      // Re-enable pan (was disabled in handleStageMouseDown for Shift+drag)
-      const stage = _e.target.getStage();
-      if (stage) stage.draggable(true);
 
       setMarquee((currentMarquee) => {
         if (!currentMarquee) return null;

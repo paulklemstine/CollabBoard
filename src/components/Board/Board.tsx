@@ -23,7 +23,6 @@ interface BoardProps {
   onStageMouseDown?: (e: Konva.KonvaEventObject<MouseEvent>) => void;
   onStageMouseMove?: (e: Konva.KonvaEventObject<MouseEvent>) => void;
   onStageMouseUp?: (e: Konva.KonvaEventObject<MouseEvent>) => void;
-  isPanDisabled?: boolean;
   onZoomControlsChange?: (controls: ZoomControls) => void;
   children?: React.ReactNode;
 }
@@ -32,7 +31,7 @@ const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 5;
 const ZOOM_STEP = 1.2;
 
-export function Board({ boardId: _boardId, onMouseMove, onTransformChange, onStageMouseDown, onStageMouseMove, onStageMouseUp, isPanDisabled, onZoomControlsChange, children }: BoardProps) {
+export function Board({ boardId: _boardId, onMouseMove, onTransformChange, onStageMouseDown, onStageMouseMove, onStageMouseUp, onZoomControlsChange, children }: BoardProps) {
   const [dimensions, setDimensions] = useState({
     width: window.innerWidth,
     height: window.innerHeight,
@@ -182,11 +181,62 @@ export function Board({ boardId: _boardId, onMouseMove, onTransformChange, onSta
     return () => container.removeEventListener('mousemove', handleNativeMouseMove);
   }, []);
 
-  const handleDragMove = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
-    const stage = e.target.getStage();
-    if (stage && e.target === stage) {
+  // Pan via left-click drag (native DOM events; right-click and shift+left are free for marquee)
+  const isPanningRef = useRef(false);
+  const panPointerIdRef = useRef(-1);
+  const panStartRef = useRef({ x: 0, y: 0, stageX: 0, stageY: 0 });
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const container = stage.container();
+
+    const onPointerDown = (e: PointerEvent) => {
+      const isLeftClick = e.button === 0 && !e.shiftKey;
+      if (!isLeftClick) return;
+      // Only pan when clicking empty canvas, not objects
+      const rect = container.getBoundingClientRect();
+      const pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const hit = stage.getIntersection(pos);
+      if (hit && hit !== stage) return;
+      isPanningRef.current = true;
+      panPointerIdRef.current = e.pointerId;
+      panStartRef.current = {
+        x: e.clientX,
+        y: e.clientY,
+        stageX: stage.x(),
+        stageY: stage.y(),
+      };
+      container.setPointerCapture(e.pointerId);
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!isPanningRef.current) return;
+      const dx = e.clientX - panStartRef.current.x;
+      const dy = e.clientY - panStartRef.current.y;
+      stage.position({
+        x: panStartRef.current.stageX + dx,
+        y: panStartRef.current.stageY + dy,
+      });
+      stage.batchDraw();
       notifyTransform(stage);
-    }
+    };
+
+    const onPointerUp = (e: PointerEvent) => {
+      if (!isPanningRef.current || e.pointerId !== panPointerIdRef.current) return;
+      isPanningRef.current = false;
+      panPointerIdRef.current = -1;
+      container.releasePointerCapture(e.pointerId);
+    };
+
+    container.addEventListener('pointerdown', onPointerDown);
+    container.addEventListener('pointermove', onPointerMove);
+    container.addEventListener('pointerup', onPointerUp);
+    return () => {
+      container.removeEventListener('pointerdown', onPointerDown);
+      container.removeEventListener('pointermove', onPointerMove);
+      container.removeEventListener('pointerup', onPointerUp);
+    };
   }, [notifyTransform]);
 
   const handleMouseLeave = useCallback(() => {
@@ -210,15 +260,16 @@ export function Board({ boardId: _boardId, onMouseMove, onTransformChange, onSta
   }, [scale, zoomIn, zoomOut, resetZoom, setTransform, onZoomControlsChange]);
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+    <div
+      style={{ position: 'relative', width: '100%', height: '100%' }}
+      onContextMenu={(e) => e.preventDefault()}
+    >
       <Stage
         ref={stageRef}
         width={dimensions.width}
         height={dimensions.height}
-        draggable={!isPanDisabled}
         onWheel={handleWheel}
         onMouseLeave={handleMouseLeave}
-        onDragMove={handleDragMove}
         onMouseDown={onStageMouseDown}
         onMouseMove={onStageMouseMove}
         onMouseUp={onStageMouseUp}

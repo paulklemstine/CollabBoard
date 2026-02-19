@@ -11,12 +11,13 @@ interface ShapeDrawerProps {
   onBorderColorChange: (c: string) => void;
   onAddShape: (shapeType: ShapeType) => void;
   onAddFrame: () => void;
+  onAddSticky: () => void;
 }
 
 export function ShapeDrawer({
   fillColor, strokeColor, borderColor,
   onFillColorChange, onStrokeColorChange, onBorderColorChange,
-  onAddShape, onAddFrame,
+  onAddShape, onAddFrame, onAddSticky,
 }: ShapeDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [tab, setTab] = useState<'shapes' | 'colors'>('shapes');
@@ -52,9 +53,9 @@ export function ShapeDrawer({
       icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><polygon points="12,2 22,12 12,22 2,12" /></svg>,
     },
     {
-      type: 'pentagon', label: 'Pentagon', uiColor: '#f59e0b',
-      action: () => onAddShape('pentagon'),
-      icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><polygon points="12,2 22.5,9.5 19,21 5,21 1.5,9.5" /></svg>,
+      type: 'sticky' as ShapeType, label: 'Sticky', uiColor: '#f59e0b',
+      action: () => onAddSticky(),
+      icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><path d="M15.5 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V8.5L15.5 3z" /><polyline points="14 3 14 9 21 9" /></svg>,
     },
     {
       type: 'hexagon', label: 'Hexagon', uiColor: '#06b6d4',

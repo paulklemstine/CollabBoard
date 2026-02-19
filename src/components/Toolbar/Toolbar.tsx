@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { StickyDrawer } from './StickyDrawer';
 import { ShapeDrawer } from './ShapeDrawer';
 import { TextDrawer } from './TextDrawer';
 import { StickerDrawer } from './StickerDrawer';
@@ -9,7 +8,7 @@ import type { ShapeType, ChatMessage, ConnectorStyle } from '../../types/board';
 
 interface ToolbarProps {
   onAddStickyNote: (bgColor: string, textColor?: string, borderColor?: string) => void;
-  onAddText: (fontSize: number, fontWeight: 'normal' | 'bold', fontStyle: 'normal' | 'italic', textAlign: 'left' | 'center' | 'right', textColor: string) => void;
+  onAddText: (fontSize: number, fontFamily: string, fontWeight: 'normal' | 'bold', fontStyle: 'normal' | 'italic', textAlign: 'left' | 'center' | 'right', textColor: string) => void;
   onAddShape: (shapeType: ShapeType, fillColor: string, strokeColor?: string, borderColor?: string) => void;
   onAddFrame: () => void;
   onAddSticker: (emoji: string) => void;
@@ -46,13 +45,9 @@ export function Toolbar({
   curveStyle,
   onCurveStyleChange,
 }: ToolbarProps) {
-  // Sticky note colors
-  const [stickyBg, setStickyBg] = useState('#fef08a');
-  const [stickyText, setStickyText] = useState('#1e293b');
-  const [stickyBorder, setStickyBorder] = useState('transparent');
-
   // Text styling
   const [textFontSize, setTextFontSize] = useState(24);
+  const [textFontFamily, setTextFontFamily] = useState("'Inter', sans-serif");
   const [textFontWeight, setTextFontWeight] = useState<'normal' | 'bold'>('normal');
   const [textFontStyle, setTextFontStyle] = useState<'normal' | 'italic'>('normal');
   const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right'>('left');
@@ -92,32 +87,21 @@ export function Toolbar({
           }}
           className="flex gap-1.5 glass-playful rounded-2xl p-2.5 items-center animate-float-up"
         >
-      {/* Sticky Note */}
-      <StickyDrawer
-        bgColor={stickyBg}
-        textColor={stickyText}
-        borderColor={stickyBorder}
-        onBgColorChange={setStickyBg}
-        onTextColorChange={setStickyText}
-        onBorderColorChange={setStickyBorder}
-        onAdd={() => onAddStickyNote(stickyBg, stickyText, stickyBorder)}
-      />
-
-      {divider}
-
       {/* Text */}
       <TextDrawer
         fontSize={textFontSize}
+        fontFamily={textFontFamily}
         fontWeight={textFontWeight}
         fontStyle={textFontStyle}
         textAlign={textAlign}
         textColor={textColor}
         onFontSizeChange={setTextFontSize}
+        onFontFamilyChange={setTextFontFamily}
         onFontWeightChange={setTextFontWeight}
         onFontStyleChange={setTextFontStyle}
         onTextAlignChange={setTextAlign}
         onTextColorChange={setTextColor}
-        onAdd={() => onAddText(textFontSize, textFontWeight, textFontStyle, textAlign, textColor)}
+        onAdd={() => onAddText(textFontSize, textFontFamily, textFontWeight, textFontStyle, textAlign, textColor)}
       />
 
       {divider}
@@ -132,6 +116,7 @@ export function Toolbar({
         onBorderColorChange={setShapeBorder}
         onAddShape={(shapeType) => onAddShape(shapeType, shapeFill, shapeStroke, shapeBorder)}
         onAddFrame={onAddFrame}
+        onAddSticky={() => onAddStickyNote('#fef08a', '#1e293b', 'transparent')}
       />
 
       {divider}

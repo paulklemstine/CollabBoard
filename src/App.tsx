@@ -579,7 +579,7 @@ function BoardView({
       <CursorsOverlay cursors={cursors} stageTransform={stageTransform} />
       <Toolbar
         onAddStickyNote={(bgColor, textColor, borderColor) => addStickyNote(stageTransform, undefined, undefined, bgColor, textColor, borderColor)}
-        onAddText={(fontSize, fontWeight, fontStyle, textAlign, textColor) => addText(stageTransform, fontSize, fontWeight, fontStyle, textAlign, textColor)}
+        onAddText={(fontSize, fontFamily, fontWeight, fontStyle, textAlign, textColor) => addText(stageTransform, fontSize, fontFamily, fontWeight, fontStyle, textAlign, textColor)}
         onAddShape={(shapeType, fillColor, strokeColor, borderColor) => addShape(stageTransform, shapeType, fillColor, undefined, undefined, strokeColor, borderColor)}
         onAddFrame={() => addFrame(stageTransform)}
         onAddSticker={(emoji) => addSticker(stageTransform, emoji)}

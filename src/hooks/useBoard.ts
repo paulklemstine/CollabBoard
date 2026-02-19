@@ -225,6 +225,7 @@ export function useBoard(boardId: string, userId: string) {
     (
       transform: StageTransform,
       fontSize?: number,
+      fontFamily?: string,
       fontWeight?: 'normal' | 'bold',
       fontStyle?: 'normal' | 'italic',
       textAlign?: 'left' | 'center' | 'right',
@@ -262,7 +263,7 @@ export function useBoard(boardId: string, userId: string) {
         updatedAt: maxUpdatedAt + 1,
         text: '',
         fontSize: fontSize ?? 24,
-        fontFamily: "'Inter', sans-serif",
+        fontFamily: fontFamily ?? "'Inter', sans-serif",
         fontWeight: fontWeight ?? 'normal',
         fontStyle: fontStyle ?? 'normal',
         textAlign: textAlign ?? 'left',

@@ -3,11 +3,13 @@ import { ColorPanel } from './ColorPanel';
 
 interface TextDrawerProps {
   fontSize: number;
+  fontFamily: string;
   fontWeight: 'normal' | 'bold';
   fontStyle: 'normal' | 'italic';
   textAlign: 'left' | 'center' | 'right';
   textColor: string;
   onFontSizeChange: (size: number) => void;
+  onFontFamilyChange: (family: string) => void;
   onFontWeightChange: (weight: 'normal' | 'bold') => void;
   onFontStyleChange: (style: 'normal' | 'italic') => void;
   onTextAlignChange: (align: 'left' | 'center' | 'right') => void;
@@ -15,16 +17,16 @@ interface TextDrawerProps {
   onAdd: () => void;
 }
 
-const FONT_SIZES = [
-  { value: 16, label: 'S' },
-  { value: 24, label: 'M' },
-  { value: 36, label: 'L' },
-  { value: 48, label: 'XL' },
+const FONTS = [
+  { value: "'Inter', sans-serif", label: 'Sans' },
+  { value: "'Georgia', serif", label: 'Serif' },
+  { value: "'Fira Code', monospace", label: 'Mono' },
+  { value: "'Caveat', cursive", label: 'Hand' },
 ];
 
 export function TextDrawer({
-  fontSize, fontWeight, fontStyle, textAlign, textColor,
-  onFontSizeChange, onFontWeightChange, onFontStyleChange, onTextAlignChange, onTextColorChange,
+  fontSize, fontFamily, fontWeight, fontStyle, textAlign, textColor,
+  onFontSizeChange, onFontFamilyChange, onFontWeightChange, onFontStyleChange, onTextAlignChange, onTextColorChange,
   onAdd,
 }: TextDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -90,7 +92,7 @@ export function TextDrawer({
                   fontStyle,
                   textAlign,
                   color: textColor,
-                  fontFamily: "'Inter', sans-serif",
+                  fontFamily,
                 }}
               >
                 Text Label
@@ -99,19 +101,38 @@ export function TextDrawer({
 
             {/* Font Size */}
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Size</div>
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Size</div>
+                <div className="text-xs font-semibold text-cyan-600">{fontSize}pt</div>
+              </div>
+              <input
+                type="range"
+                min={8}
+                max={96}
+                step={1}
+                value={fontSize}
+                onChange={(e) => onFontSizeChange(Number(e.target.value))}
+                className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-cyan-500"
+                style={{ background: `linear-gradient(to right, #06b6d4 ${((fontSize - 8) / 88) * 100}%, rgba(255,255,255,0.4) ${((fontSize - 8) / 88) * 100}%)` }}
+              />
+            </div>
+
+            {/* Font Family */}
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Font</div>
               <div className="flex gap-1.5">
-                {FONT_SIZES.map((fs) => (
+                {FONTS.map((f) => (
                   <button
-                    key={fs.value}
-                    onClick={() => onFontSizeChange(fs.value)}
+                    key={f.value}
+                    onClick={() => onFontFamilyChange(f.value)}
                     className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                      fontSize === fs.value
+                      fontFamily === f.value
                         ? 'bg-cyan-500 text-white shadow-md'
                         : 'bg-white/40 text-gray-600 hover:bg-white/70'
                     }`}
+                    style={{ fontFamily: f.value }}
                   >
-                    {fs.label}
+                    {f.label}
                   </button>
                 ))}
               </div>

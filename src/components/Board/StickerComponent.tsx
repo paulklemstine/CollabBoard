@@ -54,7 +54,9 @@ export function StickerComponent({
   const [isResizing, setIsResizing] = useState(false);
   const [localWidth, setLocalWidth] = useState(sticker.width);
   const [localHeight, setLocalHeight] = useState(sticker.height);
-  const [gifImage, setGifImage] = useState<HTMLImageElement | null>(null);
+  const [gifCanvas, setGifCanvas] = useState<HTMLCanvasElement | null>(null);
+  const gifImageRef = useRef<Konva.Image>(null);
+  const gifAnimRef = useRef<number>(0);
 
   useEffect(() => {
     if (!isResizing) {
@@ -63,18 +65,45 @@ export function StickerComponent({
     }
   }, [sticker.width, sticker.height, isResizing]);
 
-  // Load GIF image when gifUrl is set
+  // Animate GIF: render <img> frames onto an offscreen canvas and
+  // continuously push updates to the Konva Image node
   useEffect(() => {
     if (!sticker.gifUrl) {
-      setGifImage(null);
+      setGifCanvas(null);
       return;
     }
-    const img = new window.Image();
+
+    const img = document.createElement('img');
     img.crossOrigin = 'anonymous';
-    img.onload = () => setGifImage(img);
-    img.onerror = () => setGifImage(null);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    let stopped = false;
+
+    img.onload = () => {
+      if (stopped) return;
+      canvas.width = img.naturalWidth || img.width;
+      canvas.height = img.naturalHeight || img.height;
+      setGifCanvas(canvas);
+
+      // Animation loop: draw current img frame onto canvas, then tell Konva to update
+      const tick = () => {
+        if (stopped) return;
+        if (ctx) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+        }
+        // Force Konva Image to re-render by getting its layer to batchDraw
+        gifImageRef.current?.getLayer()?.batchDraw();
+        gifAnimRef.current = requestAnimationFrame(tick);
+      };
+      gifAnimRef.current = requestAnimationFrame(tick);
+    };
+    img.onerror = () => setGifCanvas(null);
     img.src = sticker.gifUrl;
+
     return () => {
+      stopped = true;
+      cancelAnimationFrame(gifAnimRef.current);
       img.src = '';
     };
   }, [sticker.gifUrl]);
@@ -184,15 +213,16 @@ export function StickerComponent({
       />
       {/* GIF or Emoji */}
       {sticker.gifUrl ? (
-        gifImage ? (
+        gifCanvas ? (
           <Image
-            image={gifImage}
+            ref={gifImageRef}
+            image={gifCanvas}
             width={localWidth}
             height={localHeight}
             listening={false}
           />
         ) : (
-          <Rect width={localWidth} height={localHeight} fill="#e5e7eb" listening={false} />
+          <Rect width={localWidth} height={localHeight} fill="#e5e7eb" cornerRadius={8} listening={false} />
         )
       ) : (
         <Text

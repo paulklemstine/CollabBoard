@@ -274,8 +274,9 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
 
   const renderShape = () => {
     const highlighted = isConnectorHighlighted || isMouseHovered;
-    const stroke = isConnectorHighlighted ? '#818cf8' : (isMouseHovered ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)');
-    const strokeWidth = isConnectorHighlighted ? 4 : (isMouseHovered ? 2.5 : 1.5);
+    const defaultStroke = isMouseHovered ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)';
+    const stroke = isConnectorHighlighted ? '#818cf8' : (shape.strokeColor || defaultStroke);
+    const strokeWidth = isConnectorHighlighted ? 4 : (shape.strokeColor ? 2 : (isMouseHovered ? 2.5 : 1.5));
 
     switch (shape.shapeType) {
       case 'rect':

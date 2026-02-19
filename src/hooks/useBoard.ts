@@ -56,7 +56,7 @@ export function useBoard(boardId: string, userId: string) {
   }, []);
 
   const addStickyNote = useCallback(
-    (transform: StageTransform, x?: number, y?: number, color?: string) => {
+    (transform: StageTransform, x?: number, y?: number, color?: string, textColor?: string, borderColor?: string) => {
       // Calculate screen coordinates for toolbar button position
       const screenX = window.innerWidth / 2 - 100; // Center horizontally (sticky is 200px wide)
       const screenY = window.innerHeight - 350; // 350px from bottom (200px height + 150px for toolbar space)
@@ -88,6 +88,8 @@ export function useBoard(boardId: string, userId: string) {
         updatedAt: maxUpdatedAt + 1, // Ensure it's on top
         text: '',
         color: color ?? STICKY_COLORS[Math.floor(Math.random() * STICKY_COLORS.length)],
+        ...(textColor ? { textColor } : {}),
+        ...(borderColor && borderColor !== 'transparent' ? { borderColor } : {}),
       };
       addObject(boardId, note);
       trackNewObject(note.id);
@@ -96,7 +98,7 @@ export function useBoard(boardId: string, userId: string) {
   );
 
   const addShape = useCallback(
-    (transform: StageTransform, shapeType: ShapeType, color: string, x?: number, y?: number) => {
+    (transform: StageTransform, shapeType: ShapeType, color: string, x?: number, y?: number, strokeColor?: string, borderColor?: string) => {
       // Calculate dimensions based on shape type
       const shapeWidth = shapeType === 'line' ? 200 : 120;
       const shapeHeight = shapeType === 'line' ? 4 : 120;
@@ -132,6 +134,8 @@ export function useBoard(boardId: string, userId: string) {
         updatedAt: maxUpdatedAt + 1, // Ensure it's on top
         shapeType,
         color,
+        ...(strokeColor && strokeColor !== 'transparent' ? { strokeColor } : {}),
+        ...(borderColor && borderColor !== 'transparent' ? { borderColor } : {}),
       };
       addObject(boardId, shape);
       trackNewObject(shape.id);

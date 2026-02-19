@@ -112,7 +112,7 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
     const stageBox = container.getBoundingClientRect();
     const scale = stage.scaleX();
 
-    const textColor = getContrastTextColor(note.color);
+    const textColor = note.textColor || getContrastTextColor(note.color);
 
     // Calculate display rotation (note rotation + parent rotation)
     const rotation = (note.rotation || 0) + (parentRotation || 0);
@@ -224,8 +224,8 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
         shadowOffsetY={(isConnectorHighlighted || isMouseHovered) ? 10 : 6}
         shadowOffsetX={(isConnectorHighlighted || isMouseHovered) ? 2 : 0}
         shadowOpacity={(isConnectorHighlighted || isMouseHovered) ? 0.45 : 0.3}
-        stroke={isConnectorHighlighted ? '#818cf8' : getComplementaryColor(note.color)}
-        strokeWidth={isConnectorHighlighted ? 4 : 3}
+        stroke={isConnectorHighlighted ? '#818cf8' : (note.borderColor || getComplementaryColor(note.color))}
+        strokeWidth={isConnectorHighlighted ? 4 : (note.borderColor ? 2.5 : 3)}
       />
       {/* Selection highlight */}
       {isSelected && (
@@ -316,7 +316,7 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
           text={note.text || 'Double-click to edit'}
           fontSize={15}
           fontFamily="'Inter', sans-serif"
-          fill={getContrastTextColor(note.color)}
+          fill={note.textColor || getContrastTextColor(note.color)}
           opacity={note.text ? 1 : 0.5}
           lineHeight={1.4}
           listening={false}

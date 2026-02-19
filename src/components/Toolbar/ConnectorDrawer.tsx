@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import { ColorPanel } from './ColorPanel';
 import type { ConnectorStyle, ConnectorLineType } from '../../types/board';
 
 interface ConnectorDrawerProps {
@@ -24,10 +25,6 @@ const CURVE_STYLES: { style: 'straight' | 'curved'; label: string }[] = [
   { style: 'curved', label: 'Curved' },
 ];
 
-const COLORS = [
-  '#818cf8', '#f472b6', '#34d399', '#fbbf24', '#f87171',
-  '#60a5fa', '#a78bfa', '#fb923c', '#94a3b8', '#2dd4bf',
-];
 
 export function ConnectorDrawer({
   connectorStyle,
@@ -70,18 +67,21 @@ export function ConnectorDrawer({
       onMouseLeave={handleMouseLeave}
     >
       {/* Split button: main click toggles connect mode, arrow opens drawer */}
-      <div className="flex items-center">
+      <div className="flex items-stretch">
         <button
           onClick={onToggleConnectMode}
-          className={`btn-lift px-3 py-2.5 rounded-l-xl text-sm font-semibold transition-all duration-200 ${
+          className={`btn-lift px-3.5 py-2.5 rounded-l-xl text-sm font-bold transition-all duration-200 ${
             connectMode
-              ? 'text-white shadow-lg shadow-indigo-500/30'
-              : 'text-gray-600 bg-white/50 hover:bg-white/80'
+              ? 'text-white shadow-lg shadow-pink-500/30'
+              : 'text-pink-800'
           }`}
           style={connectMode ? {
-            background: 'linear-gradient(135deg, #818cf8 0%, #a78bfa 50%, #c084fc 100%)',
-            boxShadow: '0 4px 16px rgba(139, 92, 246, 0.4)',
-          } : undefined}
+            background: 'linear-gradient(135deg, #f472b6 0%, #ec4899 50%, #db2777 100%)',
+            boxShadow: '0 4px 16px rgba(236, 72, 153, 0.4)',
+          } : {
+            background: 'linear-gradient(135deg, #fce7f3 0%, #fbcfe8 50%, #f9a8d4 100%)',
+            boxShadow: '0 2px 10px rgba(236, 72, 153, 0.25)',
+          }}
           title="Connect objects"
         >
           <div className="flex items-center gap-1.5">
@@ -95,14 +95,16 @@ export function ConnectorDrawer({
         </button>
         <button
           onClick={() => setIsOpen((o) => !o)}
-          className={`btn-lift px-1.5 py-2.5 rounded-r-xl text-sm transition-all duration-200 border-l ${
+          className={`btn-lift px-1.5 py-2.5 rounded-r-xl text-sm transition-all duration-200 border-l flex items-center justify-center ${
             connectMode
               ? 'text-white/80 border-white/30'
-              : 'text-gray-500 bg-white/50 hover:bg-white/80 border-gray-200/50'
+              : 'text-pink-700 border-pink-300/30'
           }`}
           style={connectMode ? {
-            background: 'linear-gradient(135deg, #a78bfa 0%, #c084fc 100%)',
-          } : undefined}
+            background: 'linear-gradient(135deg, #ec4899 0%, #db2777 100%)',
+          } : {
+            background: 'linear-gradient(135deg, #fbcfe8 0%, #f9a8d4 100%)',
+          }}
           title="Connector options"
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -226,22 +228,7 @@ export function ConnectorDrawer({
             </div>
 
             {/* Color */}
-            <div>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Color</div>
-              <div className="flex gap-1.5 flex-wrap">
-                {COLORS.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => update({ color: c })}
-                    className="w-7 h-7 rounded-lg transition-all hover:scale-110"
-                    style={{
-                      background: c,
-                      boxShadow: connectorStyle.color === c ? `0 0 0 2.5px white, 0 0 0 4px ${c}` : 'none',
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
+            <ColorPanel label="Color" color={connectorStyle.color} onChange={(c) => update({ color: c })} />
 
             {/* Preview */}
             <div className="bg-white/30 rounded-xl p-2 flex items-center justify-center">

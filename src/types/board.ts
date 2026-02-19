@@ -26,6 +26,8 @@ export interface StickyNote extends BoardObject {
   type: 'sticky';
   text: string;
   color: string;
+  textColor?: string;
+  borderColor?: string;
 }
 
 export type ShapeType = 'rect' | 'circle' | 'line' | 'triangle' | 'diamond' | 'pentagon' | 'hexagon' | 'octagon' | 'star' | 'arrow' | 'cross';
@@ -34,6 +36,8 @@ export interface Shape extends BoardObject {
   type: 'shape';
   shapeType: ShapeType;
   color: string;
+  strokeColor?: string;
+  borderColor?: string;
 }
 
 export interface Frame extends BoardObject {

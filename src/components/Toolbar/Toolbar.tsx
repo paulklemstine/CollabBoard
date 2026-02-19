@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { COLORS } from './ColorPicker';
-import { ColorDrawer } from './ColorDrawer';
+import { StickyDrawer } from './StickyDrawer';
 import { ShapeDrawer } from './ShapeDrawer';
 import { StickerDrawer } from './StickerDrawer';
 import { ChatDrawer } from './ChatDrawer';
@@ -8,8 +7,8 @@ import { ConnectorDrawer } from './ConnectorDrawer';
 import type { ShapeType, ChatMessage, ConnectorStyle } from '../../types/board';
 
 interface ToolbarProps {
-  onAddStickyNote: (color: string) => void;
-  onAddShape: (shapeType: ShapeType, color: string) => void;
+  onAddStickyNote: (bgColor: string, textColor?: string, borderColor?: string) => void;
+  onAddShape: (shapeType: ShapeType, fillColor: string, strokeColor?: string, borderColor?: string) => void;
   onAddFrame: () => void;
   onAddSticker: (emoji: string) => void;
   connectMode: boolean;
@@ -48,7 +47,15 @@ export function Toolbar({
   curveStyle,
   onCurveStyleChange,
 }: ToolbarProps) {
-  const [selectedColor, setSelectedColor] = useState(COLORS[0]);
+  // Sticky note colors
+  const [stickyBg, setStickyBg] = useState('#fef08a');
+  const [stickyText, setStickyText] = useState('#1e293b');
+  const [stickyBorder, setStickyBorder] = useState('transparent');
+
+  // Shape colors
+  const [shapeFill, setShapeFill] = useState('#818cf8');
+  const [shapeStroke, setShapeStroke] = useState('#4f46e5');
+  const [shapeBorder, setShapeBorder] = useState('transparent');
 
   const divider = (
     <div className="w-px h-8 mx-0.5" style={{ background: 'linear-gradient(to bottom, rgba(251,146,60,0.2), rgba(168,85,247,0.3), rgba(96,165,250,0.2))' }} />
@@ -101,30 +108,29 @@ export function Toolbar({
       {divider}
 
       {/* Sticky Note */}
-      <button
-        onClick={() => onAddStickyNote(selectedColor)}
-        className="btn-lift flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold text-amber-900 transition-all duration-200"
-        style={{
-          background: 'linear-gradient(135deg, #fde68a 0%, #fbbf24 50%, #f59e0b 100%)',
-          boxShadow: '0 2px 10px rgba(251, 191, 36, 0.3)',
-        }}
-        title="Add sticky note"
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-          <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-        Sticky
-      </button>
-
-      {divider}
-
-      {/* Color Drawer */}
-      <ColorDrawer selectedColor={selectedColor} onSelectColor={setSelectedColor} />
+      <StickyDrawer
+        bgColor={stickyBg}
+        textColor={stickyText}
+        borderColor={stickyBorder}
+        onBgColorChange={setStickyBg}
+        onTextColorChange={setStickyText}
+        onBorderColorChange={setStickyBorder}
+        onAdd={() => onAddStickyNote(stickyBg, stickyText, stickyBorder)}
+      />
 
       {divider}
 
       {/* Shape Drawer */}
-      <ShapeDrawer selectedColor={selectedColor} onAddShape={onAddShape} onAddFrame={onAddFrame} />
+      <ShapeDrawer
+        fillColor={shapeFill}
+        strokeColor={shapeStroke}
+        borderColor={shapeBorder}
+        onFillColorChange={setShapeFill}
+        onStrokeColorChange={setShapeStroke}
+        onBorderColorChange={setShapeBorder}
+        onAddShape={(shapeType) => onAddShape(shapeType, shapeFill, shapeStroke, shapeBorder)}
+        onAddFrame={onAddFrame}
+      />
 
       {divider}
 

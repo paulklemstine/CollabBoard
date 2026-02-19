@@ -71,14 +71,14 @@ export function ChatDrawer({ messages, currentUserId, onSend }: ChatDrawerProps)
         className={`btn-lift px-3.5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
           isOpen
             ? 'text-white'
-            : 'text-emerald-700'
+            : 'text-purple-800'
         }`}
         style={isOpen ? {
-          background: 'linear-gradient(135deg, #10b981 0%, #06b6d4 100%)',
-          boxShadow: '0 4px 16px rgba(16, 185, 129, 0.4)',
+          background: 'linear-gradient(135deg, #8b5cf6 0%, #a78bfa 50%, #c084fc 100%)',
+          boxShadow: '0 4px 16px rgba(139, 92, 246, 0.4)',
         } : {
-          background: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 50%, #6ee7b7 100%)',
-          boxShadow: '0 2px 10px rgba(16, 185, 129, 0.25)',
+          background: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 50%, #c4b5fd 100%)',
+          boxShadow: '0 2px 10px rgba(139, 92, 246, 0.25)',
         }}
         title="Chat"
       >

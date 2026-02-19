@@ -36,29 +36,16 @@ export function Minimap({ transform, objects = [], onPanTo }: MinimapProps) {
     }
   }, [transform, objects]);
 
-  // Drag state: track initial pixel + viewport center so we compute deltas
-  // instead of absolute positions (avoids feedback loop from minimap re-centering)
+  // Drag state: record initial pixel + current viewport center on mousedown.
+  // Don't pan until the mouse actually moves (avoids jump on click).
   const dragRef = useRef<{
     startPixelX: number;
     startPixelY: number;
     startCenterX: number;
     startCenterY: number;
     scale: number;
+    dragged: boolean;
   } | null>(null);
-
-  const handleClick = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent>) => {
-      if (!onPanTo) return;
-      const stage = e.target.getStage();
-      if (!stage) return;
-      const pointer = stage.getPointerPosition();
-      if (!pointer) return;
-      const worldX = (pointer.x - minimapOffsetX) / minimapScale;
-      const worldY = (pointer.y - minimapOffsetY) / minimapScale;
-      onPanTo(worldX, worldY);
-    },
-    [onPanTo, minimapOffsetX, minimapOffsetY, minimapScale]
-  );
 
   const handleMouseDown = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
@@ -68,21 +55,20 @@ export function Minimap({ transform, objects = [], onPanTo }: MinimapProps) {
       const pointer = stage.getPointerPosition();
       if (!pointer) return;
 
-      // Convert click to world and pan there immediately
-      const worldX = (pointer.x - minimapOffsetX) / minimapScale;
-      const worldY = (pointer.y - minimapOffsetY) / minimapScale;
-      onPanTo(worldX, worldY);
-
-      // Record start state for delta-based dragging
+      // Record start state — use current viewport center (not clicked point)
+      // so dragging moves relative to where the view already is
+      const vcx = viewportX + viewportWidth / 2;
+      const vcy = viewportY + viewportHeight / 2;
       dragRef.current = {
         startPixelX: pointer.x,
         startPixelY: pointer.y,
-        startCenterX: worldX,
-        startCenterY: worldY,
+        startCenterX: vcx,
+        startCenterY: vcy,
         scale: minimapScale,
+        dragged: false,
       };
     },
-    [onPanTo, minimapOffsetX, minimapOffsetY, minimapScale]
+    [onPanTo, minimapScale, viewportX, viewportY, viewportWidth, viewportHeight]
   );
 
   const handleMouseMove = useCallback(
@@ -92,6 +78,8 @@ export function Minimap({ transform, objects = [], onPanTo }: MinimapProps) {
       if (!stage) return;
       const pointer = stage.getPointerPosition();
       if (!pointer) return;
+
+      dragRef.current.dragged = true;
 
       // Compute delta from drag start in pixel space, convert to world delta
       const { startPixelX, startPixelY, startCenterX, startCenterY, scale } = dragRef.current;
@@ -103,8 +91,15 @@ export function Minimap({ transform, objects = [], onPanTo }: MinimapProps) {
   );
 
   const handleMouseUp = useCallback(() => {
+    if (dragRef.current && !dragRef.current.dragged && onPanTo) {
+      // Single click with no drag — pan to the clicked point
+      const { startPixelX, startPixelY } = dragRef.current;
+      const worldX = (startPixelX - minimapOffsetX) / minimapScale;
+      const worldY = (startPixelY - minimapOffsetY) / minimapScale;
+      onPanTo(worldX, worldY);
+    }
     dragRef.current = null;
-  }, []);
+  }, [onPanTo, minimapOffsetX, minimapOffsetY, minimapScale]);
 
   const handleMouseLeave = useCallback(() => {
     dragRef.current = null;
@@ -128,7 +123,6 @@ export function Minimap({ transform, objects = [], onPanTo }: MinimapProps) {
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onTap={handleClick}
         style={{ cursor: onPanTo ? 'grab' : 'default' }}
       >
         <Layer>

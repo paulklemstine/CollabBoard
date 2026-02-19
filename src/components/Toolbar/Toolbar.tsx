@@ -3,7 +3,8 @@ import { COLORS } from './ColorPicker';
 import { ColorDrawer } from './ColorDrawer';
 import { ShapeDrawer } from './ShapeDrawer';
 import { StickerDrawer } from './StickerDrawer';
-import type { ShapeType } from '../../types/board';
+import { ChatDrawer } from './ChatDrawer';
+import type { ShapeType, ChatMessage } from '../../types/board';
 
 interface ToolbarProps {
   onAddStickyNote: (color: string) => void;
@@ -17,6 +18,9 @@ interface ToolbarProps {
   onToggleSelectMode: () => void;
   onToggleAI: () => void;
   aiOpen: boolean;
+  chatMessages: ChatMessage[];
+  chatCurrentUserId: string;
+  onChatSend: (text: string) => void;
 }
 
 export function Toolbar({
@@ -31,6 +35,9 @@ export function Toolbar({
   onToggleSelectMode,
   onToggleAI,
   aiOpen,
+  chatMessages,
+  chatCurrentUserId,
+  onChatSend,
 }: ToolbarProps) {
   const [selectedColor, setSelectedColor] = useState(COLORS[0]);
 
@@ -142,6 +149,11 @@ export function Toolbar({
           {connectLabel}
         </div>
       </button>
+
+      <div className="w-px h-8 mx-0.5" style={{ background: 'linear-gradient(to bottom, rgba(251,146,60,0.2), rgba(168,85,247,0.3), rgba(96,165,250,0.2))' }} />
+
+      {/* Chat Drawer */}
+      <ChatDrawer messages={chatMessages} currentUserId={chatCurrentUserId} onSend={onChatSend} />
 
       <div className="w-px h-8 mx-0.5" style={{ background: 'linear-gradient(to bottom, rgba(251,146,60,0.2), rgba(168,85,247,0.3), rgba(96,165,250,0.2))' }} />
 

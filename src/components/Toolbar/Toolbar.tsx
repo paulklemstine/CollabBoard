@@ -4,7 +4,8 @@ import { ColorDrawer } from './ColorDrawer';
 import { ShapeDrawer } from './ShapeDrawer';
 import { StickerDrawer } from './StickerDrawer';
 import { ChatDrawer } from './ChatDrawer';
-import type { ShapeType, ChatMessage } from '../../types/board';
+import { ConnectorDrawer } from './ConnectorDrawer';
+import type { ShapeType, ChatMessage, ConnectorStyle } from '../../types/board';
 
 interface ToolbarProps {
   onAddStickyNote: (color: string) => void;
@@ -21,6 +22,10 @@ interface ToolbarProps {
   chatMessages: ChatMessage[];
   chatCurrentUserId: string;
   onChatSend: (text: string) => void;
+  connectorStyle: ConnectorStyle;
+  onConnectorStyleChange: (style: ConnectorStyle) => void;
+  curveStyle: 'straight' | 'curved';
+  onCurveStyleChange: (style: 'straight' | 'curved') => void;
 }
 
 export function Toolbar({
@@ -38,14 +43,16 @@ export function Toolbar({
   chatMessages,
   chatCurrentUserId,
   onChatSend,
+  connectorStyle,
+  onConnectorStyleChange,
+  curveStyle,
+  onCurveStyleChange,
 }: ToolbarProps) {
   const [selectedColor, setSelectedColor] = useState(COLORS[0]);
 
-  const connectLabel = connectMode
-    ? connectingFrom
-      ? 'Click target...'
-      : 'Click source...'
-    : 'Connect';
+  const divider = (
+    <div className="w-px h-8 mx-0.5" style={{ background: 'linear-gradient(to bottom, rgba(251,146,60,0.2), rgba(168,85,247,0.3), rgba(96,165,250,0.2))' }} />
+  );
 
   return (
     <div
@@ -91,7 +98,7 @@ export function Toolbar({
         <span className="text-xs">Select</span>
       </button>
 
-      <div className="w-px h-8 mx-0.5" style={{ background: 'linear-gradient(to bottom, rgba(251,146,60,0.2), rgba(168,85,247,0.3), rgba(96,165,250,0.2))' }} />
+      {divider}
 
       {/* Sticky Note */}
       <button
@@ -109,53 +116,40 @@ export function Toolbar({
         Sticky
       </button>
 
-      <div className="w-px h-8 mx-0.5" style={{ background: 'linear-gradient(to bottom, rgba(251,146,60,0.2), rgba(168,85,247,0.3), rgba(96,165,250,0.2))' }} />
+      {divider}
 
       {/* Color Drawer */}
       <ColorDrawer selectedColor={selectedColor} onSelectColor={setSelectedColor} />
 
-      <div className="w-px h-8 mx-0.5" style={{ background: 'linear-gradient(to bottom, rgba(251,146,60,0.2), rgba(168,85,247,0.3), rgba(96,165,250,0.2))' }} />
+      {divider}
 
       {/* Shape Drawer */}
       <ShapeDrawer selectedColor={selectedColor} onAddShape={onAddShape} onAddFrame={onAddFrame} />
 
-      <div className="w-px h-8 mx-0.5" style={{ background: 'linear-gradient(to bottom, rgba(251,146,60,0.2), rgba(168,85,247,0.3), rgba(96,165,250,0.2))' }} />
+      {divider}
 
       {/* Sticker Drawer */}
       <StickerDrawer onAddSticker={onAddSticker} />
 
-      <div className="w-px h-8 mx-0.5" style={{ background: 'linear-gradient(to bottom, rgba(251,146,60,0.2), rgba(168,85,247,0.3), rgba(96,165,250,0.2))' }} />
+      {divider}
 
-      {/* Connect */}
-      <button
-        onClick={onToggleConnectMode}
-        className={`btn-lift px-3.5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
-          connectMode
-            ? 'text-white shadow-lg shadow-indigo-500/30'
-            : 'text-gray-600 bg-white/50 hover:bg-white/80'
-        }`}
-        style={connectMode ? {
-          background: 'linear-gradient(135deg, #818cf8 0%, #a78bfa 50%, #c084fc 100%)',
-          boxShadow: '0 4px 16px rgba(139, 92, 246, 0.4)',
-        } : undefined}
-        title="Connect objects"
-      >
-        <div className="flex items-center gap-1.5">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
-            <polyline points="15 3 21 3 21 9" />
-            <line x1="10" y1="14" x2="21" y2="3" />
-          </svg>
-          {connectLabel}
-        </div>
-      </button>
+      {/* Connector Drawer */}
+      <ConnectorDrawer
+        connectorStyle={connectorStyle}
+        onStyleChange={onConnectorStyleChange}
+        curveStyle={curveStyle}
+        onCurveStyleChange={onCurveStyleChange}
+        connectMode={connectMode}
+        connectingFrom={connectingFrom}
+        onToggleConnectMode={onToggleConnectMode}
+      />
 
-      <div className="w-px h-8 mx-0.5" style={{ background: 'linear-gradient(to bottom, rgba(251,146,60,0.2), rgba(168,85,247,0.3), rgba(96,165,250,0.2))' }} />
+      {divider}
 
       {/* Chat Drawer */}
       <ChatDrawer messages={chatMessages} currentUserId={chatCurrentUserId} onSend={onChatSend} />
 
-      <div className="w-px h-8 mx-0.5" style={{ background: 'linear-gradient(to bottom, rgba(251,146,60,0.2), rgba(168,85,247,0.3), rgba(96,165,250,0.2))' }} />
+      {divider}
 
       {/* Flow AI */}
       <button

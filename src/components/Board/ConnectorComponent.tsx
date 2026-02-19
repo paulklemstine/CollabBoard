@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Arrow, Group, Circle, Text } from 'react-konva';
+import { Arrow, Line, Group, Circle, Text } from 'react-konva';
 import type { Connector } from '../../types/board';
 import type { AnyBoardObject } from '../../services/boardService';
 
@@ -61,7 +61,7 @@ export function getEdgePoint(
     return { x: cx, y: cy };
   }
 
-  // Circle: edge is center + radius in direction of target (rotation doesn't affect circles)
+  // Circle: edge is center + radius in direction of target
   if (obj.type === 'shape' && obj.shapeType === 'circle') {
     const r = Math.min(obj.width, obj.height) / 2;
     const dist = Math.sqrt(dx * dx + dy * dy);
@@ -75,12 +75,8 @@ export function getEdgePoint(
   const rad = -rotation * (Math.PI / 180);
   const cosR = Math.cos(rad);
   const sinR = Math.sin(rad);
-
-  // Rotate direction vector into object's local (axis-aligned) space
   const localDx = dx * cosR - dy * sinR;
   const localDy = dx * sinR + dy * cosR;
-
-  // Rectangle intersection in local space
   const hw = obj.width / 2;
   const hh = obj.height / 2;
   const absLocalDx = Math.abs(localDx);
@@ -95,8 +91,6 @@ export function getEdgePoint(
 
   const localEdgeX = localDx * scale;
   const localEdgeY = localDy * scale;
-
-  // Rotate edge point back to world space
   const worldRad = rotation * (Math.PI / 180);
   const worldCos = Math.cos(worldRad);
   const worldSin = Math.sin(worldRad);
@@ -105,6 +99,14 @@ export function getEdgePoint(
     x: cx + localEdgeX * worldCos - localEdgeY * worldSin,
     y: cy + localEdgeX * worldSin + localEdgeY * worldCos,
   };
+}
+
+function getDash(lineType: string | undefined, strokeWidth: number): number[] | undefined {
+  switch (lineType) {
+    case 'dashed': return [strokeWidth * 3, strokeWidth * 2];
+    case 'dotted': return [strokeWidth, strokeWidth * 2];
+    default: return undefined;
+  }
 }
 
 export function ConnectorComponent({ connector, objects, onDelete }: ConnectorComponentProps) {
@@ -123,146 +125,166 @@ export function ConnectorComponent({ connector, objects, onDelete }: ConnectorCo
   const from = getEdgePoint(fromObj, toCenter, fromRotation, fromCenter);
   const to = getEdgePoint(toObj, fromCenter, toRotation, toCenter);
 
-  // Calculate midpoint for delete button
+  // Style props — fallback to legacy defaults
+  const color = connector.color ?? (connector.style === 'curved' ? '#f472b6' : '#818cf8');
+  const sw = connector.strokeWidth ?? 3.5;
+  const lineType = connector.lineType ?? (connector.style === 'curved' ? 'dashed' : 'solid');
+  const startArrow = connector.startArrow ?? false;
+  const endArrow = connector.endArrow !== false; // default true for legacy
+  const hoverSw = sw + 1;
+
+  const dash = getDash(lineType, sw);
+  const shadowColor = color;
+
+  // Calculate points for delete button position
   const midX = (from.x + to.x) / 2;
   const midY = (from.y + to.y) / 2;
 
-  if (connector.style === 'curved') {
+  const isCurved = connector.style === 'curved';
+
+  // Compute control point for curved connectors
+  let cpX = midX;
+  let cpY = midY;
+  if (isCurved) {
     const dx = to.x - from.x;
     const dy = to.y - from.y;
     const dist = Math.sqrt(dx * dx + dy * dy || 1);
     const offset = Math.min(dist * 0.2, 80);
-    const cpX = midX - dy * offset / dist;
-    const cpY = midY + dx * offset / dist;
+    cpX = midX - dy * offset / dist;
+    cpY = midY + dx * offset / dist;
+  }
 
+  const points = isCurved
+    ? [from.x, from.y, cpX, cpY, to.x, to.y]
+    : [from.x, from.y, to.x, to.y];
+  const deleteBtnX = isCurved ? cpX : midX;
+  const deleteBtnY = isCurved ? cpY : midY;
+
+  // Use Arrow component only when end arrow is needed (and no start arrow)
+  // Use Line + manual arrowheads for start arrow or no-arrow cases
+  const pointerLength = Math.max(10, sw * 4);
+  const pointerWidth = Math.max(8, sw * 3.5);
+
+  const renderDeleteButton = () => {
+    if (!onDelete || !isHovered) return null;
+    return (
+      <Group>
+        <Circle
+          x={deleteBtnX}
+          y={deleteBtnY}
+          radius={12}
+          fill={isDeleteHovered ? '#ef4444' : '#fff'}
+          stroke={isDeleteHovered ? '#dc2626' : color}
+          strokeWidth={2}
+          shadowColor="rgba(0,0,0,0.3)"
+          shadowBlur={8}
+          shadowOffsetY={2}
+          onClick={(e) => { e.cancelBubble = true; onDelete(connector.id); }}
+          onTap={(e) => { e.cancelBubble = true; onDelete(connector.id); }}
+          onMouseEnter={(e) => {
+            setIsDeleteHovered(true);
+            const stage = e.target.getStage();
+            if (stage) stage.container().style.cursor = 'pointer';
+          }}
+          onMouseLeave={(e) => {
+            setIsDeleteHovered(false);
+            const stage = e.target.getStage();
+            if (stage) stage.container().style.cursor = 'default';
+          }}
+        />
+        <Text
+          x={deleteBtnX}
+          y={deleteBtnY}
+          text="×"
+          fontSize={18}
+          fontStyle="bold"
+          fill={isDeleteHovered ? '#fff' : color}
+          offsetX={5}
+          offsetY={9}
+          listening={false}
+        />
+      </Group>
+    );
+  };
+
+  // Compute arrowhead points for start/end
+  const renderArrowhead = (tipX: number, tipY: number, dirX: number, dirY: number) => {
+    const len = Math.sqrt(dirX * dirX + dirY * dirY) || 1;
+    const ux = dirX / len;
+    const uy = dirY / len;
+    const px = -uy;
+    const py = ux;
+    const baseX = tipX - ux * pointerLength;
+    const baseY = tipY - uy * pointerLength;
+    return (
+      <Line
+        points={[
+          baseX + px * pointerWidth / 2, baseY + py * pointerWidth / 2,
+          tipX, tipY,
+          baseX - px * pointerWidth / 2, baseY - py * pointerWidth / 2,
+        ]}
+        fill={color}
+        closed
+        listening={false}
+      />
+    );
+  };
+
+  // Direction vectors for arrowheads — follow curve tangent for curved connectors
+  // For a quadratic bezier, tangent at start = controlPoint - start, tangent at end = end - controlPoint
+  const startDir = isCurved
+    ? { x: from.x - cpX, y: from.y - cpY }
+    : { x: from.x - to.x, y: from.y - to.y };
+  const endDir = isCurved
+    ? { x: to.x - cpX, y: to.y - cpY }
+    : { x: to.x - from.x, y: to.y - from.y };
+
+  // If only endArrow and no startArrow, use the built-in Arrow for simplicity
+  if (endArrow && !startArrow) {
     return (
       <Group>
         <Arrow
-          points={[from.x, from.y, cpX, cpY, to.x, to.y]}
-          tension={0.5}
-          stroke="#f472b6"
-          strokeWidth={isHovered ? 4.5 : 3.5}
-          fill="#f472b6"
-          pointerLength={16}
-          pointerWidth={14}
-          shadowColor="#ec4899"
+          points={points}
+          tension={connector.style === 'curved' ? 0.5 : undefined}
+          stroke={color}
+          strokeWidth={isHovered ? hoverSw : sw}
+          fill={color}
+          pointerLength={pointerLength}
+          pointerWidth={pointerWidth}
+          shadowColor={shadowColor}
           shadowBlur={isHovered ? 16 : 12}
           shadowOpacity={isHovered ? 0.5 : 0.4}
           lineCap="round"
           lineJoin="round"
-          dash={[12, 6]}
+          dash={dash}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         />
-        {onDelete && isHovered && (
-          <Group>
-            <Circle
-              x={cpX}
-              y={cpY}
-              radius={12}
-              fill={isDeleteHovered ? '#ef4444' : '#fff'}
-              stroke={isDeleteHovered ? '#dc2626' : '#f472b6'}
-              strokeWidth={2}
-              shadowColor="rgba(0,0,0,0.3)"
-              shadowBlur={8}
-              shadowOffsetY={2}
-              onClick={(e) => {
-                e.cancelBubble = true;
-                onDelete(connector.id);
-              }}
-              onTap={(e) => {
-                e.cancelBubble = true;
-                onDelete(connector.id);
-              }}
-              onMouseEnter={(e) => {
-                setIsDeleteHovered(true);
-                const stage = e.target.getStage();
-                if (stage) stage.container().style.cursor = 'pointer';
-              }}
-              onMouseLeave={(e) => {
-                setIsDeleteHovered(false);
-                const stage = e.target.getStage();
-                if (stage) stage.container().style.cursor = 'default';
-              }}
-            />
-            <Text
-              x={cpX}
-              y={cpY}
-              text="×"
-              fontSize={18}
-              fontStyle="bold"
-              fill={isDeleteHovered ? '#fff' : '#f472b6'}
-              offsetX={5}
-              offsetY={9}
-              listening={false}
-            />
-          </Group>
-        )}
+        {renderDeleteButton()}
       </Group>
     );
   }
 
+  // For all other cases, use Line + manual arrowheads
   return (
     <Group>
-      <Arrow
-        points={[from.x, from.y, to.x, to.y]}
-        stroke="#818cf8"
-        strokeWidth={isHovered ? 4.5 : 3.5}
-        fill="#818cf8"
-        pointerLength={16}
-        pointerWidth={14}
-        shadowColor="#6366f1"
+      <Line
+        points={points}
+        tension={connector.style === 'curved' ? 0.5 : undefined}
+        stroke={color}
+        strokeWidth={isHovered ? hoverSw : sw}
+        shadowColor={shadowColor}
         shadowBlur={isHovered ? 16 : 12}
         shadowOpacity={isHovered ? 0.5 : 0.4}
         lineCap="round"
         lineJoin="round"
+        dash={dash}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       />
-      {onDelete && isHovered && (
-        <Group>
-          <Circle
-            x={midX}
-            y={midY}
-            radius={12}
-            fill={isDeleteHovered ? '#ef4444' : '#fff'}
-            stroke={isDeleteHovered ? '#dc2626' : '#818cf8'}
-            strokeWidth={2}
-            shadowColor="rgba(0,0,0,0.3)"
-            shadowBlur={8}
-            shadowOffsetY={2}
-            onClick={(e) => {
-              e.cancelBubble = true;
-              onDelete(connector.id);
-            }}
-            onTap={(e) => {
-              e.cancelBubble = true;
-              onDelete(connector.id);
-            }}
-            onMouseEnter={(e) => {
-              setIsDeleteHovered(true);
-              const stage = e.target.getStage();
-              if (stage) stage.container().style.cursor = 'pointer';
-            }}
-            onMouseLeave={(e) => {
-              setIsDeleteHovered(false);
-              const stage = e.target.getStage();
-              if (stage) stage.container().style.cursor = 'default';
-            }}
-          />
-          <Text
-            x={midX}
-            y={midY}
-            text="×"
-            fontSize={18}
-            fontStyle="bold"
-            fill={isDeleteHovered ? '#fff' : '#818cf8'}
-            offsetX={5}
-            offsetY={9}
-            listening={false}
-          />
-        </Group>
-      )}
+      {startArrow && renderArrowhead(from.x, from.y, startDir.x, startDir.y)}
+      {endArrow && renderArrowhead(to.x, to.y, endDir.x, endDir.y)}
+      {renderDeleteButton()}
     </Group>
   );
 }

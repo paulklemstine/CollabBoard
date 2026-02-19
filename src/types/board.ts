@@ -46,11 +46,27 @@ export interface Sticker extends BoardObject {
   emoji: string;
 }
 
+export type ConnectorLineType = 'solid' | 'dashed' | 'dotted';
+
+export interface ConnectorStyle {
+  lineType: ConnectorLineType;
+  startArrow: boolean;
+  endArrow: boolean;
+  strokeWidth: number;
+  color: string;
+}
+
 export interface Connector extends BoardObject {
   type: 'connector';
   fromId: string;
   toId: string;
   style: 'straight' | 'curved';
+  /** Extended style options — absent on legacy connectors */
+  lineType?: ConnectorLineType;
+  startArrow?: boolean;
+  endArrow?: boolean;
+  strokeWidth?: number;
+  color?: string;
 }
 
 export interface AIMessage {

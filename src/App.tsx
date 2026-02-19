@@ -176,6 +176,14 @@ function BoardView({
   const toggleSelectMode = useCallback(() => setSelectMode((prev) => !prev), []);
   const [aiOpen, setAiOpen] = useState(false);
   const toggleAI = useCallback(() => setAiOpen((prev) => !prev), []);
+  const [connectorStyle, setConnectorStyle] = useState<import('./types/board').ConnectorStyle>({
+    lineType: 'solid',
+    startArrow: false,
+    endArrow: true,
+    strokeWidth: 3,
+    color: '#818cf8',
+  });
+  const [curveStyle, setCurveStyle] = useState<'straight' | 'curved'>('straight');
   const { messages: chatMessages, sendMessage: sendChatMessage } = useChat(
     boardId,
     user.uid,
@@ -392,7 +400,16 @@ function BoardView({
     });
   }, [objects, selectedIds, groupDragOffset, transformPreview, selectionBox, frameDragOffset]);
 
-  const objectClick = connectMode ? handleObjectClickForConnect : selectObject;
+  const objectClick = connectMode
+    ? (id: string) => handleObjectClickForConnect(id, {
+        style: curveStyle,
+        lineType: connectorStyle.lineType,
+        startArrow: connectorStyle.startArrow,
+        endArrow: connectorStyle.endArrow,
+        strokeWidth: connectorStyle.strokeWidth,
+        color: connectorStyle.color,
+      })
+    : selectObject;
   const objectHoverEnter = connectMode ? (id: string) => handleObjectHover(id) : undefined;
   const objectHoverLeave = connectMode ? () => handleObjectHover(null) : undefined;
 
@@ -555,6 +572,10 @@ function BoardView({
         chatMessages={chatMessages}
         chatCurrentUserId={user.uid}
         onChatSend={sendChatMessage}
+        connectorStyle={connectorStyle}
+        onConnectorStyleChange={setConnectorStyle}
+        curveStyle={curveStyle}
+        onCurveStyleChange={setCurveStyle}
       />
       <AIChat boardId={boardId} isOpen={aiOpen} onClose={() => setAiOpen(false)} />
       {/* Top left: Back/Share buttons and minimap */}

@@ -551,7 +551,14 @@ export function useBoard(boardId: string, userId: string) {
   }, [connectMode, connectingFrom]);
 
   const handleObjectClickForConnect = useCallback(
-    (objectId: string) => {
+    (objectId: string, connectorOpts?: {
+      style?: 'straight' | 'curved';
+      lineType?: string;
+      startArrow?: boolean;
+      endArrow?: boolean;
+      strokeWidth?: number;
+      color?: string;
+    }) => {
       if (!connectMode) return;
 
       // Don't allow connecting to/from connectors
@@ -575,10 +582,15 @@ export function useBoard(boardId: string, userId: string) {
           height: 0,
           rotation: 0,
           createdBy: userId,
-          updatedAt: maxUpdatedAt + 1, // Ensure it's on top
+          updatedAt: maxUpdatedAt + 1,
           fromId: connectingFrom,
           toId: objectId,
-          style: 'straight',
+          style: connectorOpts?.style ?? 'straight',
+          lineType: connectorOpts?.lineType as Connector['lineType'],
+          startArrow: connectorOpts?.startArrow,
+          endArrow: connectorOpts?.endArrow,
+          strokeWidth: connectorOpts?.strokeWidth,
+          color: connectorOpts?.color,
         };
         addObject(boardId, connector);
         trackNewObject(connector.id);

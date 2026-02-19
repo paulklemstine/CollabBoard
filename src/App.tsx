@@ -555,10 +555,6 @@ function BoardView({
         onToggleSelectMode={toggleSelectMode}
         onToggleAI={toggleAI}
         aiOpen={aiOpen}
-        zoomScale={zoomControls?.scale}
-        onZoomIn={zoomControls?.zoomIn}
-        onZoomOut={zoomControls?.zoomOut}
-        onResetZoom={zoomControls?.resetZoom}
       />
       {/* Bottom left: Chat panel above toolbar */}
       <div className="fixed bottom-[100px] left-4 z-50 w-[300px]">
@@ -613,6 +609,31 @@ function BoardView({
             )}
           </button>
         </div>
+        {zoomControls && (
+          <div className="glass-playful rounded-xl shadow-lg flex items-center justify-center gap-0.5 px-1.5 py-1">
+            <button
+              onClick={zoomControls.zoomOut}
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-violet-600 hover:bg-violet-50/60 transition-colors text-lg font-bold"
+              title="Zoom out"
+            >
+              -
+            </button>
+            <button
+              onClick={zoomControls.resetZoom}
+              className="px-2 h-8 flex items-center justify-center rounded-lg text-violet-600 hover:bg-violet-50/60 transition-colors text-xs font-semibold min-w-[3rem]"
+              title="Reset zoom"
+            >
+              {Math.round((zoomControls.scale ?? 1) * 100)}%
+            </button>
+            <button
+              onClick={zoomControls.zoomIn}
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-violet-600 hover:bg-violet-50/60 transition-colors text-lg font-bold"
+              title="Zoom in"
+            >
+              +
+            </button>
+          </div>
+        )}
         <Minimap
           transform={stageTransform}
           objects={objects.map((obj) => ({

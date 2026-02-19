@@ -10,6 +10,69 @@ const MIN_WIDTH = 40;
 const MIN_HEIGHT = 40;
 const MIN_LINE_LENGTH = 20;
 
+/** Generate points for a regular polygon inscribed in a bounding box */
+function regularPolygonPoints(w: number, h: number, sides: number): number[] {
+  const cx = w / 2;
+  const cy = h / 2;
+  const rx = w / 2;
+  const ry = h / 2;
+  const pts: number[] = [];
+  for (let i = 0; i < sides; i++) {
+    const angle = (Math.PI * 2 * i) / sides - Math.PI / 2;
+    pts.push(cx + rx * Math.cos(angle), cy + ry * Math.sin(angle));
+  }
+  return pts;
+}
+
+/** Generate points for a 5-point star inscribed in a bounding box */
+function starPoints(w: number, h: number): number[] {
+  const cx = w / 2;
+  const cy = h / 2;
+  const outerRx = w / 2;
+  const outerRy = h / 2;
+  const innerRx = w / 4.5;
+  const innerRy = h / 4.5;
+  const pts: number[] = [];
+  for (let i = 0; i < 10; i++) {
+    const angle = (Math.PI * 2 * i) / 10 - Math.PI / 2;
+    const rx = i % 2 === 0 ? outerRx : innerRx;
+    const ry = i % 2 === 0 ? outerRy : innerRy;
+    pts.push(cx + rx * Math.cos(angle), cy + ry * Math.sin(angle));
+  }
+  return pts;
+}
+
+/** Generate points for an arrow shape */
+function arrowPoints(w: number, h: number): number[] {
+  const headStart = w * 0.6;
+  const shaftTop = h * 0.25;
+  const shaftBottom = h * 0.75;
+  return [
+    0, shaftTop,
+    headStart, shaftTop,
+    headStart, 0,
+    w, h / 2,
+    headStart, h,
+    headStart, shaftBottom,
+    0, shaftBottom,
+  ];
+}
+
+/** Generate points for a cross/plus shape */
+function crossPoints(w: number, h: number): number[] {
+  const t = 0.3; // arm thickness ratio
+  const x1 = w * t;
+  const x2 = w * (1 - t);
+  const y1 = h * t;
+  const y2 = h * (1 - t);
+  return [
+    x1, 0,  x2, 0,  x2, y1,
+    w, y1,  w, y2,  x2, y2,
+    x2, h,  x1, h,  x1, y2,
+    0, y2,  0, y1,  x1, y1,
+  ];
+}
+
 interface ShapeComponentProps {
   shape: Shape;
   onDragMove: (id: string, x: number, y: number) => void;
@@ -255,6 +318,102 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onClick
             shadowColor={isConnectorHighlighted ? '#818cf8' : shape.color}
             shadowBlur={highlighted ? 18 : 10}
             shadowOpacity={highlighted ? 0.65 : 0.45}
+          />
+        );
+      case 'triangle':
+      case 'pentagon':
+      case 'hexagon':
+      case 'octagon': {
+        const sides = shape.shapeType === 'triangle' ? 3 : shape.shapeType === 'pentagon' ? 5 : shape.shapeType === 'hexagon' ? 6 : 8;
+        return (
+          <Line
+            points={regularPolygonPoints(localWidth, localHeight, sides)}
+            closed
+            fill={shape.color}
+            stroke={stroke}
+            strokeWidth={strokeWidth}
+            lineJoin="round"
+            shadowColor={isConnectorHighlighted ? '#818cf8' : shape.color}
+            shadowBlur={highlighted ? 30 : 18}
+            shadowOpacity={highlighted ? 0.55 : 0.35}
+            shadowOffsetY={highlighted ? 8 : 4}
+          />
+        );
+      }
+      case 'diamond':
+        return (
+          <Line
+            points={[localWidth / 2, 0, localWidth, localHeight / 2, localWidth / 2, localHeight, 0, localHeight / 2]}
+            closed
+            fill={shape.color}
+            stroke={stroke}
+            strokeWidth={strokeWidth}
+            lineJoin="round"
+            shadowColor={isConnectorHighlighted ? '#818cf8' : shape.color}
+            shadowBlur={highlighted ? 30 : 18}
+            shadowOpacity={highlighted ? 0.55 : 0.35}
+            shadowOffsetY={highlighted ? 8 : 4}
+          />
+        );
+      case 'star':
+        return (
+          <Line
+            points={starPoints(localWidth, localHeight)}
+            closed
+            fill={shape.color}
+            stroke={stroke}
+            strokeWidth={strokeWidth}
+            lineJoin="round"
+            shadowColor={isConnectorHighlighted ? '#818cf8' : shape.color}
+            shadowBlur={highlighted ? 30 : 18}
+            shadowOpacity={highlighted ? 0.55 : 0.35}
+            shadowOffsetY={highlighted ? 8 : 4}
+          />
+        );
+      case 'arrow':
+        return (
+          <Line
+            points={arrowPoints(localWidth, localHeight)}
+            closed
+            fill={shape.color}
+            stroke={stroke}
+            strokeWidth={strokeWidth}
+            lineJoin="round"
+            shadowColor={isConnectorHighlighted ? '#818cf8' : shape.color}
+            shadowBlur={highlighted ? 30 : 18}
+            shadowOpacity={highlighted ? 0.55 : 0.35}
+            shadowOffsetY={highlighted ? 8 : 4}
+          />
+        );
+      case 'cross':
+        return (
+          <Line
+            points={crossPoints(localWidth, localHeight)}
+            closed
+            fill={shape.color}
+            stroke={stroke}
+            strokeWidth={strokeWidth}
+            lineJoin="round"
+            shadowColor={isConnectorHighlighted ? '#818cf8' : shape.color}
+            shadowBlur={highlighted ? 30 : 18}
+            shadowOpacity={highlighted ? 0.55 : 0.35}
+            shadowOffsetY={highlighted ? 8 : 4}
+          />
+        );
+      default:
+        // Fallback: render as rectangle
+        return (
+          <Rect
+            width={localWidth}
+            height={localHeight}
+            fill={shape.color}
+            cornerRadius={16}
+            shadowColor={shape.color}
+            shadowBlur={18}
+            shadowOpacity={0.35}
+            shadowOffsetY={4}
+            stroke={stroke}
+            strokeWidth={strokeWidth}
           />
         );
     }

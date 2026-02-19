@@ -28,7 +28,7 @@ export interface StickyNote extends BoardObject {
   color: string;
 }
 
-export type ShapeType = 'rect' | 'circle' | 'line';
+export type ShapeType = 'rect' | 'circle' | 'line' | 'triangle' | 'diamond' | 'pentagon' | 'hexagon' | 'octagon' | 'star' | 'arrow' | 'cross';
 
 export interface Shape extends BoardObject {
   type: 'shape';

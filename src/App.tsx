@@ -172,6 +172,7 @@ function BoardView({
     handleFrameDragEnd,
     dissolveFrame,
     moveLineEndpoint,
+    updateObjectProperties,
   } = useBoard(boardId, user.uid);
 
   const [aiOpen, setAiOpen] = useState(false);
@@ -184,6 +185,7 @@ function BoardView({
     color: '#818cf8',
   });
   const [curveStyle, setCurveStyle] = useState<'straight' | 'curved'>('straight');
+
   const { messages: chatMessages, sendMessage: sendChatMessage } = useChat(
     boardId,
     user.uid,
@@ -213,6 +215,65 @@ function BoardView({
     handleGroupRotate,
     selectObject,
   } = useMultiSelect(objects, boardId);
+
+  // Compute the single selected object (null when 0 or 2+ selected)
+  const selectedObject = useMemo<AnyBoardObject | null>(() => {
+    if (selectedIds.size !== 1) return null;
+    const id = selectedIds.values().next().value;
+    return objects.find((o) => o.id === id) ?? null;
+  }, [selectedIds, objects]);
+
+  const handleUpdateSelectedObject = useCallback(
+    (updates: Partial<AnyBoardObject>) => {
+      if (selectedObject) {
+        updateObjectProperties(selectedObject.id, updates);
+      }
+    },
+    [selectedObject, updateObjectProperties]
+  );
+
+  // Sync connector/curve style state when a connector is selected
+  useEffect(() => {
+    if (selectedObject?.type === 'connector') {
+      const conn = selectedObject as Connector;
+      setConnectorStyle({
+        lineType: conn.lineType ?? 'solid',
+        startArrow: conn.startArrow ?? false,
+        endArrow: conn.endArrow ?? true,
+        strokeWidth: conn.strokeWidth ?? 3,
+        color: conn.color ?? '#818cf8',
+      });
+      setCurveStyle(conn.style ?? 'straight');
+    }
+  }, [selectedObject]);
+
+  // Wrap setConnectorStyle to also write to selected connector
+  const handleConnectorStyleChange = useCallback(
+    (style: import('./types/board').ConnectorStyle) => {
+      setConnectorStyle(style);
+      if (selectedObject?.type === 'connector') {
+        updateObjectProperties(selectedObject.id, {
+          lineType: style.lineType,
+          startArrow: style.startArrow,
+          endArrow: style.endArrow,
+          strokeWidth: style.strokeWidth,
+          color: style.color,
+        } as Partial<Connector>);
+      }
+    },
+    [selectedObject, updateObjectProperties]
+  );
+
+  // Wrap setCurveStyle to also write to selected connector
+  const handleCurveStyleChange = useCallback(
+    (style: 'straight' | 'curved') => {
+      setCurveStyle(style);
+      if (selectedObject?.type === 'connector') {
+        updateObjectProperties(selectedObject.id, { style } as Partial<Connector>);
+      }
+    },
+    [selectedObject, updateObjectProperties]
+  );
 
   const handleDeleteSelected = useCallback(() => {
     for (const id of selectedIds) {
@@ -592,9 +653,11 @@ function BoardView({
         chatCurrentUserId={user.uid}
         onChatSend={sendChatMessage}
         connectorStyle={connectorStyle}
-        onConnectorStyleChange={setConnectorStyle}
+        onConnectorStyleChange={handleConnectorStyleChange}
         curveStyle={curveStyle}
-        onCurveStyleChange={setCurveStyle}
+        onCurveStyleChange={handleCurveStyleChange}
+        selectedObject={selectedObject}
+        onUpdateSelectedObject={handleUpdateSelectedObject}
       />
       <AIChat boardId={boardId} isOpen={aiOpen} onClose={() => setAiOpen(false)} />
       {/* Top left: Back/Share buttons and minimap */}

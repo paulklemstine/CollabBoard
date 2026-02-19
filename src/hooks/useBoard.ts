@@ -221,6 +221,40 @@ export function useBoard(boardId: string, userId: string) {
     [boardId, userId, trackNewObject]
   );
 
+  const addGifSticker = useCallback(
+    (transform: StageTransform, gifUrl: string, x?: number, y?: number) => {
+      const screenX = window.innerWidth / 2 - 75;
+      const screenY = window.innerHeight - 300;
+      let worldX: number;
+      let worldY: number;
+      if (x !== undefined && y !== undefined) {
+        worldX = x;
+        worldY = y;
+      } else {
+        const world = screenToWorld(screenX, screenY, transform);
+        worldX = world.x;
+        worldY = world.y;
+      }
+      const maxUpdatedAt = Math.max(0, ...objectsRef.current.map(o => o.updatedAt));
+      const sticker: Sticker = {
+        id: crypto.randomUUID(),
+        type: 'sticker',
+        x: worldX,
+        y: worldY,
+        width: 150,
+        height: 150,
+        rotation: 0,
+        createdBy: userId,
+        updatedAt: maxUpdatedAt + 1,
+        emoji: '',
+        gifUrl,
+      };
+      addObject(boardId, sticker);
+      trackNewObject(sticker.id);
+    },
+    [boardId, userId, trackNewObject]
+  );
+
   const addText = useCallback(
     (
       transform: StageTransform,
@@ -659,6 +693,13 @@ export function useBoard(boardId: string, userId: string) {
     [connectMode, connectingFrom, objects, boardId, userId, trackNewObject]
   );
 
+  const updateObjectProperties = useCallback(
+    (objectId: string, updates: Partial<AnyBoardObject>) => {
+      updateObject(boardId, objectId, updates);
+    },
+    [boardId]
+  );
+
   const cancelConnecting = useCallback(() => {
     setConnectMode(false);
     setConnectingFrom(null);
@@ -671,6 +712,7 @@ export function useBoard(boardId: string, userId: string) {
     addShape,
     addFrame,
     addSticker,
+    addGifSticker,
     addText,
     moveObject,
     resizeObject,
@@ -696,5 +738,6 @@ export function useBoard(boardId: string, userId: string) {
     handleFrameDragEnd,
     dissolveFrame,
     moveLineEndpoint,
+    updateObjectProperties,
   };
 }

@@ -30,6 +30,8 @@ const tools = [
         color: { type: 'string', description: 'Background color as hex string (default: #fef9c3)' },
         textColor: { type: 'string', description: 'Text color as hex string (default: #1e293b). Use for contrast against the background color.' },
         parentId: { type: 'string', description: 'CRITICAL: ID of a frame to attach this sticky note to. Without this, the note will NOT move with any frame. Get the frame ID from the createFrame response.' },
+        aiLabel: { type: 'string', description: 'Short description of what this object represents (e.g. "main idea", "pro argument")' },
+        aiGroupId: { type: 'string', description: 'Shared kebab-case slug for all objects in the same logical operation (e.g. "swot-strengths")' },
       },
       required: ['text'],
     },
@@ -52,6 +54,8 @@ const tools = [
         toX: { type: 'number', description: 'Line end X coordinate.' },
         toY: { type: 'number', description: 'Line end Y coordinate.' },
         parentId: { type: 'string', description: 'ID of a frame to attach this shape to.' },
+        aiLabel: { type: 'string', description: 'Short description of what this object represents' },
+        aiGroupId: { type: 'string', description: 'Shared kebab-case slug for all objects in the same logical operation' },
       },
       required: ['shapeType'],
     },
@@ -69,6 +73,8 @@ const tools = [
         height: { type: 'number', description: 'Height in pixels (default: 300)' },
         borderless: { type: 'boolean', description: 'If true, creates a transparent borderless frame — invisible grouping container with no border or title bar. Great for logical groupings without visual clutter. (default: false)' },
         parentId: { type: 'string', description: 'ID of a parent frame to nest this frame inside.' },
+        aiLabel: { type: 'string', description: 'Short description of what this frame represents' },
+        aiGroupId: { type: 'string', description: 'Shared kebab-case slug for all objects in the same logical operation' },
       },
       required: ['title'],
     },
@@ -84,6 +90,8 @@ const tools = [
         y: { type: 'number', description: 'Y position on the canvas in ABSOLUTE coordinates (default: 0)' },
         size: { type: 'number', description: 'Size in pixels (default: 100)' },
         parentId: { type: 'string', description: 'ID of a frame to attach this sticker to.' },
+        aiLabel: { type: 'string', description: 'Short description of what this sticker represents' },
+        aiGroupId: { type: 'string', description: 'Shared kebab-case slug for all objects in the same logical operation' },
       },
       required: ['emoji'],
     },
@@ -111,6 +119,8 @@ const tools = [
         y: { type: 'number', description: 'Y position on the canvas in ABSOLUTE coordinates (default: 0)' },
         size: { type: 'number', description: 'Size in pixels (default: 150)' },
         parentId: { type: 'string', description: 'ID of a frame to attach this sticker to.' },
+        aiLabel: { type: 'string', description: 'Short description of what this sticker represents' },
+        aiGroupId: { type: 'string', description: 'Shared kebab-case slug for all objects in the same logical operation' },
       },
       required: ['gifUrl'],
     },
@@ -133,6 +143,8 @@ const tools = [
         color: { type: 'string', description: 'Text color as hex string (default: #1e293b)' },
         bgColor: { type: 'string', description: 'Background color (default: transparent)' },
         parentId: { type: 'string', description: 'ID of a frame to attach this text to.' },
+        aiLabel: { type: 'string', description: 'Short description of what this text represents' },
+        aiGroupId: { type: 'string', description: 'Shared kebab-case slug for all objects in the same logical operation' },
       },
       required: ['text'],
     },
@@ -151,6 +163,8 @@ const tools = [
         endArrow: { type: 'boolean', description: 'Show arrowhead at the end/target end (default: false)' },
         strokeWidth: { type: 'number', description: 'Line thickness in pixels (default: 2)' },
         color: { type: 'string', description: 'Connector color as hex string (default: #6366f1)' },
+        aiLabel: { type: 'string', description: 'Short description of what this connector represents' },
+        aiGroupId: { type: 'string', description: 'Shared kebab-case slug for all objects in the same logical operation' },
       },
       required: ['fromId', 'toId'],
     },
@@ -311,6 +325,62 @@ const tools = [
     },
   },
   {
+    name: 'getObject',
+    description: 'Get full details of a single object by its ID. Returns all fields including type, position, text, colors, parentId, etc.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        objectId: { type: 'string', description: 'ID of the object to retrieve' },
+      },
+      required: ['objectId'],
+    },
+  },
+  {
+    name: 'updateFrameTitle',
+    description: 'Update the title of an existing frame.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        objectId: { type: 'string', description: 'ID of the frame to update' },
+        title: { type: 'string', description: 'New title for the frame' },
+      },
+      required: ['objectId', 'title'],
+    },
+  },
+  {
+    name: 'searchObjects',
+    description: 'Search for objects on the board by type, text content, or parent frame. Returns lightweight summaries. All filters are optional and combined with AND logic.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        objectType: { type: 'string', description: 'Filter by object type (sticky, shape, frame, sticker, connector, text)' },
+        textContains: { type: 'string', description: 'Filter objects whose text/title contains this substring (case-insensitive)' },
+        parentId: { type: 'string', description: 'Filter objects that are children of this frame ID' },
+      },
+      required: [] as string[],
+    },
+  },
+  {
+    name: 'getBoardSummary',
+    description: 'Get a high-level summary of the board: total count, count by type, and list of frames with their IDs and titles. Cheaper than getBoardState for understanding board structure.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {},
+      required: [] as string[],
+    },
+  },
+  {
+    name: 'deleteObjects',
+    description: 'Delete multiple objects at once by their IDs. More efficient than calling deleteObject repeatedly.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        objectIds: { type: 'array', items: { type: 'string' }, description: 'Array of object IDs to delete' },
+      },
+      required: ['objectIds'],
+    },
+  },
+  {
     name: 'getBoardState',
     description: 'Get the current state of all objects on the board. Use this to understand what is already on the board before manipulating existing objects.',
     input_schema: {
@@ -425,10 +495,18 @@ Example multi-step flow for "Create a SWOT analysis":
   Step 2: For each frame, create 2-3 starter sticky notes inside it using the frame's ID as parentId
   Result: 4 frames with children that move together when dragged
 
+## AI Labels & Grouping
+When creating objects, ALWAYS provide:
+- aiLabel: short description of what the object represents (e.g. "main idea", "pro argument", "SWOT strengths frame")
+- aiGroupId: shared kebab-case slug for all objects in the same logical operation (e.g. "swot-analysis", "pros-cons-list")
+
 ## Important
-- Always use getBoardState() first if you need to know what's already on the board before manipulating existing objects.
+- Always use getBoardState() or getBoardSummary() first if you need to know what's already on the board before manipulating existing objects. Use getBoardSummary() when you only need counts and frame info — it's cheaper than getBoardState().
+- Use searchObjects() to find objects by type, text, or parent frame instead of fetching the entire board state.
+- Use getObject() to get full details of a single object when you already know its ID.
 - When asked to arrange or move existing objects, first call getBoardState() to see current positions and IDs.
-- You can delete objects with deleteObject() when asked to clear, remove, or clean up.
+- You can delete objects with deleteObject() for single deletions or deleteObjects() for bulk deletions.
+- Use updateFrameTitle() to rename frames without re-creating them.
 - Return a brief, helpful text response describing what you did.`;
 
 // ---- Helper: read board state ----
@@ -491,6 +569,10 @@ interface ToolInput {
   offsetY?: number;
   operation?: string;
   templateType?: string;
+  aiLabel?: string;
+  aiGroupId?: string;
+  objectType?: string;
+  textContains?: string;
 }
 
 async function executeTool(
@@ -520,6 +602,8 @@ async function executeTool(
         updatedAt: now,
         parentId: input.parentId ?? '',
       };
+      if (input.aiLabel) data.aiLabel = input.aiLabel;
+      if (input.aiGroupId) data.aiGroupId = input.aiGroupId;
       await docRef.set(data);
       objectsCreated.push(docRef.id);
       return JSON.stringify({ id: docRef.id, type: 'sticky' });
@@ -564,6 +648,8 @@ async function executeTool(
         updatedAt: now,
         parentId: input.parentId ?? '',
       };
+      if (input.aiLabel) data.aiLabel = input.aiLabel;
+      if (input.aiGroupId) data.aiGroupId = input.aiGroupId;
       await docRef.set(data);
       objectsCreated.push(docRef.id);
       return JSON.stringify({ id: docRef.id, type: 'shape', shapeType: input.shapeType });
@@ -584,6 +670,8 @@ async function executeTool(
         updatedAt: now,
         parentId: input.parentId ?? '',
       };
+      if (input.aiLabel) data.aiLabel = input.aiLabel;
+      if (input.aiGroupId) data.aiGroupId = input.aiGroupId;
       await docRef.set(data);
       objectsCreated.push(docRef.id);
       return JSON.stringify({ id: docRef.id, type: 'sticker', emoji: input.emoji });
@@ -634,6 +722,8 @@ async function executeTool(
         updatedAt: now,
         parentId: input.parentId ?? '',
       };
+      if (input.aiLabel) data.aiLabel = input.aiLabel;
+      if (input.aiGroupId) data.aiGroupId = input.aiGroupId;
       await docRef.set(data);
       objectsCreated.push(docRef.id);
       return JSON.stringify({ id: docRef.id, type: 'sticker', gifUrl: input.gifUrl });
@@ -660,6 +750,8 @@ async function executeTool(
         updatedAt: now,
         parentId: input.parentId ?? '',
       };
+      if (input.aiLabel) data.aiLabel = input.aiLabel;
+      if (input.aiGroupId) data.aiGroupId = input.aiGroupId;
       await docRef.set(data);
       objectsCreated.push(docRef.id);
       return JSON.stringify({ id: docRef.id, type: 'text' });
@@ -680,6 +772,8 @@ async function executeTool(
         parentId: input.parentId ?? '',
         borderless: input.borderless ?? false,
       };
+      if (input.aiLabel) data.aiLabel = input.aiLabel;
+      if (input.aiGroupId) data.aiGroupId = input.aiGroupId;
       await docRef.set(data);
       objectsCreated.push(docRef.id);
       return JSON.stringify({ id: docRef.id, type: 'frame' });
@@ -705,6 +799,8 @@ async function executeTool(
         createdBy: userId,
         updatedAt: now,
       };
+      if (input.aiLabel) data.aiLabel = input.aiLabel;
+      if (input.aiGroupId) data.aiGroupId = input.aiGroupId;
       await docRef.set(data);
       objectsCreated.push(docRef.id);
       return JSON.stringify({ id: docRef.id, type: 'connector' });
@@ -1095,6 +1191,75 @@ async function executeTool(
       return JSON.stringify({ success: true, template: templateType, created });
     }
 
+    case 'getObject': {
+      const doc = await objectsRef.doc(input.objectId!).get();
+      if (!doc.exists) return JSON.stringify({ error: 'Object not found' });
+      return JSON.stringify({ id: doc.id, ...doc.data() });
+    }
+
+    case 'updateFrameTitle': {
+      const docRef = objectsRef.doc(input.objectId!);
+      const doc = await docRef.get();
+      if (!doc.exists) return JSON.stringify({ error: 'Object not found' });
+      const docData = doc.data() as any;
+      if (docData.type !== 'frame') return JSON.stringify({ error: 'Object is not a frame' });
+      await docRef.update({ title: input.title, updatedAt: now });
+      return JSON.stringify({ success: true, objectId: input.objectId, title: input.title });
+    }
+
+    case 'searchObjects': {
+      const allObjects = await readBoardState(boardId);
+      let filtered = allObjects as any[];
+      if (input.objectType) {
+        filtered = filtered.filter((o: any) => o.type === input.objectType);
+      }
+      if (input.textContains) {
+        const search = input.textContains.toLowerCase();
+        filtered = filtered.filter((o: any) => {
+          const text = (o.text ?? o.title ?? '').toLowerCase();
+          return text.includes(search);
+        });
+      }
+      if (input.parentId !== undefined) {
+        filtered = filtered.filter((o: any) => o.parentId === input.parentId);
+      }
+      const summaries = filtered.map((o: any) => ({
+        id: o.id,
+        type: o.type,
+        text: o.text ?? o.title ?? undefined,
+        x: o.x,
+        y: o.y,
+        width: o.width,
+        height: o.height,
+        parentId: o.parentId || undefined,
+      }));
+      return JSON.stringify({ results: summaries, count: summaries.length });
+    }
+
+    case 'getBoardSummary': {
+      const allObjects = await readBoardState(boardId);
+      const byType: Record<string, number> = {};
+      const frames: { id: string; title: string }[] = [];
+      for (const obj of allObjects as any[]) {
+        byType[obj.type] = (byType[obj.type] || 0) + 1;
+        if (obj.type === 'frame') {
+          frames.push({ id: obj.id, title: obj.title ?? 'Untitled' });
+        }
+      }
+      return JSON.stringify({ totalCount: allObjects.length, byType, frames });
+    }
+
+    case 'deleteObjects': {
+      const ids = input.objectIds ?? [];
+      if (ids.length === 0) return JSON.stringify({ error: 'No object IDs provided' });
+      const batch = db.batch();
+      for (const id of ids) {
+        batch.delete(objectsRef.doc(id));
+      }
+      await batch.commit();
+      return JSON.stringify({ deleted: ids.length, ids });
+    }
+
     case 'getBoardState': {
       const objects = await readBoardState(boardId);
       return JSON.stringify({ objects });
@@ -1217,6 +1382,11 @@ export const processAIRequest = onDocumentCreated(
             setZIndex: 'Changing layer order',
             rotateObject: 'Rotating object',
             generateFromTemplate: 'Generating template',
+            getObject: 'Fetching object details',
+            updateFrameTitle: 'Updating frame title',
+            searchObjects: 'Searching objects',
+            getBoardSummary: 'Reading board summary',
+            deleteObjects: 'Deleting objects',
             getBoardState: 'Reading board',
           };
           const label = toolLabel[toolCall.name] || toolCall.name;

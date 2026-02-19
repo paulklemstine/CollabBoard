@@ -20,6 +20,8 @@ export interface BoardObject {
   createdBy: string;
   updatedAt: number;
   parentId?: string;
+  aiLabel?: string;
+  aiGroupId?: string;
 }
 
 export interface StickyNote extends BoardObject {

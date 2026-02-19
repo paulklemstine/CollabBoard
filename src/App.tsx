@@ -21,6 +21,7 @@ import { StickerComponent } from './components/Board/StickerComponent';
 import { TextComponent } from './components/Board/TextComponent';
 import { PreviewConnector } from './components/Board/PreviewConnector';
 import { SelectionOverlay } from './components/Board/SelectionOverlay';
+import { AILabelOverlay } from './components/Board/AILabelOverlay';
 import { CursorsOverlay } from './components/Cursors/CursorsOverlay';
 import { PresencePanel } from './components/Presence/PresencePanel';
 import { Toolbar } from './components/Toolbar/Toolbar';
@@ -294,12 +295,18 @@ function BoardView({
         e.preventDefault();
         handleDeleteSelected();
       }
+      if (e.key === 'l' || e.key === 'L') {
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return;
+        setShowAILabels((prev) => !prev);
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedIds.size, clearSelection, handleDeleteSelected]);
 
   const [stageTransform, setStageTransform] = useState<StageTransform>({ x: 0, y: 0, scale: 1 });
+  const [showAILabels, setShowAILabels] = useState(false);
   const [zoomControls, setZoomControls] = useState<{
     scale: number;
     zoomIn: () => void;
@@ -617,6 +624,16 @@ function BoardView({
               groupDragOffset={selectedIds.size > 1 && isObjectSelected(sticker.id) ? groupDragOffset : null}
               groupTransformPreview={selectedIds.size > 1 && isObjectSelected(sticker.id) ? transformPreview : null}
               selectionBox={selectedIds.size > 1 && isObjectSelected(sticker.id) ? selectionBox : null}
+            />
+          ))}
+          {showAILabels && objects.filter((o) => o.aiLabel).map((o) => (
+            <AILabelOverlay
+              key={`ai-label-${o.id}`}
+              x={o.x}
+              y={o.y}
+              width={o.width}
+              height={o.height}
+              label={o.aiLabel!}
             />
           ))}
           <SelectionOverlay

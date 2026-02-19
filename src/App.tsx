@@ -148,6 +148,7 @@ function BoardView({
     addShape,
     addFrame,
     addSticker,
+    addGifSticker,
     addText,
     moveObject: _moveObject,
     resizeObject,
@@ -644,6 +645,7 @@ function BoardView({
         onAddShape={(shapeType, fillColor, strokeColor, borderColor) => addShape(stageTransform, shapeType, fillColor, undefined, undefined, strokeColor, borderColor)}
         onAddFrame={() => addFrame(stageTransform)}
         onAddSticker={(emoji) => addSticker(stageTransform, emoji)}
+        onAddGifSticker={addGifSticker ? (gifUrl) => addGifSticker(stageTransform, gifUrl) : undefined}
         connectMode={connectMode}
         connectingFrom={connectingFrom}
         onToggleConnectMode={toggleConnectMode}

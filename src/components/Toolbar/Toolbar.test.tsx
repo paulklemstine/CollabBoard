@@ -5,16 +5,22 @@ import { Toolbar } from './Toolbar';
 
 const defaultProps = {
   onAddStickyNote: vi.fn(),
+  onAddText: vi.fn(),
   onAddShape: vi.fn(),
   onAddFrame: vi.fn(),
   onAddSticker: vi.fn(),
   connectMode: false,
   connectingFrom: null,
   onToggleConnectMode: vi.fn(),
-  selectMode: false,
-  onToggleSelectMode: vi.fn(),
   onToggleAI: vi.fn(),
   aiOpen: false,
+  chatMessages: [],
+  chatCurrentUserId: 'test-user',
+  onChatSend: vi.fn(),
+  connectorStyle: { lineType: 'solid' as const, startArrow: false, endArrow: false, strokeWidth: 2, color: '#64748b' },
+  onConnectorStyleChange: vi.fn(),
+  curveStyle: 'straight' as const,
+  onCurveStyleChange: vi.fn(),
 };
 
 describe('Toolbar', () => {

@@ -1,12 +1,17 @@
 import { useState, useRef, useCallback } from 'react';
+import { GifPicker } from './GifPicker';
+
+type StickerTab = 'emoji' | 'gif';
 
 interface StickerDrawerProps {
   onAddSticker: (emoji: string) => void;
+  onAddGifSticker?: (gifUrl: string) => void;
 }
 
-export function StickerDrawer({ onAddSticker }: StickerDrawerProps) {
+export function StickerDrawer({ onAddSticker, onAddGifSticker }: StickerDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [page, setPage] = useState(0);
+  const [tab, setTab] = useState<StickerTab>('emoji');
   const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleMouseEnter = useCallback(() => {
@@ -113,6 +118,39 @@ export function StickerDrawer({ onAddSticker }: StickerDrawerProps) {
           style={{ zIndex: 1001 }}
         >
           <div className="glass-playful rounded-2xl shadow-2xl p-5">
+            {/* Tabs: Emoji | GIFs */}
+            <div className="flex gap-1 mb-3 rounded-xl p-0.5" style={{ background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.25) 100%)' }}>
+              <button
+                type="button"
+                onClick={() => setTab('emoji')}
+                className="flex-1 px-3 py-1.5 rounded-lg text-sm font-bold transition-all"
+                style={{
+                  background: tab === 'emoji' ? 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)' : 'transparent',
+                  color: tab === 'emoji' ? '#065f46' : '#047857',
+                }}
+              >
+                😊 Emoji
+              </button>
+              <button
+                type="button"
+                onClick={() => setTab('gif')}
+                className="flex-1 px-3 py-1.5 rounded-lg text-sm font-bold transition-all"
+                style={{
+                  background: tab === 'gif' ? 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)' : 'transparent',
+                  color: tab === 'gif' ? '#065f46' : '#047857',
+                }}
+              >
+                ✨ GIFs
+              </button>
+            </div>
+
+            {tab === 'gif' && onAddGifSticker ? (
+              <GifPicker
+                onSelect={onAddGifSticker}
+                onClose={() => setIsOpen(false)}
+              />
+            ) : (
+            <>
             <div className="flex items-center gap-2">
               {/* Left Arrow */}
               <button
@@ -174,6 +212,8 @@ export function StickerDrawer({ onAddSticker }: StickerDrawerProps) {
             <div className="mt-2 text-center text-xs text-gray-600 font-medium">
               Page {page + 1} of {totalPages}
             </div>
+            </>
+            )}
           </div>
         </div>
       )}

@@ -6,6 +6,37 @@ A chronological log of all development work on Flow Space, tracking features, fi
 
 ## Development Entries
 
+### [2026-02-19] GIPHY animated stickers (GIFs) in Sticker drawer
+
+**Task:** Add an animated stickers/GIFs library so users can place GIPHY GIFs on the board alongside emoji stickers.
+
+**Approach:**
+- Extended the existing `Sticker` type with optional `gifUrl`; kept `emoji` for backward compatibility (empty when GIF is used).
+- Integrated GIPHY via `@giphy/react-components` and `@giphy/js-fetch-api`: trending stickers + search in a new “GIFs” tab in the Sticker drawer.
+- When no API key is set, show a short message with a link to get a free key instead of failing.
+- Canvas: `StickerComponent` renders Konva `Image` when `sticker.gifUrl` is set (with loading state); otherwise renders emoji `Text` as before.
+- New `addGifSticker(transform, gifUrl)` in `useBoard`; Toolbar and App wire optional `onAddGifSticker` through to the drawer.
+
+**Changes:**
+- `src/types/board.ts` - `Sticker` interface: added optional `gifUrl?: string`
+- `src/hooks/useBoard.ts` - Added `addGifSticker`, exported from hook
+- `src/components/Toolbar/GifPicker.tsx` - New component: GIPHY Grid + search, `onSelect(gifUrl)`, graceful no-API-key state
+- `src/components/Toolbar/StickerDrawer.tsx` - Tabs “Emoji” | “GIFs”; GIFs tab renders `GifPicker` and `onAddGifSticker`
+- `src/components/Board/StickerComponent.tsx` - When `sticker.gifUrl`, load image and render Konva `Image`; else emoji `Text`
+- `src/components/Toolbar/Toolbar.tsx` - Optional `onAddGifSticker` prop, passed to `StickerDrawer`
+- `src/App.tsx` - `addGifSticker` from `useBoard`, passed as `onAddGifSticker` to Toolbar
+- `package.json` - Added `@giphy/react-components`, `@giphy/js-fetch-api`
+- `.env.example` - Documented optional `VITE_GIPHY_API_KEY`
+- `src/components/Toolbar/Toolbar.test.tsx` - Extended `defaultProps` with required Toolbar props so tests compile
+
+**Testing:**
+- TypeScript build: `tsc -b` passes
+- Manual: Open Stickers → GIFs tab; with API key: search/trending, click GIF to add to board; without key: message and link shown
+
+**Commit:** (pending) feature/giphy-stickers
+
+---
+
 ### [2026-02-17 00:30] Fix Display Name Race Condition During Email Sign-Up
 
 **Task:** After email sign-up, the UI briefly showed the truncated email (e.g., "test") instead of the user's chosen display name, then corrected itself only after a page refresh.

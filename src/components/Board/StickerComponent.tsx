@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { Group, Text, Rect } from 'react-konva';
+import { Group, Text, Rect, Image } from 'react-konva';
 import Konva from 'konva';
 import type { Sticker } from '../../types/board';
 import { calculateGroupObjectTransform } from '../../utils/groupTransform';
@@ -54,6 +54,7 @@ export function StickerComponent({
   const [isResizing, setIsResizing] = useState(false);
   const [localWidth, setLocalWidth] = useState(sticker.width);
   const [localHeight, setLocalHeight] = useState(sticker.height);
+  const [gifImage, setGifImage] = useState<HTMLImageElement | null>(null);
 
   useEffect(() => {
     if (!isResizing) {
@@ -61,6 +62,22 @@ export function StickerComponent({
       setLocalHeight(sticker.height);
     }
   }, [sticker.width, sticker.height, isResizing]);
+
+  // Load GIF image when gifUrl is set
+  useEffect(() => {
+    if (!sticker.gifUrl) {
+      setGifImage(null);
+      return;
+    }
+    const img = new window.Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => setGifImage(img);
+    img.onerror = () => setGifImage(null);
+    img.src = sticker.gifUrl;
+    return () => {
+      img.src = '';
+    };
+  }, [sticker.gifUrl]);
 
   // Flash animation for new stickers
   useEffect(() => {
@@ -165,12 +182,25 @@ export function StickerComponent({
         height={localHeight}
         fill="transparent"
       />
-      {/* Emoji */}
-      <Text
-        text={sticker.emoji}
-        fontSize={fontSize}
-        listening={false}
-      />
+      {/* GIF or Emoji */}
+      {sticker.gifUrl ? (
+        gifImage ? (
+          <Image
+            image={gifImage}
+            width={localWidth}
+            height={localHeight}
+            listening={false}
+          />
+        ) : (
+          <Rect width={localWidth} height={localHeight} fill="#e5e7eb" listening={false} />
+        )
+      ) : (
+        <Text
+          text={sticker.emoji}
+          fontSize={fontSize}
+          listening={false}
+        />
+      )}
       {/* Selection highlight */}
       {isSelected && (
         <Rect

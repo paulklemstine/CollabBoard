@@ -60,7 +60,10 @@ export interface Frame extends BoardObject {
 
 export interface Sticker extends BoardObject {
   type: 'sticker';
+  /** Emoji character for classic stickers; empty when gifUrl is set */
   emoji: string;
+  /** Optional GIF URL (e.g. from GIPHY); when set, sticker renders as animated image */
+  gifUrl?: string;
 }
 
 export type ConnectorLineType = 'solid' | 'dashed' | 'dotted';

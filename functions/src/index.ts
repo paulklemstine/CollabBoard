@@ -12,6 +12,7 @@ const langchainApiKey = defineSecret('LANGCHAIN_API_KEY');
 const langfuseSecretKey = defineSecret('LANGFUSE_SECRET_KEY');
 const langfusePublicKey = defineSecret('LANGFUSE_PUBLIC_KEY');
 const langfuseHost = defineSecret('LANGFUSE_HOST');
+const giphyApiKey = defineSecret('GIPHY_API_KEY');
 
 // ---- Tool definitions for Claude ----
 
@@ -87,12 +88,24 @@ const tools = [
     },
   },
   {
-    name: 'createGifSticker',
-    description: 'Create an animated GIF sticker on the whiteboard using a GIPHY URL. Returns the created object ID.',
+    name: 'searchGifs',
+    description: 'Search GIPHY for animated stickers by keyword. Returns a list of GIF URLs you can use with createGifSticker. Always call this before createGifSticker to get a valid URL.',
     input_schema: {
       type: 'object' as const,
       properties: {
-        gifUrl: { type: 'string', description: 'URL of the GIF image (e.g. from GIPHY)' },
+        query: { type: 'string', description: 'Search keywords (e.g. "celebration", "thumbs up", "mind blown")' },
+        limit: { type: 'number', description: 'Number of results to return (default: 5, max: 10)' },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'createGifSticker',
+    description: 'Create an animated GIF sticker on the whiteboard. IMPORTANT: Always call searchGifs first to get a valid URL — do NOT make up URLs. Returns the created object ID.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        gifUrl: { type: 'string', description: 'A valid GIF URL returned by searchGifs' },
         x: { type: 'number', description: 'X position on the canvas in ABSOLUTE coordinates (default: 0)' },
         y: { type: 'number', description: 'Y position on the canvas in ABSOLUTE coordinates (default: 0)' },
         size: { type: 'number', description: 'Size in pixels (default: 150)' },
@@ -329,7 +342,7 @@ You can create and manipulate objects on the whiteboard using the provided tools
   - color: text color (default: #1e293b)
   - bgColor: optional background color (default: transparent)
 - **Stickers**: Single emoji characters that can be placed and resized. Default size: 150x150px. Use any emoji like 🎉, ❤️, 👍, 🚀, etc.
-- **GIF Stickers**: Animated GIF images (from GIPHY). Default size: 150x150px. Provide a full GIPHY URL. Great for reactions, celebrations, or adding visual flair.
+- **GIF Stickers**: Animated GIF images from GIPHY. Default size: 150x150px. **IMPORTANT: Always call searchGifs first to find a valid URL, then pass it to createGifSticker. Never make up GIPHY URLs.**
 - **Lines**: Created via createShape with shapeType "line". Use fromX/fromY/toX/toY to specify start and end points — the server automatically computes position, length, and rotation.
   - Example: Horizontal line from (100, 200) to (300, 200): fromX=100, fromY=200, toX=300, toY=200
   - Example: Vertical line from (200, 100) to (200, 300): fromX=200, fromY=100, toX=200, toY=300
@@ -453,6 +466,8 @@ interface ToolInput {
   textAlign?: string;
   bgColor?: string;
   gifUrl?: string;
+  query?: string;
+  limit?: number;
   objectId?: string;
   newText?: string;
   newColor?: string;
@@ -571,6 +586,23 @@ async function executeTool(
       await docRef.set(data);
       objectsCreated.push(docRef.id);
       return JSON.stringify({ id: docRef.id, type: 'sticker', emoji: input.emoji });
+    }
+
+    case 'searchGifs': {
+      const query = input.query ?? '';
+      const limit = Math.min(input.limit ?? 5, 10);
+      const key = giphyApiKey.value();
+      if (!key) return JSON.stringify({ error: 'GIPHY API key not configured' });
+      const url = `https://api.giphy.com/v1/stickers/search?api_key=${encodeURIComponent(key)}&q=${encodeURIComponent(query)}&limit=${limit}&rating=g`;
+      const res = await fetch(url);
+      if (!res.ok) return JSON.stringify({ error: `GIPHY API error: ${res.status}` });
+      const json = await res.json() as { data: Array<{ id: string; title: string; images: { fixed_height: { url: string } } }> };
+      const results = json.data.map((g) => ({
+        id: g.id,
+        title: g.title,
+        url: g.images.fixed_height.url,
+      }));
+      return JSON.stringify({ results });
     }
 
     case 'createGifSticker': {
@@ -1067,7 +1099,7 @@ async function executeTool(
 export const processAIRequest = onDocumentCreated(
   {
     document: 'boards/{boardId}/aiRequests/{requestId}',
-    secrets: [anthropicApiKey, langchainApiKey, langfuseSecretKey, langfusePublicKey, langfuseHost],
+    secrets: [anthropicApiKey, langchainApiKey, langfuseSecretKey, langfusePublicKey, langfuseHost, giphyApiKey],
     timeoutSeconds: 300,
     memory: '512MiB',
     maxInstances: 10,
@@ -1156,6 +1188,7 @@ export const processAIRequest = onDocumentCreated(
             createShape: 'Creating shape',
             createFrame: 'Creating frame',
             createSticker: 'Creating sticker',
+            searchGifs: 'Searching for GIFs',
             createGifSticker: 'Creating GIF sticker',
             createText: 'Creating text element',
             createConnector: 'Creating connector',

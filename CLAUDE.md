@@ -1,7 +1,7 @@
-# CollabBoard - Project Instructions
+# Flow Space - Project Instructions
 
 ## Project
-Real-time collaborative whiteboard with AI agent. Firebase backend, React frontend.
+Flow Space — a playful, real-time collaboration space for thinking, creating, and organizing ideas visually. Firebase backend, React frontend, AI agent.
 
 ## Tech Stack
 - **Frontend:** React 18 + Vite + TypeScript + react-konva + Tailwind CSS

@@ -1,6 +1,8 @@
-# CollabBoard
+# Flow Space
 
-A real-time collaborative whiteboard where multiple users create, edit, and organize content together on an infinite canvas.
+A playful, real-time collaboration space designed for young adults to think, create, and organize ideas together visually. Instead of rigid productivity tools, Flow Space focuses on fast interaction — dropping notes, shaping concepts, and exploring ideas side-by-side with live presence and AI assistance.
+
+The core experience centers on turning shared creativity into momentum: start a board quickly, collaborate naturally, and evolve rough thoughts into clear outcomes without breaking flow. As the product grows, development will prioritize a clear collaborative workflow, intentional user guidance, and strong reliability around AI actions and real-time sync.
 
 **Live Demo**: [collabboard-8c0d0.web.app](https://collabboard-8c0d0.web.app)
 

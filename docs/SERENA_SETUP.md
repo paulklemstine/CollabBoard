@@ -1,6 +1,6 @@
 # Serena - Semantic Code Agent Setup
 
-**Status**: ✅ Installed and Configured for CollabBoard
+**Status**: ✅ Installed and Configured for Flow Space
 
 Serena is a powerful coding agent toolkit that provides semantic code navigation and editing capabilities using Language Server Protocol (LSP). It gives Claude Code "IDE-like tools" for understanding and manipulating code.
 
@@ -315,7 +315,7 @@ Memories are stored in `.serena/memories/` and persist across conversations!
 
 ### Language Server
 - **Protocol**: LSP (Language Server Protocol)
-- **Language**: TypeScript (configured for CollabBoard)
+- **Language**: TypeScript (configured for Flow Space)
 - **Cache**: 90 files indexed
 - **Location**: `.serena/cache/`
 
@@ -337,7 +337,7 @@ Memories are stored in `.serena/memories/` and persist across conversations!
 
 ---
 
-## Use Cases for CollabBoard
+## Use Cases for Flow Space
 
 ### 1. **Refactoring Hooks**
 ```

@@ -1,6 +1,6 @@
-# CollabBoard Architecture Overview
+# Flow Space Architecture Overview
 
-A comprehensive technical overview of the CollabBoard real-time collaborative whiteboard application.
+A comprehensive technical overview of the Flow Space real-time collaborative whiteboard application.
 
 ## Table of Contents
 - [System Overview](#system-overview)
@@ -18,7 +18,7 @@ A comprehensive technical overview of the CollabBoard real-time collaborative wh
 
 ## System Overview
 
-CollabBoard is a real-time collaborative whiteboard application that allows multiple users to work together on a shared canvas. The architecture is designed for low-latency updates, conflict-free collaboration, and horizontal scalability.
+Flow Space is a real-time collaborative whiteboard application that allows multiple users to work together on a shared canvas. The architecture is designed for low-latency updates, conflict-free collaboration, and horizontal scalability.
 
 ### Key Design Goals
 - **Real-time sync**: Sub-100ms updates for objects, sub-50ms for cursors
@@ -979,7 +979,7 @@ Result: Frame with 3 child sticky notes appears on board
 ### File Structure Reference
 
 ```
-CollabBoard/
+Flow Space/
 ├── src/
 │   ├── components/
 │   │   ├── Auth/
@@ -1129,4 +1129,4 @@ CollabBoard/
 
 **Document Version**: 2.0
 **Last Updated**: 2026-02-17
-**Maintained By**: CollabBoard Team
+**Maintained By**: Flow Space Team

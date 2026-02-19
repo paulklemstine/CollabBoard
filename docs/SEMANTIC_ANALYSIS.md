@@ -1,4 +1,4 @@
-# 📊 Semantic Code Architecture - CollabBoard
+# Semantic Code Architecture - Flow Space
 
 **Generated**: 2026-02-18
 **Tool**: MCP Semantic Navigator
@@ -9,7 +9,7 @@
 
 ## Overview
 
-This document provides a semantic (meaning-based) view of the CollabBoard codebase, organized by **purpose** rather than file structure. Generated using the MCP Semantic Navigator tool.
+This document provides a semantic (meaning-based) view of the Flow Space codebase, organized by **purpose** rather than file structure. Generated using the MCP Semantic Navigator tool.
 
 ---
 

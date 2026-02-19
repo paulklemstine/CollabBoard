@@ -1,5 +1,5 @@
 /**
- * Stress Tests for CollabBoard
+ * Stress Tests for Flow Space
  *
  * Target metrics:
  * | Metric                | Target                                    |

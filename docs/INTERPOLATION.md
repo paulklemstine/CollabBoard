@@ -4,7 +4,7 @@ Smooth, buttery cursor and object movement with velocity-based prediction to com
 
 ## Overview
 
-CollabBoard uses predictive interpolation to create silky-smooth movement even with:
+Flow Space uses predictive interpolation to create silky-smooth movement even with:
 - Network latency (50-200ms typical)
 - Throttled updates (100ms for cursors, 50ms for dragging)
 - Firestore update delays (variable, typically 50-150ms)

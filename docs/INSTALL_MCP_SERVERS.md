@@ -321,7 +321,7 @@ Look for error messages in the latest log file.
 
 ### With Semantic Navigator:
 
-**"What's the overall architecture of CollabBoard?"**
+**"What's the overall architecture of Flow Space?"**
 → Navigator will show 11 conceptual areas (UI, Hooks, Services, etc.)
 
 **"Show me all the AI-related files"**

@@ -261,7 +261,7 @@ const tools = [
 
 // ---- System prompt ----
 
-const SYSTEM_PROMPT = `You are an AI assistant for CollabBoard, a collaborative whiteboard application.
+const SYSTEM_PROMPT = `You are an AI assistant for Flow Space, a collaborative whiteboard application.
 
 You can create and manipulate objects on the whiteboard using the provided tools.
 
@@ -954,7 +954,7 @@ export const processAIRequest = onDocumentCreated(
     // Set LangSmith tracing env vars
     process.env.LANGCHAIN_TRACING_V2 = 'true';
     process.env.LANGCHAIN_API_KEY = langchainApiKey.value();
-    process.env.LANGCHAIN_PROJECT = 'CollabBoard';
+    process.env.LANGCHAIN_PROJECT = 'FlowSpace';
 
     // Lazy-load LangChain and Langfuse to avoid deployment timeouts
     const { ChatAnthropic } = await import('@langchain/anthropic');

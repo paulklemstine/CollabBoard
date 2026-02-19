@@ -1,6 +1,6 @@
-# CollabBoard Development Diary
+# Flow Space Development Diary
 
-A chronological log of all development work on CollabBoard, tracking features, fixes, decisions, and learnings.
+A chronological log of all development work on Flow Space, tracking features, fixes, decisions, and learnings.
 
 ---
 
@@ -302,7 +302,7 @@ A chronological log of all development work on CollabBoard, tracking features, f
 
 ### [2026-02-16 Afternoon] Initial Project Setup & Documentation
 
-**Task:** Set up CollabBoard project documentation and AI development planning.
+**Task:** Set up Flow Space project documentation and AI development planning.
 
 **Approach:**
 - Created AI development log template for tracking AI agent implementation

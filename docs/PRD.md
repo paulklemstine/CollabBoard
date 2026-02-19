@@ -1,8 +1,8 @@
-# CollabBoard - Product Requirements Document
+# Flow Space - Product Requirements Document
 
 ## 1. Product Overview
 
-**Product Name:** CollabBoard
+**Product Name:** Flow Space
 **Type:** Real-time collaborative whiteboard with AI agent integration
 **Timeline:** 7-day sprint (MVP in 24 hours)
 **Goal:** Build a production-scale collaborative whiteboard with real-time multiplayer sync and an AI agent that manipulates the board via natural language commands.

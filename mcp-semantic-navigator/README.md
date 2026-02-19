@@ -129,7 +129,7 @@ embeddings = model.encode(file_contents)
 
 ## Examples
 
-### CollabBoard Repository
+### Flow Space Repository
 
 ```
 # Semantic Code Architecture

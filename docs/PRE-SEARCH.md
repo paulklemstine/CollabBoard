@@ -1,4 +1,4 @@
-# CollabBoard Pre-Search Document
+# Flow Space Pre-Search Document
 
 Completed before writing any code. Documents architecture decisions, tradeoffs, and rationale.
 

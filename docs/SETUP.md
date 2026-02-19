@@ -1,6 +1,6 @@
-# CollabBoard Setup Guide
+# Flow Space Setup Guide
 
-A comprehensive guide to setting up the CollabBoard real-time collaborative whiteboard application.
+A comprehensive guide to setting up the Flow Space real-time collaborative whiteboard application.
 
 ## Table of Contents
 - [Prerequisites](#prerequisites)

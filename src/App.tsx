@@ -212,23 +212,29 @@ function BoardView({
     selectObject,
   } = useMultiSelect(objects, boardId);
 
-  // Keyboard shortcut: Escape to clear selection
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && selectedIds.size > 0) {
-        clearSelection();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedIds.size, clearSelection]);
-
   const handleDeleteSelected = useCallback(() => {
     for (const id of selectedIds) {
       removeObject(id);
     }
     clearSelection();
   }, [selectedIds, removeObject, clearSelection]);
+
+  // Keyboard shortcuts: Escape to clear selection, Delete/Backspace to delete selected
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && selectedIds.size > 0) {
+        clearSelection();
+      }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIds.size > 0) {
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return;
+        e.preventDefault();
+        handleDeleteSelected();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedIds.size, clearSelection, handleDeleteSelected]);
 
   const [stageTransform, setStageTransform] = useState<StageTransform>({ x: 0, y: 0, scale: 1 });
   const [zoomControls, setZoomControls] = useState<{

@@ -7,7 +7,7 @@ import {
   batchUpdateObjects,
   type AnyBoardObject,
 } from '../services/boardService';
-import type { StickyNote, Shape, ShapeType, Frame, Sticker, Connector } from '../types/board';
+import type { StickyNote, Shape, ShapeType, Frame, Sticker, Connector, TextObject } from '../types/board';
 import { findContainingFrame, getChildrenOfFrame, scaleToFitFrame } from '../utils/containment';
 import { screenToWorld } from '../utils/coordinates';
 import type { StageTransform } from '../components/Board/Board';
@@ -217,6 +217,59 @@ export function useBoard(boardId: string, userId: string) {
       };
       addObject(boardId, sticker);
       trackNewObject(sticker.id);
+    },
+    [boardId, userId, trackNewObject]
+  );
+
+  const addText = useCallback(
+    (
+      transform: StageTransform,
+      fontSize?: number,
+      fontWeight?: 'normal' | 'bold',
+      fontStyle?: 'normal' | 'italic',
+      textAlign?: 'left' | 'center' | 'right',
+      textColor?: string,
+      x?: number,
+      y?: number,
+    ) => {
+      const textWidth = 300;
+      const textHeight = 50;
+      const screenX = window.innerWidth / 2 - textWidth / 2;
+      const screenY = window.innerHeight - textHeight - 170;
+
+      let worldX: number;
+      let worldY: number;
+      if (x !== undefined && y !== undefined) {
+        worldX = x;
+        worldY = y;
+      } else {
+        const world = screenToWorld(screenX, screenY, transform);
+        worldX = world.x;
+        worldY = world.y;
+      }
+
+      const maxUpdatedAt = Math.max(0, ...objectsRef.current.map(o => o.updatedAt));
+
+      const textObj: TextObject = {
+        id: crypto.randomUUID(),
+        type: 'text',
+        x: worldX,
+        y: worldY,
+        width: textWidth,
+        height: textHeight,
+        rotation: 0,
+        createdBy: userId,
+        updatedAt: maxUpdatedAt + 1,
+        text: '',
+        fontSize: fontSize ?? 24,
+        fontFamily: "'Inter', sans-serif",
+        fontWeight: fontWeight ?? 'normal',
+        fontStyle: fontStyle ?? 'normal',
+        textAlign: textAlign ?? 'left',
+        color: textColor ?? '#1e293b',
+      };
+      addObject(boardId, textObj);
+      trackNewObject(textObj.id);
     },
     [boardId, userId, trackNewObject]
   );
@@ -617,6 +670,7 @@ export function useBoard(boardId: string, userId: string) {
     addShape,
     addFrame,
     addSticker,
+    addText,
     moveObject,
     resizeObject,
     rotateObject,

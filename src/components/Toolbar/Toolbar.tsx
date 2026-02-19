@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { StickyDrawer } from './StickyDrawer';
 import { ShapeDrawer } from './ShapeDrawer';
+import { TextDrawer } from './TextDrawer';
 import { StickerDrawer } from './StickerDrawer';
 import { ChatDrawer } from './ChatDrawer';
 import { ConnectorDrawer } from './ConnectorDrawer';
@@ -8,6 +9,7 @@ import type { ShapeType, ChatMessage, ConnectorStyle } from '../../types/board';
 
 interface ToolbarProps {
   onAddStickyNote: (bgColor: string, textColor?: string, borderColor?: string) => void;
+  onAddText: (fontSize: number, fontWeight: 'normal' | 'bold', fontStyle: 'normal' | 'italic', textAlign: 'left' | 'center' | 'right', textColor: string) => void;
   onAddShape: (shapeType: ShapeType, fillColor: string, strokeColor?: string, borderColor?: string) => void;
   onAddFrame: () => void;
   onAddSticker: (emoji: string) => void;
@@ -27,6 +29,7 @@ interface ToolbarProps {
 
 export function Toolbar({
   onAddStickyNote,
+  onAddText,
   onAddShape,
   onAddFrame,
   onAddSticker,
@@ -47,6 +50,13 @@ export function Toolbar({
   const [stickyBg, setStickyBg] = useState('#fef08a');
   const [stickyText, setStickyText] = useState('#1e293b');
   const [stickyBorder, setStickyBorder] = useState('transparent');
+
+  // Text styling
+  const [textFontSize, setTextFontSize] = useState(24);
+  const [textFontWeight, setTextFontWeight] = useState<'normal' | 'bold'>('normal');
+  const [textFontStyle, setTextFontStyle] = useState<'normal' | 'italic'>('normal');
+  const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right'>('left');
+  const [textColor, setTextColor] = useState('#1e293b');
 
   // Shape colors
   const [shapeFill, setShapeFill] = useState('#818cf8');
@@ -91,6 +101,23 @@ export function Toolbar({
         onTextColorChange={setStickyText}
         onBorderColorChange={setStickyBorder}
         onAdd={() => onAddStickyNote(stickyBg, stickyText, stickyBorder)}
+      />
+
+      {divider}
+
+      {/* Text */}
+      <TextDrawer
+        fontSize={textFontSize}
+        fontWeight={textFontWeight}
+        fontStyle={textFontStyle}
+        textAlign={textAlign}
+        textColor={textColor}
+        onFontSizeChange={setTextFontSize}
+        onFontWeightChange={setTextFontWeight}
+        onFontStyleChange={setTextFontStyle}
+        onTextAlignChange={setTextAlign}
+        onTextColorChange={setTextColor}
+        onAdd={() => onAddText(textFontSize, textFontWeight, textFontStyle, textAlign, textColor)}
       />
 
       {divider}

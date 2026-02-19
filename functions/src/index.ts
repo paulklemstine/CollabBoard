@@ -88,6 +88,29 @@ const tools = [
     },
   },
   {
+    name: 'createText',
+    description: 'Create a standalone text element on the whiteboard (heading, label, paragraph). No background by default. Supports font styling. Returns the created object ID.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        text: { type: 'string', description: 'The text content' },
+        x: { type: 'number', description: 'X position (default: 0)' },
+        y: { type: 'number', description: 'Y position (default: 0)' },
+        width: { type: 'number', description: 'Width in pixels (default: 300)' },
+        height: { type: 'number', description: 'Height in pixels (default: 50)' },
+        fontSize: { type: 'number', description: 'Font size: 16, 24, 36, or 48 (default: 24)' },
+        fontWeight: { type: 'string', enum: ['normal', 'bold'], description: 'Font weight (default: normal)' },
+        fontStyle: { type: 'string', enum: ['normal', 'italic'], description: 'Font style (default: normal)' },
+        textAlign: { type: 'string', enum: ['left', 'center', 'right'], description: 'Text alignment (default: left)' },
+        color: { type: 'string', description: 'Text color as hex string (default: #1e293b)' },
+        bgColor: { type: 'string', description: 'Background color (default: transparent)' },
+        borderColor: { type: 'string', description: 'Border color (default: transparent)' },
+        parentId: { type: 'string', description: 'ID of a frame to attach this text to.' },
+      },
+      required: ['text'],
+    },
+  },
+  {
     name: 'createConnector',
     description: 'Create a connector line between two existing objects on the board. Supports line styles, arrows, and custom colors.',
     input_schema: {
@@ -287,6 +310,14 @@ You can create and manipulate objects on the whiteboard using the provided tools
   - color: fill color (default: #dbeafe)
   - strokeColor: stroke/outline color (default: #4f46e5)
   - borderColor: border color (default: transparent)
+- **Text Elements**: Standalone text (headings, labels, paragraphs) on the canvas. No background by default. Default size: 300x50px.
+  - fontSize: 16, 24, 36, or 48 (default: 24)
+  - fontWeight: "normal" or "bold" (default: normal)
+  - fontStyle: "normal" or "italic" (default: normal)
+  - textAlign: "left", "center", or "right" (default: left)
+  - color: text color (default: #1e293b)
+  - bgColor: optional background color (default: transparent)
+  - borderColor: optional border (default: transparent)
 - **Stickers**: Single emoji characters that can be placed and resized. Default size: 150x150px. Use any emoji like 🎉, ❤️, 👍, 🚀, etc.
 - **Lines**: Created via createShape with shapeType "line". Use fromX/fromY/toX/toY to specify start and end points — the server automatically computes position, length, and rotation.
   - Example: Horizontal line from (100, 200) to (300, 200): fromX=100, fromY=200, toX=300, toY=200
@@ -404,6 +435,11 @@ interface ToolInput {
   startArrow?: boolean;
   endArrow?: boolean;
   strokeWidth?: number;
+  fontSize?: number;
+  fontWeight?: string;
+  fontStyle?: string;
+  textAlign?: string;
+  bgColor?: string;
   objectId?: string;
   newText?: string;
   newColor?: string;
@@ -525,6 +561,33 @@ async function executeTool(
       return JSON.stringify({ id: docRef.id, type: 'sticker', emoji: input.emoji });
     }
 
+    case 'createText': {
+      const docRef = objectsRef.doc();
+      const data: Record<string, unknown> = {
+        type: 'text',
+        text: input.text ?? '',
+        x: input.x ?? 0,
+        y: input.y ?? 0,
+        width: input.width ?? 300,
+        height: input.height ?? 50,
+        fontSize: input.fontSize ?? 24,
+        fontFamily: "'Inter', sans-serif",
+        fontWeight: input.fontWeight ?? 'normal',
+        fontStyle: input.fontStyle ?? 'normal',
+        textAlign: input.textAlign ?? 'left',
+        color: input.color ?? '#1e293b',
+        bgColor: input.bgColor ?? 'transparent',
+        borderColor: input.borderColor ?? 'transparent',
+        rotation: 0,
+        createdBy: userId,
+        updatedAt: now,
+        parentId: input.parentId ?? '',
+      };
+      await docRef.set(data);
+      objectsCreated.push(docRef.id);
+      return JSON.stringify({ id: docRef.id, type: 'text' });
+    }
+
     case 'createFrame': {
       const docRef = objectsRef.doc();
       const data: Record<string, unknown> = {
@@ -605,6 +668,7 @@ async function executeTool(
       if (input.textColor !== undefined) colorUpdates.textColor = input.textColor;
       if (input.strokeColor !== undefined) colorUpdates.strokeColor = input.strokeColor;
       if (input.borderColor !== undefined) colorUpdates.borderColor = input.borderColor;
+      if (input.bgColor !== undefined) colorUpdates.bgColor = input.bgColor;
       await docRef.update(colorUpdates);
       return JSON.stringify({ success: true });
     }
@@ -1060,6 +1124,7 @@ export const processAIRequest = onDocumentCreated(
             createShape: 'Creating shape',
             createFrame: 'Creating frame',
             createSticker: 'Creating sticker',
+            createText: 'Creating text element',
             createConnector: 'Creating connector',
             moveObject: 'Moving object',
             resizeObject: 'Resizing object',

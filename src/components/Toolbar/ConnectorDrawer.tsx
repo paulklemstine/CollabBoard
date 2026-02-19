@@ -228,7 +228,7 @@ export function ConnectorDrawer({
             </div>
 
             {/* Color */}
-            <ColorPanel label="Color" color={connectorStyle.color} onChange={(c) => update({ color: c })} />
+            <ColorPanel label="Color" color={connectorStyle.color} onChange={(c) => update({ color: c })} showTransparent />
 
             {/* Preview */}
             <div className="bg-white/30 rounded-xl p-2 flex items-center justify-center">

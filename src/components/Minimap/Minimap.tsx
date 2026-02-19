@@ -197,9 +197,11 @@ export function Minimap({ transform, objects = [], onPanTo }: MinimapProps) {
               ? (obj.color || '#fef08a')
               : obj.type === 'shape'
                 ? (obj.color || '#818cf8')
-                : obj.type === 'sticker'
-                  ? '#c084fc'
-                  : '#667eea';
+                : obj.type === 'text'
+                  ? (obj.color || '#06b6d4')
+                  : obj.type === 'sticker'
+                    ? '#c084fc'
+                    : '#667eea';
 
             return (
               <Rect

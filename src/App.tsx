@@ -18,6 +18,7 @@ import { ShapeComponent } from './components/Board/ShapeComponent';
 import { FrameComponent } from './components/Board/FrameComponent';
 import { ConnectorComponent } from './components/Board/ConnectorComponent';
 import { StickerComponent } from './components/Board/StickerComponent';
+import { TextComponent } from './components/Board/TextComponent';
 import { PreviewConnector } from './components/Board/PreviewConnector';
 import { SelectionOverlay } from './components/Board/SelectionOverlay';
 import { CursorsOverlay } from './components/Cursors/CursorsOverlay';
@@ -26,7 +27,7 @@ import { Toolbar } from './components/Toolbar/Toolbar';
 import { AIChat } from './components/AIChat/AIChat';
 import { Minimap } from './components/Minimap/Minimap';
 import { useChat } from './hooks/useChat';
-import type { StickyNote, Shape, Frame, Sticker, Connector, BoardMetadata } from './types/board';
+import type { StickyNote, Shape, Frame, Sticker, Connector, TextObject, BoardMetadata } from './types/board';
 import { calculateGroupObjectTransform } from './utils/groupTransform';
 import type { AnyBoardObject } from './services/boardService';
 
@@ -147,6 +148,7 @@ function BoardView({
     addShape,
     addFrame,
     addSticker,
+    addText,
     moveObject: _moveObject,
     resizeObject,
     rotateObject,
@@ -291,6 +293,8 @@ function BoardView({
   const connectors = objects.filter((o): o is Connector => o.type === 'connector')
     .sort((a, b) => a.updatedAt - b.updatedAt);
   const stickers = objects.filter((o): o is Sticker => o.type === 'sticker')
+    .sort((a, b) => a.updatedAt - b.updatedAt);
+  const textObjects = objects.filter((o): o is TextObject => o.type === 'text')
     .sort((a, b) => a.updatedAt - b.updatedAt);
 
   // Build a map of frames for child transform lookups
@@ -490,6 +494,29 @@ function BoardView({
               selectionBox={selectedIds.size > 1 && isObjectSelected(shape.id) ? selectionBox : null}
             />
           ))}
+          {textObjects.map((textObj) => (
+            <TextComponent
+              key={textObj.id}
+              textObj={textObj}
+              onDragMove={handleDragMove}
+              onDragEnd={handleDragEnd}
+              onTextChange={updateText}
+              onDelete={removeObject}
+              onClick={objectClick}
+              onResize={resizeObject}
+              onRotate={rotateObject}
+              dragOffset={getChildOffset(textObj)}
+              parentRotation={getParentRotation(textObj.parentId)}
+              onConnectorHoverEnter={objectHoverEnter}
+              onConnectorHoverLeave={objectHoverLeave}
+              isConnectorHighlighted={connectMode && (connectingFrom === textObj.id || hoveredObjectId === textObj.id)}
+              isNew={newObjectIds.has(textObj.id)}
+              isSelected={isObjectSelected(textObj.id)}
+              groupDragOffset={selectedIds.size > 1 && isObjectSelected(textObj.id) ? groupDragOffset : null}
+              groupTransformPreview={selectedIds.size > 1 && isObjectSelected(textObj.id) ? transformPreview : null}
+              selectionBox={selectedIds.size > 1 && isObjectSelected(textObj.id) ? selectionBox : null}
+            />
+          ))}
           {stickyNotes.map((note) => (
             <StickyNoteComponent
               key={note.id}
@@ -552,6 +579,7 @@ function BoardView({
       <CursorsOverlay cursors={cursors} stageTransform={stageTransform} />
       <Toolbar
         onAddStickyNote={(bgColor, textColor, borderColor) => addStickyNote(stageTransform, undefined, undefined, bgColor, textColor, borderColor)}
+        onAddText={(fontSize, fontWeight, fontStyle, textAlign, textColor) => addText(stageTransform, fontSize, fontWeight, fontStyle, textAlign, textColor)}
         onAddShape={(shapeType, fillColor, strokeColor, borderColor) => addShape(stageTransform, shapeType, fillColor, undefined, undefined, strokeColor, borderColor)}
         onAddFrame={() => addFrame(stageTransform)}
         onAddSticker={(emoji) => addSticker(stageTransform, emoji)}

@@ -11,7 +11,7 @@ export interface BoardMetadata {
 
 export interface BoardObject {
   id: string;
-  type: 'sticky' | 'shape' | 'frame' | 'sticker' | 'connector';
+  type: 'sticky' | 'shape' | 'frame' | 'sticker' | 'connector' | 'text';
   x: number;
   y: number;
   width: number;
@@ -27,6 +27,19 @@ export interface StickyNote extends BoardObject {
   text: string;
   color: string;
   textColor?: string;
+  borderColor?: string;
+}
+
+export interface TextObject extends BoardObject {
+  type: 'text';
+  text: string;
+  fontSize: number;
+  fontFamily: string;
+  fontWeight: 'normal' | 'bold';
+  fontStyle: 'normal' | 'italic';
+  textAlign: 'left' | 'center' | 'right';
+  color: string;
+  bgColor?: string;
   borderColor?: string;
 }
 

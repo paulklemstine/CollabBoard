@@ -559,6 +559,17 @@ function BoardView({
         onZoomIn={zoomControls?.zoomIn}
         onZoomOut={zoomControls?.zoomOut}
         onResetZoom={zoomControls?.resetZoom}
+        topSlot={
+          <div style={{ width: 300 }}>
+            <ChatPanel
+              messages={chatMessages}
+              currentUserId={user.uid}
+              onSend={sendChatMessage}
+              isOpen={chatOpen}
+              onToggle={toggleChat}
+            />
+          </div>
+        }
       />
       <AIChat boardId={boardId} isOpen={aiOpen} onClose={() => setAiOpen(false)} />
       {/* Top left: Back/Share buttons and minimap */}
@@ -627,16 +638,6 @@ function BoardView({
       <div className="absolute top-4 right-4 z-50 flex flex-col gap-3 items-end">
         <AuthPanel user={user as never} onSignOut={onSignOut} />
         <PresencePanel users={onlineUsers} cursors={cursors} onFollowUser={handleFollowUser} />
-      </div>
-      {/* Bottom left: Chat panel above toolbar */}
-      <div className="fixed bottom-[90px] left-4 z-50 w-[300px]">
-        <ChatPanel
-          messages={chatMessages}
-          currentUserId={user.uid}
-          onSend={sendChatMessage}
-          isOpen={chatOpen}
-          onToggle={toggleChat}
-        />
       </div>
     </div>
   );

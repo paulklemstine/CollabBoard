@@ -13,6 +13,16 @@ export function ChatPanel({ messages, currentUserId, onSend, isOpen, onToggle }:
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const seenCountRef = useRef(messages.length);
+
+  // Track seen messages: when open, keep seenCount up to date
+  useEffect(() => {
+    if (isOpen) {
+      seenCountRef.current = messages.length;
+    }
+  }, [isOpen, messages.length]);
+
+  const unreadCount = isOpen ? 0 : Math.max(0, messages.length - seenCountRef.current);
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -41,8 +51,6 @@ export function ChatPanel({ messages, currentUserId, onSend, isOpen, onToggle }:
     }
   };
 
-  const unreadCount = 0; // Could track unread when collapsed in the future
-
   return (
     <div className="glass-playful rounded-2xl shadow-xl overflow-hidden animate-float-up w-full">
       {/* Header — always visible, acts as toggle */}
@@ -57,9 +65,9 @@ export function ChatPanel({ messages, currentUserId, onSend, isOpen, onToggle }:
           <span className="text-xs font-bold uppercase tracking-wider text-gray-400">
             Chat
           </span>
-          {!isOpen && messages.length > 0 && (
-            <span className="text-[10px] text-gray-400">
-              ({messages.length})
+          {unreadCount > 0 && (
+            <span className="min-w-[18px] h-[18px] rounded-full bg-gradient-to-br from-purple-500 to-pink-500 text-white text-[10px] font-bold flex items-center justify-center px-1">
+              {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           )}
         </div>

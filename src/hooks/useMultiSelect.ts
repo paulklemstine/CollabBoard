@@ -118,14 +118,15 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string) {
   const handleStageMouseDown = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
       if (e.target !== e.target.getStage()) return;
-      // Marquee on right-click or shift+left-click
+
+      // Any click on empty canvas clears selection
+      setSelectedIds(new Set());
+      setGroupDragOffset(null);
+
+      // Marquee only on right-click or shift+left-click
       const isRightClick = e.evt.button === 2;
       const isShiftLeftClick = e.evt.button === 0 && e.evt.shiftKey;
       if (!isRightClick && !isShiftLeftClick) return;
-
-      // Clear selection on any empty-canvas click
-      setSelectedIds(new Set());
-      setGroupDragOffset(null);
 
       const stage = e.target.getStage();
       if (!stage) return;

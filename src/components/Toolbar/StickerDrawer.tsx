@@ -13,6 +13,7 @@ export function StickerDrawer({ onAddSticker, onAddGifSticker }: StickerDrawerPr
   const [page, setPage] = useState(0);
   const [tab, setTab] = useState<StickerTab>('emoji');
   const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tabSwitchGuard = useRef(false);
 
   const handleMouseEnter = useCallback(() => {
     if (closeTimeout.current) { clearTimeout(closeTimeout.current); closeTimeout.current = null; }
@@ -20,7 +21,15 @@ export function StickerDrawer({ onAddSticker, onAddGifSticker }: StickerDrawerPr
   }, []);
 
   const handleMouseLeave = useCallback(() => {
+    if (tabSwitchGuard.current) return; // suppress close during tab resize
     closeTimeout.current = setTimeout(() => setIsOpen(false), 200);
+  }, []);
+
+  const switchTab = useCallback((newTab: StickerTab) => {
+    if (closeTimeout.current) { clearTimeout(closeTimeout.current); closeTimeout.current = null; }
+    tabSwitchGuard.current = true;
+    setTab(newTab);
+    setTimeout(() => { tabSwitchGuard.current = false; }, 400);
   }, []);
 
   // Comprehensive emoji list organized by category
@@ -122,7 +131,7 @@ export function StickerDrawer({ onAddSticker, onAddGifSticker }: StickerDrawerPr
             <div className="flex gap-1 mb-3 rounded-xl p-0.5" style={{ background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.25) 100%)' }}>
               <button
                 type="button"
-                onClick={() => setTab('emoji')}
+                onClick={() => switchTab('emoji')}
                 className="flex-1 px-3 py-1.5 rounded-lg text-sm font-bold transition-all"
                 style={{
                   background: tab === 'emoji' ? 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)' : 'transparent',
@@ -133,7 +142,7 @@ export function StickerDrawer({ onAddSticker, onAddGifSticker }: StickerDrawerPr
               </button>
               <button
                 type="button"
-                onClick={() => setTab('gif')}
+                onClick={() => switchTab('gif')}
                 className="flex-1 px-3 py-1.5 rounded-lg text-sm font-bold transition-all"
                 style={{
                   background: tab === 'gif' ? 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)' : 'transparent',

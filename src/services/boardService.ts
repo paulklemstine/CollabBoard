@@ -5,6 +5,7 @@ import {
   updateDoc,
   deleteDoc,
   onSnapshot,
+  getDocs,
   writeBatch,
   type Unsubscribe,
 } from 'firebase/firestore';
@@ -59,6 +60,11 @@ export async function batchUpdateObjects(
   }
 
   await batch.commit();
+}
+
+export async function getBoardObjects(boardId: string): Promise<AnyBoardObject[]> {
+  const snapshot = await getDocs(objectsCollection(boardId));
+  return snapshot.docs.map((d) => ({ ...d.data(), id: d.id }) as AnyBoardObject);
 }
 
 export function subscribeToBoard(

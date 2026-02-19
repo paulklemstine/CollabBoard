@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { BoardMetadata } from '../../types/board';
+import { BoardPreview } from './BoardPreview';
 
 interface BoardCardProps {
   board: BoardMetadata;
@@ -39,7 +40,7 @@ export function BoardCard({ board, onSelect, onDelete, canDelete, isOwner, onTog
   return (
     <div
       onClick={() => onSelect(board.id)}
-      className="glass-playful rounded-2xl p-6 cursor-pointer hover:scale-[1.02] transition-all duration-200 shadow-lg hover:shadow-xl group"
+      className="glass-playful rounded-2xl overflow-hidden cursor-pointer hover:scale-[1.02] transition-all duration-200 shadow-lg hover:shadow-xl group"
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
@@ -49,7 +50,8 @@ export function BoardCard({ board, onSelect, onDelete, canDelete, isOwner, onTog
         }
       }}
     >
-      <div className="flex items-start justify-between">
+      <BoardPreview boardId={board.id} />
+      <div className="flex items-start justify-between p-4 pt-3">
         <div className="flex-1 min-w-0">
           <h3 className="text-lg font-bold text-gray-800 truncate">{board.name}</h3>
           <p className="text-sm text-gray-500 mt-1">

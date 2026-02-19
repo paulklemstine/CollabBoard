@@ -14,8 +14,6 @@ interface ToolbarProps {
   connectMode: boolean;
   connectingFrom: string | null;
   onToggleConnectMode: () => void;
-  selectMode: boolean;
-  onToggleSelectMode: () => void;
   onToggleAI: () => void;
   aiOpen: boolean;
   chatMessages: ChatMessage[];
@@ -35,8 +33,6 @@ export function Toolbar({
   connectMode,
   connectingFrom,
   onToggleConnectMode,
-  selectMode,
-  onToggleSelectMode,
   onToggleAI,
   aiOpen,
   chatMessages,
@@ -86,28 +82,6 @@ export function Toolbar({
           }}
           className="flex gap-1.5 glass-playful rounded-2xl p-2.5 items-center animate-float-up"
         >
-      {/* Select Mode Toggle */}
-      <button
-        onClick={onToggleSelectMode}
-        className={`btn-lift flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
-          selectMode
-            ? 'text-white'
-            : 'text-gray-500 bg-white/30'
-        }`}
-        style={selectMode ? {
-          background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
-          boxShadow: '0 4px 16px rgba(59, 130, 246, 0.4)',
-        } : undefined}
-        title="Toggle select mode (drag to select multiple objects)"
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
-        </svg>
-        <span className="text-xs">Select</span>
-      </button>
-
-      {divider}
-
       {/* Sticky Note */}
       <StickyDrawer
         bgColor={stickyBg}

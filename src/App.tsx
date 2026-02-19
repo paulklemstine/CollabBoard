@@ -172,8 +172,6 @@ function BoardView({
     moveLineEndpoint,
   } = useBoard(boardId, user.uid);
 
-  const [selectMode, setSelectMode] = useState(false);
-  const toggleSelectMode = useCallback(() => setSelectMode((prev) => !prev), []);
   const [aiOpen, setAiOpen] = useState(false);
   const toggleAI = useCallback(() => setAiOpen((prev) => !prev), []);
   const [connectorStyle, setConnectorStyle] = useState<import('./types/board').ConnectorStyle>({
@@ -212,28 +210,17 @@ function BoardView({
     handleGroupRotateMove,
     handleGroupRotate,
     selectObject,
-  } = useMultiSelect(objects, boardId, selectMode);
+  } = useMultiSelect(objects, boardId);
 
-  // Keyboard shortcuts: Escape to clear selection, Shift to toggle select mode
+  // Keyboard shortcut: Escape to clear selection
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && selectedIds.size > 0) {
         clearSelection();
-      } else if (e.key === 'Shift') {
-        setSelectMode(true);
-      }
-    };
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'Shift') {
-        setSelectMode(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedIds.size, clearSelection]);
 
   const handleDeleteSelected = useCallback(() => {
@@ -432,7 +419,7 @@ function BoardView({
               key={connector.id}
               connector={connector}
               objects={visualObjects}
-              onDelete={selectMode ? removeObject : undefined}
+              onDelete={removeObject}
             />
           ))}
           {/* Preview connector while connecting */}
@@ -455,13 +442,13 @@ function BoardView({
               frame={frame}
               onDragMove={handleFrameDragMove}
               onDragEnd={handleFrameDragEnd}
-              onDelete={selectMode ? removeObject : undefined}
-              onDissolve={selectMode ? dissolveFrame : undefined}
+              onDelete={removeObject}
+              onDissolve={dissolveFrame}
               onTitleChange={updateTitle}
               onClick={objectClick}
               isHovered={hoveredFrameId === frame.id || groupHoveredFrameId === frame.id}
-              onResize={selectMode ? resizeObject : undefined}
-              onRotate={selectMode ? rotateObject : undefined}
+              onResize={resizeObject}
+              onRotate={rotateObject}
               dragOffset={getChildOffset(frame)}
               parentRotation={getParentRotation(frame.parentId)}
               onConnectorHoverEnter={objectHoverEnter}
@@ -480,11 +467,11 @@ function BoardView({
               shape={shape}
               onDragMove={handleDragMove}
               onDragEnd={handleDragEnd}
-              onDelete={selectMode ? removeObject : undefined}
+              onDelete={removeObject}
               onClick={objectClick}
-              onResize={selectMode ? resizeObject : undefined}
-              onRotate={selectMode ? rotateObject : undefined}
-              onLineEndpointMove={selectMode ? moveLineEndpoint : undefined}
+              onResize={resizeObject}
+              onRotate={rotateObject}
+              onLineEndpointMove={moveLineEndpoint}
               dragOffset={getChildOffset(shape)}
               parentRotation={getParentRotation(shape.parentId)}
               onConnectorHoverEnter={objectHoverEnter}
@@ -504,10 +491,10 @@ function BoardView({
               onDragMove={handleDragMove}
               onDragEnd={handleDragEnd}
               onTextChange={updateText}
-              onDelete={selectMode ? removeObject : undefined}
+              onDelete={removeObject}
               onClick={objectClick}
-              onResize={selectMode ? resizeObject : undefined}
-              onRotate={selectMode ? rotateObject : undefined}
+              onResize={resizeObject}
+              onRotate={rotateObject}
               dragOffset={getChildOffset(note)}
               parentRotation={getParentRotation(note.parentId)}
               onConnectorHoverEnter={objectHoverEnter}
@@ -526,10 +513,10 @@ function BoardView({
               sticker={sticker}
               onDragMove={handleDragMove}
               onDragEnd={handleDragEnd}
-              onDelete={selectMode ? removeObject : undefined}
+              onDelete={removeObject}
               onClick={objectClick}
-              onResize={selectMode ? resizeObject : undefined}
-              onRotate={selectMode ? rotateObject : undefined}
+              onResize={resizeObject}
+              onRotate={rotateObject}
               dragOffset={getChildOffset(sticker)}
               parentRotation={getParentRotation(sticker.parentId)}
               isNew={newObjectIds.has(sticker.id)}
@@ -565,8 +552,6 @@ function BoardView({
         connectMode={connectMode}
         connectingFrom={connectingFrom}
         onToggleConnectMode={toggleConnectMode}
-        selectMode={selectMode}
-        onToggleSelectMode={toggleSelectMode}
         onToggleAI={toggleAI}
         aiOpen={aiOpen}
         chatMessages={chatMessages}

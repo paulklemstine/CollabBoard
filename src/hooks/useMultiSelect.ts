@@ -43,7 +43,7 @@ export interface SelectionBox {
   rotation: number;
 }
 
-export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selectMode: boolean) {
+export function useMultiSelect(objects: AnyBoardObject[], boardId: string) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [marquee, setMarquee] = useState<Marquee | null>(null);
   const [isMarqueeActive, setIsMarqueeActive] = useState(false);
@@ -73,8 +73,6 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selec
   const selectionBoxRef = useRef(selectionBox);
   selectionBoxRef.current = selectionBox;
   const isMarqueeActiveRef = useRef(false);
-  const selectModeRef = useRef(selectMode);
-  selectModeRef.current = selectMode;
 
   // Track pending preview clears after transform commits.
   // When Firestore's optimistic update fires onSnapshot (updating `objects`),
@@ -125,9 +123,6 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selec
       // Clear selection on any empty-canvas click
       setSelectedIds(new Set());
       setGroupDragOffset(null);
-
-      // Only start marquee when select mode is active — otherwise allow normal pan
-      if (!selectModeRef.current) return;
 
       const stage = e.target.getStage();
       if (!stage) return;

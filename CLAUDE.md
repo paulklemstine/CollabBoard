@@ -343,3 +343,19 @@ Entry Format:
 - **Update existing docs** - When changing behavior, update related documentation
 - **Link between docs** - Cross-reference related documentation files
 - **Include examples** - Real-world usage examples and common patterns
+
+## Tracking
+After completing significant work (bug fix, feature, refactor, plan approval), append a prompt
+assessment entry to `<project>/.claude/tracking/key-prompts/YYYY-MM-DD.md` (today's date).
+Create the file if it doesn't exist, using the same header format as existing files.
+
+Use this format:
+  ## [date] — [short title]
+  **Category**: breakthrough | bug-resolution | architecture | feature
+  **Context**: What problem was being solved?
+  **The Prompt**: (exact or close paraphrase)
+  **Why It Worked**: (what made the phrasing/framing effective)
+  **Prior Attempts That Failed**: (for bugs: what didn't work; otherwise: N/A)
+
+Only write entries for genuinely high-signal prompts. Skip routine exchanges.
+Do not ask permission — just append after significant work.

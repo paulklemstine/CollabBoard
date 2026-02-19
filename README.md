@@ -152,6 +152,7 @@ src/
 | [INTERPOLATION.md](docs/INTERPOLATION.md) | Predictive interpolation system for smooth movement |
 | [PRD.md](docs/PRD.md) | Product requirements document |
 | [PRE-SEARCH.md](docs/PRE-SEARCH.md) | Architecture decisions and tradeoffs |
+| [WHITEBOARD_COMPETITIVE_IDEAS.md](docs/WHITEBOARD_COMPETITIVE_IDEAS.md) | Competitive whiteboard patterns and Flow Space product ideas |
 
 ## Key Design Decisions
 

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { BoardMetadata } from '../../types/board';
 
 interface BoardCardProps {
@@ -10,9 +11,21 @@ interface BoardCardProps {
 }
 
 export function BoardCard({ board, onSelect, onDelete, canDelete, isOwner, onToggleVisibility }: BoardCardProps) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onDelete(board.id);
+    if (confirmDelete) {
+      onDelete(board.id);
+      setConfirmDelete(false);
+    } else {
+      setConfirmDelete(true);
+    }
+  };
+
+  const handleCancelDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setConfirmDelete(false);
   };
 
   const handleToggleVisibility = (e: React.MouseEvent) => {
@@ -47,24 +60,28 @@ export function BoardCard({ board, onSelect, onDelete, canDelete, isOwner, onTog
           {isOwner && onToggleVisibility && (
             <button
               onClick={handleToggleVisibility}
-              className="opacity-0 group-hover:opacity-100 p-2 rounded-lg text-gray-400 hover:text-purple-500 hover:bg-purple-50 transition-all duration-200"
+              className="flex items-center gap-1.5 shrink-0"
               aria-label={isPublic ? `Make ${board.name} private` : `Make ${board.name} public`}
             >
-              {isPublic ? (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M2 12h20" />
-                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                </svg>
-              ) : (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                </svg>
-              )}
+              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+                {isPublic ? 'Public' : 'Private'}
+              </span>
+              <div
+                className="relative w-9 h-5 rounded-full transition-colors duration-200"
+                style={{
+                  background: isPublic
+                    ? 'linear-gradient(135deg, #818cf8, #c084fc)'
+                    : '#cbd5e1',
+                }}
+              >
+                <div
+                  className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-md transition-all duration-200"
+                  style={{ left: isPublic ? 18 : 2 }}
+                />
+              </div>
             </button>
           )}
-          {canDelete && (
+          {canDelete && !confirmDelete && (
             <button
               onClick={handleDelete}
               className="opacity-0 group-hover:opacity-100 p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all duration-200"
@@ -77,6 +94,23 @@ export function BoardCard({ board, onSelect, onDelete, canDelete, isOwner, onTog
                 <path d="M14 11v6" />
               </svg>
             </button>
+          )}
+          {confirmDelete && (
+            <div className="flex items-center gap-1.5 animate-float-up">
+              <span className="text-xs font-semibold text-red-500">Delete?</span>
+              <button
+                onClick={handleDelete}
+                className="px-2.5 py-1 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-red-500 to-pink-500 hover:shadow-lg transition-all duration-200"
+              >
+                Yes
+              </button>
+              <button
+                onClick={handleCancelDelete}
+                className="px-2.5 py-1 rounded-lg text-xs font-semibold text-gray-500 bg-white/60 hover:bg-white/90 border border-gray-200 transition-all duration-200"
+              >
+                No
+              </button>
+            </div>
           )}
         </div>
       </div>

@@ -54,9 +54,9 @@ export function StickerComponent({
   const [isResizing, setIsResizing] = useState(false);
   const [localWidth, setLocalWidth] = useState(sticker.width);
   const [localHeight, setLocalHeight] = useState(sticker.height);
-  const [gifCanvas, setGifCanvas] = useState<HTMLCanvasElement | null>(null);
+  const [gifImage, setGifImage] = useState<HTMLImageElement | null>(null);
   const gifImageRef = useRef<Konva.Image>(null);
-  const gifAnimRef = useRef<number>(0);
+  const gifAnimRef = useRef<Konva.Animation | null>(null);
 
   useEffect(() => {
     if (!isResizing) {
@@ -65,52 +65,49 @@ export function StickerComponent({
     }
   }, [sticker.width, sticker.height, isResizing]);
 
-  // Animate GIF: append a hidden <img> to the DOM so the browser decodes
-  // and advances GIF frames, then continuously capture them onto a canvas
-  // for Konva to render.
+  // Animate GIF: load <img> into the DOM so the browser decodes frames,
+  // pass it directly to Konva Image, and use Konva.Animation to force
+  // continuous layer redraws so each GIF frame is painted.
   useEffect(() => {
     if (!sticker.gifUrl) {
-      setGifCanvas(null);
+      setGifImage(null);
       return;
     }
 
     const img = document.createElement('img');
-    // Hide the img but keep it in the DOM so the browser animates GIF frames
-    img.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;pointer-events:none;opacity:0;';
+    // Keep img in the DOM so the browser animates GIF frames
+    img.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;pointer-events:none;visibility:hidden;';
     document.body.appendChild(img);
 
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    let stopped = false;
-
-    img.onload = () => {
-      if (stopped) return;
-      canvas.width = img.naturalWidth || img.width;
-      canvas.height = img.naturalHeight || img.height;
-      setGifCanvas(canvas);
-
-      // Animation loop: draw current img frame onto canvas, then tell Konva to update
-      const tick = () => {
-        if (stopped) return;
-        if (ctx) {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 0, 0);
-        }
-        gifImageRef.current?.getLayer()?.batchDraw();
-        gifAnimRef.current = requestAnimationFrame(tick);
-      };
-      gifAnimRef.current = requestAnimationFrame(tick);
-    };
-    img.onerror = () => setGifCanvas(null);
+    img.onload = () => setGifImage(img);
+    img.onerror = () => setGifImage(null);
     img.src = sticker.gifUrl;
 
     return () => {
-      stopped = true;
-      cancelAnimationFrame(gifAnimRef.current);
+      setGifImage(null);
       img.src = '';
       img.remove();
     };
   }, [sticker.gifUrl]);
+
+  // Start/stop Konva.Animation to continuously redraw the layer for GIF frames
+  useEffect(() => {
+    if (!gifImage || !gifImageRef.current) return;
+
+    const layer = gifImageRef.current.getLayer();
+    if (!layer) return;
+
+    const anim = new Konva.Animation(() => {
+      // Returning nothing — just need the layer to redraw each frame
+    }, layer);
+    anim.start();
+    gifAnimRef.current = anim;
+
+    return () => {
+      anim.stop();
+      gifAnimRef.current = null;
+    };
+  }, [gifImage]);
 
   // Flash animation for new stickers
   useEffect(() => {
@@ -217,10 +214,10 @@ export function StickerComponent({
       />
       {/* GIF or Emoji */}
       {sticker.gifUrl ? (
-        gifCanvas ? (
+        gifImage ? (
           <Image
             ref={gifImageRef}
-            image={gifCanvas}
+            image={gifImage}
             width={localWidth}
             height={localHeight}
             listening={false}

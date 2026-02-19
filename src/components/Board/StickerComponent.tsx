@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { Group, Text, Rect, Image } from 'react-konva';
 import Konva from 'konva';
+import { parseGIF, decompressFrames } from 'gifuct-js';
 import type { Sticker } from '../../types/board';
 import { calculateGroupObjectTransform } from '../../utils/groupTransform';
 import type { GroupTransformPreview, SelectionBox } from '../../hooks/useMultiSelect';
@@ -54,7 +55,7 @@ export function StickerComponent({
   const [isResizing, setIsResizing] = useState(false);
   const [localWidth, setLocalWidth] = useState(sticker.width);
   const [localHeight, setLocalHeight] = useState(sticker.height);
-  const [gifImage, setGifImage] = useState<HTMLImageElement | null>(null);
+  const [gifCanvas, setGifCanvas] = useState<HTMLCanvasElement | null>(null);
   const gifImageRef = useRef<Konva.Image>(null);
   const gifAnimRef = useRef<Konva.Animation | null>(null);
 
@@ -65,41 +66,98 @@ export function StickerComponent({
     }
   }, [sticker.width, sticker.height, isResizing]);
 
-  // Animate GIF: load <img> into the DOM so the browser decodes frames,
-  // pass it directly to Konva Image, and use Konva.Animation to force
-  // continuous layer redraws so each GIF frame is painted.
+  // Decode GIF frames with gifuct-js and render them to an offscreen canvas
   useEffect(() => {
     if (!sticker.gifUrl) {
-      setGifImage(null);
+      setGifCanvas(null);
       return;
     }
 
-    const img = document.createElement('img');
-    // Keep img in the DOM so the browser animates GIF frames
-    img.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;pointer-events:none;visibility:hidden;';
-    document.body.appendChild(img);
+    let cancelled = false;
+    let rafId = 0;
 
-    img.onload = () => setGifImage(img);
-    img.onerror = () => setGifImage(null);
-    img.src = sticker.gifUrl;
+    (async () => {
+      try {
+        const resp = await fetch(sticker.gifUrl!);
+        if (cancelled) return;
+        const buffer = await resp.arrayBuffer();
+        if (cancelled) return;
+
+        const gif = parseGIF(buffer);
+        const frames = decompressFrames(gif, true);
+        if (cancelled || frames.length === 0) return;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = gif.lsd.width;
+        canvas.height = gif.lsd.height;
+        const ctx = canvas.getContext('2d')!;
+
+        // Temp canvas for compositing individual frame patches
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d')!;
+
+        let frameIdx = 0;
+        let lastFrameTime = performance.now();
+
+        const renderFrame = (now: number) => {
+          if (cancelled) return;
+          const frame = frames[frameIdx];
+          const delay = Math.max((frame.delay || 10) * 10, 20); // centiseconds → ms, min 20ms
+
+          if (now - lastFrameTime >= delay) {
+            // Handle disposal before drawing new frame
+            if (frame.disposalType === 2) {
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+
+            // Draw patch via temp canvas to create ImageData correctly
+            const { width, height, top, left } = frame.dims;
+            tempCanvas.width = width;
+            tempCanvas.height = height;
+            const imageData = new ImageData(new Uint8ClampedArray(frame.patch), width, height);
+            tempCtx.putImageData(imageData, 0, 0);
+            ctx.drawImage(tempCanvas, left, top);
+
+            frameIdx = (frameIdx + 1) % frames.length;
+            lastFrameTime = now;
+          }
+
+          rafId = requestAnimationFrame(renderFrame);
+        };
+
+        // Draw first frame immediately and set canvas
+        const firstFrame = frames[0];
+        const { width, height, top, left } = firstFrame.dims;
+        tempCanvas.width = width;
+        tempCanvas.height = height;
+        const imageData = new ImageData(new Uint8ClampedArray(firstFrame.patch), width, height);
+        tempCtx.putImageData(imageData, 0, 0);
+        ctx.drawImage(tempCanvas, left, top);
+
+        if (!cancelled) {
+          setGifCanvas(canvas);
+          rafId = requestAnimationFrame(renderFrame);
+        }
+      } catch {
+        if (!cancelled) setGifCanvas(null);
+      }
+    })();
 
     return () => {
-      setGifImage(null);
-      img.src = '';
-      img.remove();
+      cancelled = true;
+      cancelAnimationFrame(rafId);
+      setGifCanvas(null);
     };
   }, [sticker.gifUrl]);
 
-  // Start/stop Konva.Animation to continuously redraw the layer for GIF frames
+  // Konva.Animation to continuously redraw the layer (picks up new canvas content)
   useEffect(() => {
-    if (!gifImage || !gifImageRef.current) return;
+    if (!gifCanvas || !gifImageRef.current) return;
 
     const layer = gifImageRef.current.getLayer();
     if (!layer) return;
 
-    const anim = new Konva.Animation(() => {
-      // Returning nothing — just need the layer to redraw each frame
-    }, layer);
+    const anim = new Konva.Animation(() => {}, layer);
     anim.start();
     gifAnimRef.current = anim;
 
@@ -107,7 +165,7 @@ export function StickerComponent({
       anim.stop();
       gifAnimRef.current = null;
     };
-  }, [gifImage]);
+  }, [gifCanvas]);
 
   // Flash animation for new stickers
   useEffect(() => {
@@ -214,10 +272,10 @@ export function StickerComponent({
       />
       {/* GIF or Emoji */}
       {sticker.gifUrl ? (
-        gifImage ? (
+        gifCanvas ? (
           <Image
             ref={gifImageRef}
-            image={gifImage}
+            image={gifCanvas}
             width={localWidth}
             height={localHeight}
             listening={false}

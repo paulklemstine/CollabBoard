@@ -21,7 +21,6 @@ interface ToolbarProps {
   onZoomIn?: () => void;
   onZoomOut?: () => void;
   onResetZoom?: () => void;
-  topSlot?: React.ReactNode;
 }
 
 export function Toolbar({
@@ -40,7 +39,6 @@ export function Toolbar({
   onZoomIn,
   onZoomOut,
   onResetZoom,
-  topSlot,
 }: ToolbarProps) {
   const [selectedColor, setSelectedColor] = useState(COLORS[0]);
 
@@ -57,12 +55,9 @@ export function Toolbar({
       style={{
         position: 'fixed',
         bottom: 24,
-        left: 0,
-        right: 0,
+        left: 16,
         zIndex: 1000,
         pointerEvents: 'none',
-        display: 'flex',
-        justifyContent: 'center',
         overflow: 'visible',
       }}
     >
@@ -71,13 +66,8 @@ export function Toolbar({
           pointerEvents: 'auto',
           maxWidth: 'calc(100vw - 32px)',
           overflow: 'visible',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'flex-start',
-          gap: 8,
         }}
       >
-        {topSlot}
         <div
           style={{
             boxShadow: '0 8px 32px rgba(139, 92, 246, 0.12), 0 4px 16px rgba(236, 72, 153, 0.08), 0 2px 8px rgba(0,0,0,0.06)',

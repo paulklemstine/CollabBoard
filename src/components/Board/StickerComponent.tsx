@@ -1,7 +1,6 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { Group, Text, Rect, Image } from 'react-konva';
+import { Group, Text, Rect } from 'react-konva';
 import Konva from 'konva';
-import { parseGIF, decompressFrames } from 'gifuct-js';
 import type { Sticker } from '../../types/board';
 import { calculateGroupObjectTransform } from '../../utils/groupTransform';
 import type { GroupTransformPreview, SelectionBox } from '../../hooks/useMultiSelect';
@@ -44,6 +43,7 @@ export function StickerComponent({
   groupTransformPreview,
   selectionBox
 }: StickerComponentProps) {
+  const groupRef = useRef<Konva.Group>(null);
   const flashOverlayRef = useRef<Konva.Rect>(null);
   const rotateStartRef = useRef<{ angle: number; rotation: number } | null>(null);
   const lastDragUpdate = useRef(0);
@@ -55,9 +55,7 @@ export function StickerComponent({
   const [isResizing, setIsResizing] = useState(false);
   const [localWidth, setLocalWidth] = useState(sticker.width);
   const [localHeight, setLocalHeight] = useState(sticker.height);
-  const [gifCanvas, setGifCanvas] = useState<HTMLCanvasElement | null>(null);
-  const gifImageRef = useRef<Konva.Image>(null);
-  const gifAnimRef = useRef<Konva.Animation | null>(null);
+  const gifImgRef = useRef<HTMLImageElement | null>(null);
 
   useEffect(() => {
     if (!isResizing) {
@@ -66,106 +64,41 @@ export function StickerComponent({
     }
   }, [sticker.width, sticker.height, isResizing]);
 
-  // Decode GIF frames with gifuct-js and render them to an offscreen canvas
+  // HTML <img> overlay for GIF stickers — browser handles animation natively,
+  // no Konva canvas redraws needed. Position synced via CSS matrix() transform.
   useEffect(() => {
-    if (!sticker.gifUrl) {
-      setGifCanvas(null);
-      return;
-    }
+    if (!sticker.gifUrl) return;
 
-    let cancelled = false;
-    let rafId = 0;
+    const group = groupRef.current;
+    if (!group) return;
+    const stage = group.getStage();
+    if (!stage) return;
+    const container = stage.container();
 
-    (async () => {
-      try {
-        const resp = await fetch(sticker.gifUrl!);
-        if (cancelled) return;
-        const buffer = await resp.arrayBuffer();
-        if (cancelled) return;
+    const img = document.createElement('img');
+    img.src = sticker.gifUrl;
+    img.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;transform-origin:0 0;';
+    container.appendChild(img);
+    gifImgRef.current = img;
 
-        const gif = parseGIF(buffer);
-        const frames = decompressFrames(gif, true);
-        if (cancelled || frames.length === 0) return;
+    let rafId: number;
 
-        const canvas = document.createElement('canvas');
-        canvas.width = gif.lsd.width;
-        canvas.height = gif.lsd.height;
-        const ctx = canvas.getContext('2d')!;
-
-        // Temp canvas for compositing individual frame patches
-        const tempCanvas = document.createElement('canvas');
-        const tempCtx = tempCanvas.getContext('2d')!;
-
-        let frameIdx = 0;
-        let lastFrameTime = performance.now();
-
-        const renderFrame = (now: number) => {
-          if (cancelled) return;
-          const frame = frames[frameIdx];
-          const delay = Math.max((frame.delay || 10) * 10, 20); // centiseconds → ms, min 20ms
-
-          if (now - lastFrameTime >= delay) {
-            // Handle disposal before drawing new frame
-            if (frame.disposalType === 2) {
-              ctx.clearRect(0, 0, canvas.width, canvas.height);
-            }
-
-            // Draw patch via temp canvas to create ImageData correctly
-            const { width, height, top, left } = frame.dims;
-            tempCanvas.width = width;
-            tempCanvas.height = height;
-            const imageData = new ImageData(new Uint8ClampedArray(frame.patch), width, height);
-            tempCtx.putImageData(imageData, 0, 0);
-            ctx.drawImage(tempCanvas, left, top);
-
-            frameIdx = (frameIdx + 1) % frames.length;
-            lastFrameTime = now;
-          }
-
-          rafId = requestAnimationFrame(renderFrame);
-        };
-
-        // Draw first frame immediately and set canvas
-        const firstFrame = frames[0];
-        const { width, height, top, left } = firstFrame.dims;
-        tempCanvas.width = width;
-        tempCanvas.height = height;
-        const imageData = new ImageData(new Uint8ClampedArray(firstFrame.patch), width, height);
-        tempCtx.putImageData(imageData, 0, 0);
-        ctx.drawImage(tempCanvas, left, top);
-
-        if (!cancelled) {
-          setGifCanvas(canvas);
-          rafId = requestAnimationFrame(renderFrame);
-        }
-      } catch {
-        if (!cancelled) setGifCanvas(null);
-      }
-    })();
+    const sync = () => {
+      if (!groupRef.current) { rafId = requestAnimationFrame(sync); return; }
+      const m = groupRef.current.getAbsoluteTransform().getMatrix();
+      img.style.transform = `matrix(${m[0]},${m[1]},${m[2]},${m[3]},${m[4]},${m[5]})`;
+      img.style.width = `${localWidth}px`;
+      img.style.height = `${localHeight}px`;
+      rafId = requestAnimationFrame(sync);
+    };
+    rafId = requestAnimationFrame(sync);
 
     return () => {
-      cancelled = true;
       cancelAnimationFrame(rafId);
-      setGifCanvas(null);
+      img.remove();
+      gifImgRef.current = null;
     };
-  }, [sticker.gifUrl]);
-
-  // Konva.Animation to continuously redraw the layer (picks up new canvas content)
-  useEffect(() => {
-    if (!gifCanvas || !gifImageRef.current) return;
-
-    const layer = gifImageRef.current.getLayer();
-    if (!layer) return;
-
-    const anim = new Konva.Animation(() => {}, layer);
-    anim.start();
-    gifAnimRef.current = anim;
-
-    return () => {
-      anim.stop();
-      gifAnimRef.current = null;
-    };
-  }, [gifCanvas]);
+  }, [sticker.gifUrl, localWidth, localHeight]);
 
   // Flash animation for new stickers
   useEffect(() => {
@@ -231,6 +164,7 @@ export function StickerComponent({
 
   return (
     <Group
+      ref={groupRef}
       x={sticker.x + (dragOffset?.x ?? 0) + (groupDragOffset?.dx ?? 0) + (liveTransform?.orbitOffset.x ?? 0) + localWidth / 2}
       y={sticker.y + (dragOffset?.y ?? 0) + (groupDragOffset?.dy ?? 0) + (liveTransform?.orbitOffset.y ?? 0) + localHeight / 2}
       offsetX={localWidth / 2}
@@ -270,20 +204,8 @@ export function StickerComponent({
         height={localHeight}
         fill="transparent"
       />
-      {/* GIF or Emoji */}
-      {sticker.gifUrl ? (
-        gifCanvas ? (
-          <Image
-            ref={gifImageRef}
-            image={gifCanvas}
-            width={localWidth}
-            height={localHeight}
-            listening={false}
-          />
-        ) : (
-          <Rect width={localWidth} height={localHeight} fill="#e5e7eb" cornerRadius={8} listening={false} />
-        )
-      ) : (
+      {/* Emoji (non-GIF stickers only — GIF rendered as HTML overlay) */}
+      {!sticker.gifUrl && (
         <Text
           text={sticker.emoji}
           fontSize={fontSize}

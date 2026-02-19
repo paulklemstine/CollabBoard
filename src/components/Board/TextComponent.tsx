@@ -7,7 +7,7 @@ import type { GroupTransformPreview, SelectionBox } from '../../hooks/useMultiSe
 
 const DRAG_THROTTLE_MS = 50;
 const MIN_WIDTH = 100;
-const MIN_HEIGHT = 30;
+const BASE_MIN_HEIGHT = 30;
 
 interface TextComponentProps {
   textObj: TextObject;
@@ -36,6 +36,8 @@ export function TextComponent({
   isConnectorHighlighted, isNew, parentRotation, dragOffset,
   isSelected, groupDragOffset, groupTransformPreview, selectionBox,
 }: TextComponentProps) {
+  // Minimum height must fit at least one line of text (fontSize * lineHeight + padding)
+  const minHeight = Math.max(BASE_MIN_HEIGHT, Math.ceil(textObj.fontSize * 1.4) + 8);
   const textRef = useRef<Konva.Text>(null);
   const [isEditing, setIsEditing] = useState(false);
   const lastDragUpdate = useRef(0);
@@ -57,7 +59,7 @@ export function TextComponent({
     }
   }, [textObj.width, textObj.height, isResizing]);
 
-  // Auto-fit height to text content (grow and shrink, never below MIN_HEIGHT)
+  // Auto-fit height to text content (grow and shrink, never below minHeight)
   useEffect(() => {
     if (!textRef.current || isEditing || isResizing) return;
     const node = textRef.current;
@@ -66,7 +68,7 @@ export function TextComponent({
     node.height(undefined as unknown as number);
     const naturalH = node.height();
     node.height(prevH); // restore
-    const neededH = Math.max(MIN_HEIGHT, naturalH + 8); // padding + min
+    const neededH = Math.max(minHeight, naturalH + 8); // padding + min
     if (Math.abs(neededH - localHeight) > 1) {
       setLocalHeight(neededH);
       onResize?.(textObj.id, localWidth, neededH);
@@ -454,7 +456,7 @@ export function TextComponent({
           onDragMove={(e) => {
             e.cancelBubble = true;
             const newWidth = Math.max(MIN_WIDTH, e.target.x() + 20);
-            const newHeight = Math.max(MIN_HEIGHT, e.target.y() + 20);
+            const newHeight = Math.max(minHeight, e.target.y() + 20);
             setLocalWidth(newWidth);
             setLocalHeight(newHeight);
             const now = Date.now();
@@ -466,7 +468,7 @@ export function TextComponent({
           onDragEnd={(e) => {
             e.cancelBubble = true;
             const newWidth = Math.max(MIN_WIDTH, e.target.x() + 20);
-            const newHeight = Math.max(MIN_HEIGHT, e.target.y() + 20);
+            const newHeight = Math.max(minHeight, e.target.y() + 20);
             setLocalWidth(newWidth);
             setLocalHeight(newHeight);
             onResize(textObj.id, newWidth, newHeight);

@@ -268,7 +268,10 @@ export function useBoard(boardId: string, userId: string) {
       y?: number,
     ) => {
       const textWidth = 300;
-      const textHeight = 50;
+      const effectiveFontSize = fontSize ?? 24;
+      // Ensure the panel is tall enough for at least one line of text
+      // lineHeight 1.4 + 8px vertical padding (4 top + 4 bottom)
+      const textHeight = Math.max(50, Math.ceil(effectiveFontSize * 1.4) + 8);
       const screenX = window.innerWidth / 2 - textWidth / 2;
       const screenY = window.innerHeight - textHeight - 170;
 

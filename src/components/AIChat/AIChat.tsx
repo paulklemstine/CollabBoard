@@ -107,7 +107,7 @@ export function AIChat({ boardId, isOpen, onClose }: AIChatProps) {
             <SparkleIcon size={14} />
           </div>
           <span className="text-sm font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-            AI Assistant
+            Flow AI
           </span>
         </div>
         <button
@@ -128,9 +128,9 @@ export function AIChat({ boardId, isOpen, onClose }: AIChatProps) {
             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center mb-3 text-purple-400">
               <SparkleIcon size={24} />
             </div>
-            <p className="text-sm font-medium text-gray-500 mb-1">Ask AI to help</p>
+            <p className="text-sm font-medium text-gray-500 mb-1">Co-create with Flow AI</p>
             <p className="text-xs text-gray-400">
-              Try: "Create a SWOT analysis"
+              Try: "Turn these sticky notes into a prioritized action plan"
             </p>
           </div>
         ) : (
@@ -171,7 +171,7 @@ export function AIChat({ boardId, isOpen, onClose }: AIChatProps) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask AI to create or modify..."
+            placeholder="Ask Flow AI to shape this board..."
             disabled={isLoading}
             className="flex-1 bg-white/50 border border-white/40 rounded-xl px-3 py-2 text-sm text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-300 disabled:opacity-50 transition-all"
           />

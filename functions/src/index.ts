@@ -87,6 +87,21 @@ const tools = [
     },
   },
   {
+    name: 'createGifSticker',
+    description: 'Create an animated GIF sticker on the whiteboard using a GIPHY URL. Returns the created object ID.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        gifUrl: { type: 'string', description: 'URL of the GIF image (e.g. from GIPHY)' },
+        x: { type: 'number', description: 'X position on the canvas in ABSOLUTE coordinates (default: 0)' },
+        y: { type: 'number', description: 'Y position on the canvas in ABSOLUTE coordinates (default: 0)' },
+        size: { type: 'number', description: 'Size in pixels (default: 150)' },
+        parentId: { type: 'string', description: 'ID of a frame to attach this sticker to.' },
+      },
+      required: ['gifUrl'],
+    },
+  },
+  {
     name: 'createText',
     description: 'Create a standalone text element on the whiteboard (heading, label, paragraph). No background by default. Supports font styling. Returns the created object ID.',
     input_schema: {
@@ -314,6 +329,7 @@ You can create and manipulate objects on the whiteboard using the provided tools
   - color: text color (default: #1e293b)
   - bgColor: optional background color (default: transparent)
 - **Stickers**: Single emoji characters that can be placed and resized. Default size: 150x150px. Use any emoji like 🎉, ❤️, 👍, 🚀, etc.
+- **GIF Stickers**: Animated GIF images (from GIPHY). Default size: 150x150px. Provide a full GIPHY URL. Great for reactions, celebrations, or adding visual flair.
 - **Lines**: Created via createShape with shapeType "line". Use fromX/fromY/toX/toY to specify start and end points — the server automatically computes position, length, and rotation.
   - Example: Horizontal line from (100, 200) to (300, 200): fromX=100, fromY=200, toX=300, toY=200
   - Example: Vertical line from (200, 100) to (200, 300): fromX=200, fromY=100, toX=200, toY=300
@@ -436,6 +452,7 @@ interface ToolInput {
   fontStyle?: string;
   textAlign?: string;
   bgColor?: string;
+  gifUrl?: string;
   objectId?: string;
   newText?: string;
   newColor?: string;
@@ -554,6 +571,27 @@ async function executeTool(
       await docRef.set(data);
       objectsCreated.push(docRef.id);
       return JSON.stringify({ id: docRef.id, type: 'sticker', emoji: input.emoji });
+    }
+
+    case 'createGifSticker': {
+      const docRef = objectsRef.doc();
+      const size = input.size ?? 150;
+      const data: Record<string, unknown> = {
+        type: 'sticker',
+        emoji: '',
+        gifUrl: input.gifUrl ?? '',
+        x: input.x ?? 0,
+        y: input.y ?? 0,
+        width: size,
+        height: size,
+        rotation: 0,
+        createdBy: userId,
+        updatedAt: now,
+        parentId: input.parentId ?? '',
+      };
+      await docRef.set(data);
+      objectsCreated.push(docRef.id);
+      return JSON.stringify({ id: docRef.id, type: 'sticker', gifUrl: input.gifUrl });
     }
 
     case 'createText': {
@@ -1118,6 +1156,7 @@ export const processAIRequest = onDocumentCreated(
             createShape: 'Creating shape',
             createFrame: 'Creating frame',
             createSticker: 'Creating sticker',
+            createGifSticker: 'Creating GIF sticker',
             createText: 'Creating text element',
             createConnector: 'Creating connector',
             moveObject: 'Moving object',

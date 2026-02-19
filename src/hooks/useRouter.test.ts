@@ -1,75 +1,81 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useRouter } from './useRouter';
 
 beforeEach(() => {
+  // Reset to root path
+  window.history.replaceState(null, '', '/');
   window.location.hash = '';
 });
 
 describe('useRouter', () => {
-  it('defaults to dashboard when hash is empty', () => {
+  it('defaults to dashboard when path is /', () => {
     const { result } = renderHook(() => useRouter());
 
     expect(result.current.route).toEqual({ page: 'dashboard' });
   });
 
-  it('defaults to dashboard when hash is #/', () => {
-    window.location.hash = '#/';
+  it('parses board route from path', () => {
+    window.history.replaceState(null, '', '/abc123');
     const { result } = renderHook(() => useRouter());
 
-    expect(result.current.route).toEqual({ page: 'dashboard' });
+    expect(result.current.route).toEqual({ page: 'board', boardId: 'abc123' });
   });
 
-  it('parses board route from hash', () => {
-    window.location.hash = '#/board/abc-123';
+  it('supports legacy hash URLs and redirects to clean path', () => {
+    window.location.hash = '#/board/old-uuid-id';
     const { result } = renderHook(() => useRouter());
 
-    expect(result.current.route).toEqual({ page: 'board', boardId: 'abc-123' });
+    expect(result.current.route).toEqual({ page: 'board', boardId: 'old-uuid-id' });
+    expect(window.location.pathname).toBe('/old-uuid-id');
   });
 
-  it('navigateTo board sets hash', () => {
+  it('navigateTo board sets path', () => {
     const { result } = renderHook(() => useRouter());
 
     act(() => {
       result.current.navigateTo({ page: 'board', boardId: 'my-board' });
     });
 
-    expect(window.location.hash).toBe('#/board/my-board');
+    expect(window.location.pathname).toBe('/my-board');
+    expect(result.current.route).toEqual({ page: 'board', boardId: 'my-board' });
   });
 
-  it('navigateTo dashboard sets hash to #/', () => {
-    window.location.hash = '#/board/some-board';
+  it('navigateTo dashboard sets path to /', () => {
+    window.history.replaceState(null, '', '/some-board');
     const { result } = renderHook(() => useRouter());
 
     act(() => {
       result.current.navigateTo({ page: 'dashboard' });
     });
 
-    expect(window.location.hash).toBe('#/');
+    expect(window.location.pathname).toBe('/');
+    expect(result.current.route).toEqual({ page: 'dashboard' });
   });
 
-  it('responds to hashchange events', () => {
+  it('responds to popstate events', () => {
     const { result } = renderHook(() => useRouter());
 
     expect(result.current.route).toEqual({ page: 'dashboard' });
 
     act(() => {
-      window.location.hash = '#/board/new-board';
-      window.dispatchEvent(new HashChangeEvent('hashchange'));
+      window.history.pushState(null, '', '/new-board');
+      window.dispatchEvent(new PopStateEvent('popstate'));
     });
 
     expect(result.current.route).toEqual({ page: 'board', boardId: 'new-board' });
   });
 
-  it('cleans up hashchange listener on unmount', () => {
+  it('cleans up popstate listener on unmount', () => {
     const { unmount } = renderHook(() => useRouter());
 
-    // Should not throw after unmount
     unmount();
 
     act(() => {
-      window.location.hash = '#/board/after-unmount';
-      window.dispatchEvent(new HashChangeEvent('hashchange'));
+      window.history.pushState(null, '', '/after-unmount');
+      window.dispatchEvent(new PopStateEvent('popstate'));
     });
+
+    // Should not throw after unmount
   });
 });

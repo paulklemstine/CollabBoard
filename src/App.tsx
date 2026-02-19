@@ -3,6 +3,7 @@ import { ref, set, remove } from 'firebase/database';
 import { rtdb } from './services/firebase';
 import { signOutUser } from './services/authService';
 import { subscribeToBoardMetadata } from './services/boardMetadataService';
+import { addVisitedBoard } from './services/userBoardsService';
 import { useAuth } from './hooks/useAuth';
 import { useRouter } from './hooks/useRouter';
 import { useCursors } from './hooks/useCursors';
@@ -96,6 +97,12 @@ function BoardView({
   onSignOut: () => Promise<void>;
 }) {
   const [boardMetadata, setBoardMetadata] = useState<BoardMetadata | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  // Track visit so private boards persist in user's "My Boards"
+  useEffect(() => {
+    addVisitedBoard(user.uid, boardId).catch(() => {});
+  }, [user.uid, boardId]);
 
   // Subscribe to board metadata for display + deletion detection
   const onNavigateBackRef = useRef(onNavigateBack);
@@ -547,6 +554,34 @@ function BoardView({
             </h1>
           </div>
         )}
+        <button
+          onClick={() => {
+            const url = `${window.location.origin}/${boardId}`;
+            navigator.clipboard.writeText(url).then(() => {
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            });
+          }}
+          className="glass-playful rounded-xl px-3 py-2 text-sm font-semibold text-gray-700 hover:text-purple-600 transition-colors duration-200 shadow-lg flex items-center gap-1.5"
+        >
+          {copied ? (
+            <>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              Copied!
+            </>
+          ) : (
+            <>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+                <polyline points="16 6 12 2 8 6" />
+                <line x1="12" y1="2" x2="12" y2="15" />
+              </svg>
+              Share
+            </>
+          )}
+        </button>
         <AuthPanel user={user as never} onSignOut={onSignOut} />
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BoardDashboard } from './BoardDashboard';
@@ -22,20 +22,26 @@ const mockUser = {
 
 const mockAddBoard = vi.fn().mockResolvedValue('new-board-id');
 const mockRemoveBoard = vi.fn().mockResolvedValue(undefined);
+const mockToggleBoardVisibility = vi.fn().mockResolvedValue(undefined);
+const mockMarkVisited = vi.fn();
 
-beforeEach(() => {
-  vi.clearAllMocks();
-  vi.useFakeTimers();
+function mockHook(overrides: Partial<ReturnType<typeof useUserBoardsModule.useUserBoards>> = {}) {
   vi.mocked(useUserBoardsModule.useUserBoards).mockReturnValue({
-    boards: [],
+    myBoards: [],
+    sharedWithMe: [],
+    publicBoards: [],
     loading: false,
     addBoard: mockAddBoard,
     removeBoard: mockRemoveBoard,
+    toggleBoardVisibility: mockToggleBoardVisibility,
+    markVisited: mockMarkVisited,
+    ...overrides,
   });
-});
+}
 
-afterEach(() => {
-  vi.useRealTimers();
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockHook();
 });
 
 describe('BoardDashboard', () => {
@@ -44,7 +50,7 @@ describe('BoardDashboard', () => {
       <BoardDashboard user={mockUser} onSelectBoard={vi.fn()} onSignOut={vi.fn()} />,
     );
 
-    expect(screen.getByText(/welcome, test user/i)).toBeInTheDocument();
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
   });
 
   it('renders sign out button', () => {
@@ -68,12 +74,7 @@ describe('BoardDashboard', () => {
   });
 
   it('shows loading spinner when loading', () => {
-    vi.mocked(useUserBoardsModule.useUserBoards).mockReturnValue({
-      boards: [],
-      loading: true,
-      addBoard: mockAddBoard,
-      removeBoard: mockRemoveBoard,
-    });
+    mockHook({ loading: true });
 
     const { container } = render(
       <BoardDashboard user={mockUser} onSelectBoard={vi.fn()} onSignOut={vi.fn()} />,
@@ -82,44 +83,91 @@ describe('BoardDashboard', () => {
     expect(container.querySelector('.animate-spin-loader')).toBeInTheDocument();
   });
 
-  it('shows empty state when no boards', () => {
+  it('renders My Boards section heading', () => {
     render(
       <BoardDashboard user={mockUser} onSelectBoard={vi.fn()} onSignOut={vi.fn()} />,
     );
 
-    expect(screen.getByText(/no boards yet/i)).toBeInTheDocument();
+    expect(screen.getByText('My Boards')).toBeInTheDocument();
   });
 
-  it('renders board cards when boards exist', () => {
-    const boards: BoardMetadata[] = [
-      { id: 'b1', name: 'Board One', createdBy: 'user-1', createdByName: 'Test User', createdByGuest: false, createdAt: 1000, updatedAt: 1000 },
-      { id: 'b2', name: 'Board Two', createdBy: 'user-1', createdByName: 'Test User', createdByGuest: false, createdAt: 2000, updatedAt: 2000 },
+  it('renders Public Boards section heading', () => {
+    render(
+      <BoardDashboard user={mockUser} onSelectBoard={vi.fn()} onSignOut={vi.fn()} />,
+    );
+
+    expect(screen.getByText('Public Boards')).toBeInTheDocument();
+  });
+
+  it('shows empty state for My Boards when empty', () => {
+    render(
+      <BoardDashboard user={mockUser} onSelectBoard={vi.fn()} onSignOut={vi.fn()} />,
+    );
+
+    expect(screen.getByText('No boards yet')).toBeInTheDocument();
+  });
+
+  it('shows empty state for Public Boards when empty', () => {
+    render(
+      <BoardDashboard user={mockUser} onSelectBoard={vi.fn()} onSignOut={vi.fn()} />,
+    );
+
+    expect(screen.getByText('No public boards')).toBeInTheDocument();
+  });
+
+  it('shows user-created boards under My Boards', () => {
+    const myBoards: BoardMetadata[] = [
+      { id: 'b1', name: 'My Board', createdBy: 'user-1', createdByName: 'Test User', createdByGuest: false, createdAt: 1000, updatedAt: 1000 },
     ];
-    vi.mocked(useUserBoardsModule.useUserBoards).mockReturnValue({
-      boards,
-      loading: false,
-      addBoard: mockAddBoard,
-      removeBoard: mockRemoveBoard,
-    });
+    mockHook({ myBoards });
 
     render(
       <BoardDashboard user={mockUser} onSelectBoard={vi.fn()} onSignOut={vi.fn()} />,
     );
 
-    expect(screen.getByText('Board One')).toBeInTheDocument();
-    expect(screen.getByText('Board Two')).toBeInTheDocument();
+    expect(screen.getByText('My Board')).toBeInTheDocument();
+  });
+
+  it('shows public boards under Public Boards', () => {
+    const publicBoards: BoardMetadata[] = [
+      { id: 'b2', name: 'Public Board', createdBy: 'user-2', createdByName: 'Other User', createdByGuest: false, createdAt: 2000, updatedAt: 2000, isPublic: true },
+    ];
+    mockHook({ publicBoards });
+
+    render(
+      <BoardDashboard user={mockUser} onSelectBoard={vi.fn()} onSignOut={vi.fn()} />,
+    );
+
+    expect(screen.getByText('Public Board')).toBeInTheDocument();
+  });
+
+  it('hides Shared with me section when empty', () => {
+    render(
+      <BoardDashboard user={mockUser} onSelectBoard={vi.fn()} onSignOut={vi.fn()} />,
+    );
+
+    expect(screen.queryByText('Shared with me')).not.toBeInTheDocument();
+  });
+
+  it('shows shared private boards under Shared with me', () => {
+    const sharedWithMe: BoardMetadata[] = [
+      { id: 'b3', name: 'Secret Board', createdBy: 'user-2', createdByName: 'Other User', createdByGuest: false, createdAt: 3000, updatedAt: 3000, isPublic: false },
+    ];
+    mockHook({ sharedWithMe });
+
+    render(
+      <BoardDashboard user={mockUser} onSelectBoard={vi.fn()} onSignOut={vi.fn()} />,
+    );
+
+    expect(screen.getByText('Shared with me')).toBeInTheDocument();
+    expect(screen.getByText('Secret Board')).toBeInTheDocument();
   });
 
   it('calls onSelectBoard when a board card is clicked', async () => {
-    const boards: BoardMetadata[] = [
+    const myBoards: BoardMetadata[] = [
       { id: 'b1', name: 'Board One', createdBy: 'user-1', createdByName: 'Test User', createdByGuest: false, createdAt: 1000, updatedAt: 1000 },
     ];
-    vi.mocked(useUserBoardsModule.useUserBoards).mockReturnValue({
-      boards,
-      loading: false,
-      addBoard: mockAddBoard,
-      removeBoard: mockRemoveBoard,
-    });
+    mockHook({ myBoards });
 
     const onSelectBoard = vi.fn();
     const user = userEvent.setup();
@@ -139,53 +187,23 @@ describe('BoardDashboard', () => {
       <BoardDashboard user={mockUser} onSelectBoard={onSelectBoard} onSignOut={vi.fn()} />,
     );
 
-    await user.type(screen.getByPlaceholderText('Board name'), 'New Board');
-    await user.click(screen.getByRole('button', { name: /create board/i }));
+    await user.type(screen.getByPlaceholderText(/name your flow/i), 'New Board');
+    await user.click(screen.getByRole('button', { name: /launch flow/i }));
 
     expect(mockAddBoard).toHaveBeenCalledWith('New Board');
     expect(onSelectBoard).toHaveBeenCalledWith('new-board-id');
   });
 
-  it('renders create board form', () => {
-    render(
-      <BoardDashboard user={mockUser} onSelectBoard={vi.fn()} onSignOut={vi.fn()} />,
-    );
-
-    expect(screen.getByPlaceholderText('Board name')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /create board/i })).toBeInTheDocument();
-  });
-
-  it('shows delete button only for owned boards and guest-created boards', () => {
-    const boards: BoardMetadata[] = [
-      { id: 'b1', name: 'My Board', createdBy: 'user-1', createdByName: 'Test User', createdByGuest: false, createdAt: 1000, updatedAt: 1000 },
-      { id: 'b2', name: 'Other Board', createdBy: 'user-2', createdByName: 'Other User', createdByGuest: false, createdAt: 2000, updatedAt: 2000 },
-      { id: 'b3', name: 'Guest Board', createdBy: 'guest-1', createdByName: 'Guest 5678', createdByGuest: true, createdAt: 3000, updatedAt: 3000 },
-    ];
-    vi.mocked(useUserBoardsModule.useUserBoards).mockReturnValue({
-      boards,
-      loading: false,
-      addBoard: mockAddBoard,
-      removeBoard: mockRemoveBoard,
-    });
-
-    render(
-      <BoardDashboard user={mockUser} onSelectBoard={vi.fn()} onSignOut={vi.fn()} />,
-    );
-
-    expect(screen.getByLabelText(/delete my board/i)).toBeInTheDocument();
-    expect(screen.queryByLabelText(/delete other board/i)).not.toBeInTheDocument();
-    expect(screen.getByLabelText(/delete guest board/i)).toBeInTheDocument();
-  });
-
   it('sets up a delayed timer on mount to trigger re-render', () => {
+    vi.useFakeTimers();
     const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
 
     render(
       <BoardDashboard user={mockUser} onSelectBoard={vi.fn()} onSignOut={vi.fn()} />,
     );
 
-    // Should set up a timeout for delayed refresh
     expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 500);
     setTimeoutSpy.mockRestore();
+    vi.useRealTimers();
   });
 });

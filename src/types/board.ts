@@ -6,6 +6,7 @@ export interface BoardMetadata {
   createdByGuest: boolean;
   createdAt: number;
   updatedAt: number;
+  isPublic?: boolean;
 }
 
 export interface BoardObject {

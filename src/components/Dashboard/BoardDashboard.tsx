@@ -11,7 +11,7 @@ interface BoardDashboardProps {
 
 export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboardProps) {
   const [refreshKey, setRefreshKey] = useState(0);
-  const { boards, loading, addBoard, removeBoard } = useUserBoards(
+  const { myBoards, sharedWithMe, publicBoards, loading, addBoard, removeBoard, toggleBoardVisibility } = useUserBoards(
     user.uid,
     user.isAnonymous,
     user.displayName || user.email?.split('@')[0] || 'User',
@@ -72,28 +72,73 @@ export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboar
           <CreateBoardForm onCreateBoard={handleCreateBoard} />
         </div>
 
-        {/* Board List */}
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="w-10 h-10 rounded-full border-4 border-white/30 border-t-white animate-spin-loader" />
           </div>
-        ) : boards.length === 0 ? (
-          <div className="glass-playful rounded-2xl p-12 text-center shadow-lg">
-            <p className="text-gray-500 text-lg font-medium">No flows yet</p>
-            <p className="text-gray-400 text-sm mt-2">Spin up your first board and invite others to ideate in real time.</p>
-          </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {boards.map((board) => (
-              <BoardCard
-                key={board.id}
-                board={board}
-                onSelect={onSelectBoard}
-                onDelete={removeBoard}
-                canDelete={board.createdBy === user.uid || board.createdByGuest}
-              />
-            ))}
-          </div>
+          <>
+            {/* My Boards */}
+            <h2 className="text-lg font-bold text-white/90 mb-4">My Boards</h2>
+            {myBoards.length === 0 ? (
+              <div className="glass-playful rounded-2xl p-8 text-center shadow-lg mb-8">
+                <p className="text-gray-500 font-medium">No boards yet</p>
+                <p className="text-gray-400 text-sm mt-1">Create one above or open a shared link.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                {myBoards.map((board) => (
+                  <BoardCard
+                    key={board.id}
+                    board={board}
+                    onSelect={onSelectBoard}
+                    onDelete={removeBoard}
+                    canDelete={board.createdBy === user.uid || board.createdByGuest}
+                    isOwner={board.createdBy === user.uid}
+                    onToggleVisibility={toggleBoardVisibility}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Shared with me */}
+            {sharedWithMe.length > 0 && (
+              <>
+                <h2 className="text-lg font-bold text-white/90 mb-4">Shared with me</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                  {sharedWithMe.map((board) => (
+                    <BoardCard
+                      key={board.id}
+                      board={board}
+                      onSelect={onSelectBoard}
+                      onDelete={removeBoard}
+                      canDelete={false}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Public Boards */}
+            <h2 className="text-lg font-bold text-white/90 mb-4">Public Boards</h2>
+            {publicBoards.length === 0 ? (
+              <div className="glass-playful rounded-2xl p-8 text-center shadow-lg">
+                <p className="text-gray-500 font-medium">No public boards</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {publicBoards.map((board) => (
+                  <BoardCard
+                    key={board.id}
+                    board={board}
+                    onSelect={onSelectBoard}
+                    onDelete={removeBoard}
+                    canDelete={false}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
 
       </div>

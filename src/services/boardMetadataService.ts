@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   setDoc,
+  updateDoc,
   deleteDoc,
   onSnapshot,
   query,
@@ -23,6 +24,13 @@ function objectsCollection(boardId: string) {
 
 export async function createBoard(board: BoardMetadata): Promise<void> {
   await setDoc(boardDoc(board.id), board);
+}
+
+export async function updateBoardMetadata(
+  boardId: string,
+  updates: Partial<BoardMetadata>,
+): Promise<void> {
+  await updateDoc(boardDoc(boardId), updates);
 }
 
 export async function deleteBoard(boardId: string): Promise<void> {

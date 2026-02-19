@@ -64,4 +64,47 @@ describe('BoardCard', () => {
 
     expect(screen.queryByLabelText(/delete test board/i)).not.toBeInTheDocument();
   });
+
+  it('shows visibility toggle when isOwner and onToggleVisibility provided', () => {
+    render(
+      <BoardCard board={mockBoard} onSelect={vi.fn()} onDelete={vi.fn()} canDelete
+        isOwner onToggleVisibility={vi.fn()} />,
+    );
+
+    expect(screen.getByLabelText(/make test board private/i)).toBeInTheDocument();
+  });
+
+  it('shows lock icon for private boards', () => {
+    const privateBoard = { ...mockBoard, isPublic: false };
+    render(
+      <BoardCard board={privateBoard} onSelect={vi.fn()} onDelete={vi.fn()} canDelete
+        isOwner onToggleVisibility={vi.fn()} />,
+    );
+
+    expect(screen.getByLabelText(/make test board public/i)).toBeInTheDocument();
+  });
+
+  it('calls onToggleVisibility when toggle clicked', async () => {
+    const onToggleVisibility = vi.fn();
+    const onSelect = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <BoardCard board={mockBoard} onSelect={onSelect} onDelete={vi.fn()} canDelete
+        isOwner onToggleVisibility={onToggleVisibility} />,
+    );
+
+    await user.click(screen.getByLabelText(/make test board private/i));
+
+    expect(onToggleVisibility).toHaveBeenCalledWith('board-1', false);
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('does not show visibility toggle when not owner', () => {
+    render(
+      <BoardCard board={mockBoard} onSelect={vi.fn()} onDelete={vi.fn()} canDelete={false}
+        isOwner={false} onToggleVisibility={vi.fn()} />,
+    );
+
+    expect(screen.queryByLabelText(/make test board private/i)).not.toBeInTheDocument();
+  });
 });

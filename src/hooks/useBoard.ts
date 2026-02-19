@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import {
   addObject,
   updateObject,
@@ -23,12 +23,21 @@ export function useBoard(boardId: string, userId: string) {
   const [hoveredFrameId, setHoveredFrameId] = useState<string | null>(null);
   const [newObjectIds, setNewObjectIds] = useState<Set<string>>(new Set());
   const [frameDragOffset, setFrameDragOffset] = useState<{ frameId: string; dx: number; dy: number } | null>(null);
+  const pendingFrameClearRef = useRef(false);
   const frameDragStartRef = useRef<{ x: number; y: number } | null>(null);
   const connectorDragStartRef = useRef<Map<string, { x: number; y: number }>>(new Map());
 
   // Keep a ref to objects so drag callbacks always see the latest state
   const objectsRef = useRef(objects);
   objectsRef.current = objects;
+
+  // Clear frame drag offset atomically when Firestore optimistic update arrives
+  useLayoutEffect(() => {
+    if (pendingFrameClearRef.current) {
+      setFrameDragOffset(null);
+      pendingFrameClearRef.current = false;
+    }
+  }, [objects]);
 
   useEffect(() => {
     const unsubscribe = subscribeToBoard(boardId, setObjects);
@@ -367,8 +376,8 @@ export function useBoard(boardId: string, userId: string) {
         updateObject(boardId, frameId, { x: newX, y: newY });
         frameDragStartRef.current = null;
         connectorDragStartRef.current.clear();
-        setFrameDragOffset(null);
         setHoveredFrameId(null);
+        pendingFrameClearRef.current = true;
         return;
       }
 
@@ -436,19 +445,22 @@ export function useBoard(boardId: string, userId: string) {
         }
       }
 
-      // Update all objects atomically to prevent flickering
-      await batchUpdateObjects(boardId, batchUpdates);
-
       // Clear frame drag state
       frameDragStartRef.current = null;
       connectorDragStartRef.current.clear();
       setHoveredFrameId(null);
 
-      // Keep the offset active for a short time to prevent flickering
-      // while waiting for Firestore updates to come back
-      setTimeout(() => {
+      // Set BEFORE the write so useLayoutEffect can catch the optimistic update
+      pendingFrameClearRef.current = true;
+
+      // Update all objects atomically to prevent flickering
+      await batchUpdateObjects(boardId, batchUpdates);
+
+      // Safety: if objects didn't change (no-op), clear manually
+      if (pendingFrameClearRef.current) {
+        pendingFrameClearRef.current = false;
         setFrameDragOffset(null);
-      }, 100);
+      }
     },
     [boardId]
   );

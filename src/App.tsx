@@ -259,6 +259,18 @@ function BoardView({
     [cursors, zoomControls]
   );
 
+  const handleMinimapPanTo = useCallback(
+    (worldX: number, worldY: number) => {
+      if (!zoomControls) return;
+      zoomControls.setTransform({
+        x: -worldX * stageTransform.scale + window.innerWidth / 2,
+        y: -worldY * stageTransform.scale + window.innerHeight / 2,
+        scale: stageTransform.scale,
+      });
+    },
+    [zoomControls, stageTransform.scale]
+  );
+
   // Note: cursor position during drag is handled by Board's onMouseMove,
   // which correctly uses the pointer position (not the object position).
 
@@ -590,6 +602,7 @@ function BoardView({
             height: obj.height,
             type: obj.type,
           }))}
+          onPanTo={handleMinimapPanTo}
         />
       </div>
       {/* Top center: Board name */}

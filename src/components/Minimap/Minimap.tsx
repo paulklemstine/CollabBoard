@@ -1,18 +1,20 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
 import { Stage, Layer, Rect } from 'react-konva';
+import type Konva from 'konva';
 import type { StageTransform } from '../Board/Board';
 
 interface MinimapProps {
   transform: StageTransform;
   objects?: Array<{ x: number; y: number; width: number; height: number; type: string }>;
+  onPanTo?: (worldX: number, worldY: number) => void;
 }
 
 const MINIMAP_WIDTH = 200;
 const MINIMAP_HEIGHT = 150;
 const ZOOM_OUT_FACTOR = 30;
 
-export function Minimap({ transform, objects = [] }: MinimapProps) {
-  const stageRef = useRef<any>(null);
+export function Minimap({ transform, objects = [], onPanTo }: MinimapProps) {
+  const stageRef = useRef<Konva.Stage | null>(null);
 
   // Calculate the minimap scale (30x zoomed out from current view)
   const minimapScale = transform.scale / ZOOM_OUT_FACTOR;
@@ -34,6 +36,22 @@ export function Minimap({ transform, objects = [] }: MinimapProps) {
     }
   }, [transform, objects]);
 
+  const handleClick = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent>) => {
+      if (!onPanTo) return;
+      const stage = e.target.getStage();
+      if (!stage) return;
+      const pointer = stage.getPointerPosition();
+      if (!pointer) return;
+
+      // Convert minimap pixel position to world coordinates
+      const worldX = (pointer.x - minimapOffsetX) / minimapScale;
+      const worldY = (pointer.y - minimapOffsetY) / minimapScale;
+      onPanTo(worldX, worldY);
+    },
+    [onPanTo, minimapOffsetX, minimapOffsetY, minimapScale]
+  );
+
   return (
     <div
       data-testid="minimap"
@@ -48,6 +66,9 @@ export function Minimap({ transform, objects = [] }: MinimapProps) {
         scaleY={minimapScale}
         x={minimapOffsetX}
         y={minimapOffsetY}
+        onClick={handleClick}
+        onTap={handleClick}
+        style={{ cursor: onPanTo ? 'pointer' : 'default' }}
       >
         <Layer>
           {/* Render simplified objects */}

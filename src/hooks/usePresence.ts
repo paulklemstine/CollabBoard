@@ -8,11 +8,8 @@ const COLORS = [
   '#8b5cf6', '#ef4444', '#14b8a6', '#f97316', '#06b6d4',
 ];
 
-// Heartbeat: update presence every 5 seconds
-export const HEARTBEAT_INTERVAL = 5000;
-
-// Timeout: consider user offline if no heartbeat for 15 seconds
-export const PRESENCE_TIMEOUT = 15000;
+// Heartbeat: update presence every 30 seconds (keeps lastSeen fresh, but not used for timeout)
+export const HEARTBEAT_INTERVAL = 30000;
 
 export function pickColor(uid: string): string {
   let hash = 0;
@@ -64,16 +61,8 @@ export function usePresence(
         return;
       }
 
-      const now = Date.now();
       const users = Object.values(data as Record<string, PresenceUser>).filter(
-        (u) => {
-          // Filter out users marked as offline
-          if (!u.online) return false;
-
-          // Filter out users whose lastSeen is older than PRESENCE_TIMEOUT
-          const timeSinceLastSeen = now - u.lastSeen;
-          return timeSinceLastSeen < PRESENCE_TIMEOUT;
-        }
+        (u) => u.online,
       );
       setOnlineUsers(users);
     });

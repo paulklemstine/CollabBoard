@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { ref, onValue, set, onDisconnect, off } from 'firebase/database';
-import { usePresence, HEARTBEAT_INTERVAL, PRESENCE_TIMEOUT } from './usePresence';
+import { usePresence, HEARTBEAT_INTERVAL } from './usePresence';
 
 vi.mock('firebase/database', () => ({
   ref: vi.fn(() => ({ key: 'mock-ref' })),
@@ -163,7 +163,7 @@ describe('usePresence', () => {
     expect(vi.mocked(set).mock.calls.length).toBe(callsBeforeUnmount + 1);
   });
 
-  it('filters out users with lastSeen older than PRESENCE_TIMEOUT', () => {
+  it('filters out users with online set to false', () => {
     const now = Date.now();
     const presenceData = {
       'user-1': {
@@ -172,15 +172,15 @@ describe('usePresence', () => {
         email: 'active@example.com',
         color: '#6366f1',
         online: true,
-        lastSeen: now, // Active
+        lastSeen: now,
       },
       'user-2': {
         uid: 'user-2',
-        displayName: 'Stale User',
-        email: 'stale@example.com',
+        displayName: 'Offline User',
+        email: 'offline@example.com',
         color: '#ec4899',
-        online: true,
-        lastSeen: now - PRESENCE_TIMEOUT - 1000, // Older than timeout
+        online: false,
+        lastSeen: now,
       },
     };
 
@@ -195,44 +195,7 @@ describe('usePresence', () => {
       usePresence('board-1', 'user-1', 'Active User', 'active@example.com')
     );
 
-    // Should only include user-1 (active), not user-2 (stale)
     expect(result.current.onlineUsers).toHaveLength(1);
     expect(result.current.onlineUsers[0].uid).toBe('user-1');
-  });
-
-  it('includes users with lastSeen within PRESENCE_TIMEOUT', () => {
-    const now = Date.now();
-    const presenceData = {
-      'user-1': {
-        uid: 'user-1',
-        displayName: 'User 1',
-        email: 'user1@example.com',
-        color: '#6366f1',
-        online: true,
-        lastSeen: now - PRESENCE_TIMEOUT + 5000, // Within timeout
-      },
-      'user-2': {
-        uid: 'user-2',
-        displayName: 'User 2',
-        email: 'user2@example.com',
-        color: '#ec4899',
-        online: true,
-        lastSeen: now, // Active
-      },
-    };
-
-    vi.mocked(onValue).mockImplementation((_ref, callback) => {
-      (callback as (snap: { val: () => typeof presenceData }) => void)({
-        val: () => presenceData,
-      });
-      return vi.fn() as never;
-    });
-
-    const { result } = renderHook(() =>
-      usePresence('board-1', 'user-1', 'User 1', 'user1@example.com')
-    );
-
-    // Both users should be included
-    expect(result.current.onlineUsers).toHaveLength(2);
   });
 });

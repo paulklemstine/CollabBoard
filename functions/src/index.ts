@@ -500,6 +500,8 @@ When creating objects, ALWAYS provide:
 - aiLabel: short description of what the object represents (e.g. "main idea", "pro argument", "SWOT strengths frame")
 - aiGroupId: shared kebab-case slug for all objects in the same logical operation (e.g. "swot-analysis", "pros-cons-list")
 
+**Group framing rule:** For each distinct aiGroupId, create a borderless frame (borderless=true) sized to contain all objects in that group, and set every object's parentId to that frame. This lets the user move the entire group as one unit. Create the borderless frame first, then create the children inside it.
+
 ## Important
 - Always use getBoardState() or getBoardSummary() first if you need to know what's already on the board before manipulating existing objects. Use getBoardSummary() when you only need counts and frame info — it's cheaper than getBoardState().
 - Use searchObjects() to find objects by type, text, or parent frame instead of fetching the entire board state.
@@ -507,7 +509,9 @@ When creating objects, ALWAYS provide:
 - When asked to arrange or move existing objects, first call getBoardState() to see current positions and IDs.
 - You can delete objects with deleteObject() for single deletions or deleteObjects() for bulk deletions.
 - Use updateFrameTitle() to rename frames without re-creating them.
-- Return a brief, helpful text response describing what you did.`;
+
+## Response Style
+Keep your final text reply SHORT — one or two casual sentences max. Just say what you did (e.g. "Added 3 sticky notes in a pros/cons layout." or "Cleared the board."). Do NOT list object IDs, coordinates, tool calls, or technical details. The user can see the result on the canvas.`;
 
 // ---- Helper: read board state ----
 

@@ -2,6 +2,7 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { defineSecret } from 'firebase-functions/params';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import * as https from 'https';
 import type { BaseMessage } from '@langchain/core/messages';
 
 initializeApp();
@@ -593,16 +594,28 @@ async function executeTool(
       const limit = Math.min(input.limit ?? 5, 10);
       const key = giphyApiKey.value();
       if (!key) return JSON.stringify({ error: 'GIPHY API key not configured' });
-      const url = `https://api.giphy.com/v1/stickers/search?api_key=${encodeURIComponent(key)}&q=${encodeURIComponent(query)}&limit=${limit}&rating=g`;
-      const res = await fetch(url);
-      if (!res.ok) return JSON.stringify({ error: `GIPHY API error: ${res.status}` });
-      const json = await res.json() as { data: Array<{ id: string; title: string; images: { fixed_height: { url: string } } }> };
-      const results = json.data.map((g) => ({
-        id: g.id,
-        title: g.title,
-        url: g.images.fixed_height.url,
-      }));
-      return JSON.stringify({ results });
+      const giphyUrl = `https://api.giphy.com/v1/stickers/search?api_key=${encodeURIComponent(key)}&q=${encodeURIComponent(query)}&limit=${limit}&rating=g`;
+      try {
+        const json = await new Promise<{ data: Array<{ id: string; title: string; images: { fixed_height: { url: string } } }> }>((resolve, reject) => {
+          https.get(giphyUrl, (res) => {
+            let body = '';
+            res.on('data', (chunk: string) => { body += chunk; });
+            res.on('end', () => {
+              try { resolve(JSON.parse(body)); } catch (e) { reject(e); }
+            });
+            res.on('error', reject);
+          }).on('error', reject);
+        });
+        const results = json.data.map((g) => ({
+          id: g.id,
+          title: g.title,
+          url: g.images.fixed_height.url,
+        }));
+        return JSON.stringify({ results });
+      } catch (err) {
+        console.error('GIPHY search failed:', err);
+        return JSON.stringify({ error: `GIPHY search failed: ${err instanceof Error ? err.message : String(err)}` });
+      }
     }
 
     case 'createGifSticker': {

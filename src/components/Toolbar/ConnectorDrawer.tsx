@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { ColorPanel } from './ColorPanel';
 import type { ConnectorStyle, ConnectorLineType } from '../../types/board';
 
@@ -10,7 +10,6 @@ interface ConnectorDrawerProps {
   connectMode: boolean;
   connectingFrom: string | null;
   onToggleConnectMode: () => void;
-  isEditing?: boolean;
 }
 
 const LINE_TYPES: { type: ConnectorLineType; label: string }[] = [
@@ -35,19 +34,9 @@ export function ConnectorDrawer({
   connectMode,
   connectingFrom,
   onToggleConnectMode,
-  isEditing,
 }: ConnectorDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Auto-open drawer when isEditing transitions to true
-  const prevIsEditing = useRef(false);
-  useEffect(() => {
-    if (isEditing && !prevIsEditing.current) {
-      setIsOpen(true);
-    }
-    prevIsEditing.current = !!isEditing;
-  }, [isEditing]);
 
   const handleMouseEnter = useCallback(() => {
     if (closeTimeout.current) { clearTimeout(closeTimeout.current); closeTimeout.current = null; }
@@ -65,13 +54,11 @@ export function ConnectorDrawer({
     }
   };
 
-  const connectLabel = isEditing
-    ? 'Editing'
-    : connectMode
-      ? connectingFrom
-        ? 'Click target...'
-        : 'Click source...'
-      : 'Connect';
+  const connectLabel = connectMode
+    ? connectingFrom
+      ? 'Click target...'
+      : 'Click source...'
+    : 'Connect';
 
   return (
     <div
@@ -84,18 +71,18 @@ export function ConnectorDrawer({
         <button
           onClick={onToggleConnectMode}
           className={`btn-lift px-3.5 py-2.5 rounded-l-xl text-sm font-bold transition-all duration-200 ${
-            connectMode || isEditing
+            connectMode
               ? 'text-white shadow-lg shadow-pink-500/30'
               : 'text-pink-800'
           }`}
-          style={connectMode || isEditing ? {
+          style={connectMode ? {
             background: 'linear-gradient(135deg, #f472b6 0%, #ec4899 50%, #db2777 100%)',
             boxShadow: '0 4px 16px rgba(236, 72, 153, 0.4)',
           } : {
             background: 'linear-gradient(135deg, #fce7f3 0%, #fbcfe8 50%, #f9a8d4 100%)',
             boxShadow: '0 2px 10px rgba(236, 72, 153, 0.25)',
           }}
-          title={isEditing ? 'Editing connector' : 'Connect objects'}
+          title="Connect objects"
         >
           <div className="flex items-center gap-1.5">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -109,11 +96,11 @@ export function ConnectorDrawer({
         <button
           onClick={() => setIsOpen((o) => !o)}
           className={`btn-lift px-1.5 py-2.5 rounded-r-xl text-sm transition-all duration-200 border-l flex items-center justify-center ${
-            connectMode || isEditing
+            connectMode
               ? 'text-white/80 border-white/30'
               : 'text-pink-700 border-pink-300/30'
           }`}
-          style={connectMode || isEditing ? {
+          style={connectMode ? {
             background: 'linear-gradient(135deg, #ec4899 0%, #db2777 100%)',
           } : {
             background: 'linear-gradient(135deg, #fbcfe8 0%, #f9a8d4 100%)',

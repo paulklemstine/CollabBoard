@@ -57,6 +57,22 @@ export function TextComponent({
     }
   }, [textObj.width, textObj.height, isResizing]);
 
+  // Auto-fit height to text content (grow and shrink, never below MIN_HEIGHT)
+  useEffect(() => {
+    if (!textRef.current || isEditing || isResizing) return;
+    const node = textRef.current;
+    // Temporarily remove height constraint so Konva wraps at the current width but auto-sizes height
+    const prevH = node.height();
+    node.height(undefined as unknown as number);
+    const naturalH = node.height();
+    node.height(prevH); // restore
+    const neededH = Math.max(MIN_HEIGHT, naturalH + 8); // padding + min
+    if (Math.abs(neededH - localHeight) > 1) {
+      setLocalHeight(neededH);
+      onResize?.(textObj.id, localWidth, neededH);
+    }
+  }, [textObj.text, textObj.fontSize, textObj.fontFamily, textObj.fontWeight, textObj.fontStyle, localWidth, localHeight, isEditing, isResizing]);
+
   useEffect(() => {
     if (!isNew || !flashOverlayRef.current) return;
     const node = flashOverlayRef.current;
@@ -128,6 +144,7 @@ export function TextComponent({
     textarea.style.border = 'none';
     textarea.style.outline = 'none';
     textarea.style.resize = 'none';
+    textarea.style.overflow = 'hidden';
     textarea.style.background = 'transparent';
     textarea.style.zIndex = '1000';
     textarea.style.lineHeight = '1.4';
@@ -135,17 +152,33 @@ export function TextComponent({
     textarea.style.transformOrigin = 'top left';
     textarea.style.transform = `rotate(${rotation}deg)`;
 
+    // Auto-grow textarea height to fit content
+    const autoGrow = () => {
+      textarea.style.height = 'auto';
+      const scrollH = textarea.scrollHeight;
+      textarea.style.height = `${scrollH}px`;
+      // Grow the component panel to match (convert screen px back to world px)
+      const neededH = scrollH / scale + 8; // add padding
+      if (neededH > localHeight) {
+        setLocalHeight(neededH);
+        onResize?.(textObj.id, localWidth, neededH);
+      }
+    };
+
     document.body.appendChild(textarea);
     textarea.focus();
+    autoGrow(); // initial size
 
     let debounceTimer: ReturnType<typeof setTimeout>;
     const handleInput = () => {
+      autoGrow();
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => onTextChange(textObj.id, textarea.value), 300);
     };
     const handleBlur = () => {
       clearTimeout(debounceTimer);
       onTextChange(textObj.id, textarea.value);
+      autoGrow(); // final resize
       setIsEditing(false);
       textarea.remove();
     };

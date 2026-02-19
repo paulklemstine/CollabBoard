@@ -13,6 +13,7 @@ interface ToolbarProps {
   onAddShape: (shapeType: ShapeType, fillColor: string, strokeColor?: string, borderColor?: string) => void;
   onAddFrame: () => void;
   onAddSticker: (emoji: string) => void;
+  onAddGifSticker?: (gifUrl: string) => void;
   connectMode: boolean;
   connectingFrom: string | null;
   onToggleConnectMode: () => void;
@@ -35,6 +36,7 @@ export function Toolbar({
   onAddShape,
   onAddFrame,
   onAddSticker,
+  onAddGifSticker,
   connectMode,
   connectingFrom,
   onToggleConnectMode,
@@ -67,44 +69,45 @@ export function Toolbar({
   const editingText = selectedObject?.type === 'text';
   const editingShape = selectedObject?.type === 'shape';
   const editingSticky = selectedObject?.type === 'sticky';
-  const editingConnector = selectedObject?.type === 'connector';
 
   // Track the selected object ID so useEffect only fires on selection *change*, not on every Firestore update
   const prevSelectedIdRef = useRef<string | null>(null);
 
-  // Sync text drawer state FROM selected text object
+  // Sync drawer state FROM selected object on selection change
   useEffect(() => {
-    if (editingText && selectedObject && selectedObject.id !== prevSelectedIdRef.current) {
+    if (!selectedObject || selectedObject.id === prevSelectedIdRef.current) {
+      prevSelectedIdRef.current = selectedObject?.id ?? null;
+      return;
+    }
+    prevSelectedIdRef.current = selectedObject.id;
+
+    if (editingText) {
       const t = selectedObject as import('../../types/board').TextObject;
+      // TextDrawer
       setTextFontSize(t.fontSize);
       setTextFontFamily(t.fontFamily);
       setTextFontWeight(t.fontWeight);
       setTextFontStyle(t.fontStyle);
       setTextAlign(t.textAlign);
       setTextColor(t.color);
-    }
-    prevSelectedIdRef.current = selectedObject?.id ?? null;
-  }, [selectedObject?.id, editingText]);
-
-  // Sync shape drawer state FROM selected shape object
-  useEffect(() => {
-    if (editingShape && selectedObject && selectedObject.id !== prevSelectedIdRef.current) {
+      // ShapeDrawer (Fill=bgColor, Border=borderColor)
+      setShapeFill(t.bgColor ?? 'transparent');
+      setShapeStroke(t.borderColor ?? 'transparent');
+    } else if (editingShape) {
       const s = selectedObject as import('../../types/board').Shape;
       setShapeFill(s.color);
       setShapeStroke(s.strokeColor ?? 'transparent');
       setShapeBorder(s.borderColor ?? 'transparent');
-    }
-  }, [selectedObject?.id, editingShape]);
-
-  // Sync shape drawer state FROM selected sticky note
-  useEffect(() => {
-    if (editingSticky && selectedObject && selectedObject.id !== prevSelectedIdRef.current) {
+    } else if (editingSticky) {
       const s = selectedObject as import('../../types/board').StickyNote;
+      // ShapeDrawer (Fill=bg, Stroke=textColor, Border=borderColor)
       setShapeFill(s.color);
       setShapeStroke(s.textColor ?? '#1e293b');
       setShapeBorder(s.borderColor ?? 'transparent');
+      // TextDrawer color = sticky textColor
+      setTextColor(s.textColor ?? '#1e293b');
     }
-  }, [selectedObject?.id, editingSticky]);
+  }, [selectedObject?.id, editingText, editingShape, editingSticky]);
 
   // Wrapped onChange handlers that also update the selected object
   const handleTextFontSizeChange = (size: number) => {
@@ -134,37 +137,49 @@ export function Toolbar({
 
   const handleTextColorChange = (color: string) => {
     setTextColor(color);
-    if (editingText && onUpdateSelectedObject) onUpdateSelectedObject({ color } as Partial<AnyBoardObject>);
+    if (!onUpdateSelectedObject) return;
+    if (editingText) {
+      onUpdateSelectedObject({ color } as Partial<AnyBoardObject>);
+    } else if (editingSticky) {
+      // TextDrawer color controls sticky's textColor
+      onUpdateSelectedObject({ textColor: color } as Partial<AnyBoardObject>);
+      setShapeStroke(color); // keep ShapeDrawer "Stroke" in sync
+    }
   };
 
   const handleShapeFillChange = (color: string) => {
     setShapeFill(color);
-    if (editingShape && onUpdateSelectedObject) {
+    if (!onUpdateSelectedObject) return;
+    if (editingShape || editingSticky) {
       onUpdateSelectedObject({ color } as Partial<AnyBoardObject>);
-    } else if (editingSticky && onUpdateSelectedObject) {
-      onUpdateSelectedObject({ color } as Partial<AnyBoardObject>);
+    } else if (editingText) {
+      // ShapeDrawer Fill controls text's bgColor
+      onUpdateSelectedObject({ bgColor: color === 'transparent' ? undefined : color } as Partial<AnyBoardObject>);
     }
   };
 
   const handleShapeStrokeChange = (color: string) => {
     setShapeStroke(color);
-    if (editingShape && onUpdateSelectedObject) {
+    if (!onUpdateSelectedObject) return;
+    if (editingShape) {
       onUpdateSelectedObject({ strokeColor: color === 'transparent' ? undefined : color } as Partial<AnyBoardObject>);
-    } else if (editingSticky && onUpdateSelectedObject) {
+    } else if (editingSticky) {
+      // ShapeDrawer Stroke controls sticky's textColor
       onUpdateSelectedObject({ textColor: color } as Partial<AnyBoardObject>);
+      setTextColor(color); // keep TextDrawer color in sync
+    } else if (editingText) {
+      // ShapeDrawer Border controls text's borderColor
+      onUpdateSelectedObject({ borderColor: color === 'transparent' ? undefined : color } as Partial<AnyBoardObject>);
     }
   };
 
   const handleShapeBorderChange = (color: string) => {
     setShapeBorder(color);
-    if (editingShape && onUpdateSelectedObject) {
-      onUpdateSelectedObject({ borderColor: color === 'transparent' ? undefined : color } as Partial<AnyBoardObject>);
-    } else if (editingSticky && onUpdateSelectedObject) {
+    if (!onUpdateSelectedObject) return;
+    if (editingShape || editingSticky || editingText) {
       onUpdateSelectedObject({ borderColor: color === 'transparent' ? undefined : color } as Partial<AnyBoardObject>);
     }
   };
-
-  const isEditingShapeOrSticky = editingShape || editingSticky;
 
   const divider = (
     <div className="w-px h-8 mx-0.5" style={{ background: 'linear-gradient(to bottom, rgba(251,146,60,0.2), rgba(168,85,247,0.3), rgba(96,165,250,0.2))' }} />
@@ -210,7 +225,6 @@ export function Toolbar({
         onTextAlignChange={handleTextAlignChange}
         onTextColorChange={handleTextColorChange}
         onAdd={() => onAddText(textFontSize, textFontFamily, textFontWeight, textFontStyle, textAlign, textColor)}
-        isEditing={editingText}
       />
 
       {divider}
@@ -226,13 +240,12 @@ export function Toolbar({
         onAddShape={(shapeType) => onAddShape(shapeType, shapeFill, shapeStroke, shapeBorder)}
         onAddFrame={onAddFrame}
         onAddSticky={() => onAddStickyNote(shapeFill, shapeStroke, shapeBorder)}
-        isEditing={isEditingShapeOrSticky}
       />
 
       {divider}
 
       {/* Sticker Drawer */}
-      <StickerDrawer onAddSticker={onAddSticker} />
+      <StickerDrawer onAddSticker={onAddSticker} onAddGifSticker={onAddGifSticker} />
 
       {divider}
 
@@ -245,7 +258,6 @@ export function Toolbar({
         connectMode={connectMode}
         connectingFrom={connectingFrom}
         onToggleConnectMode={onToggleConnectMode}
-        isEditing={editingConnector}
       />
 
       {divider}

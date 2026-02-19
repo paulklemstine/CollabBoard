@@ -27,7 +27,6 @@ const tools = [
         y: { type: 'number', description: 'Y position on the canvas in ABSOLUTE coordinates (default: 0)' },
         color: { type: 'string', description: 'Background color as hex string (default: #fef9c3)' },
         textColor: { type: 'string', description: 'Text color as hex string (default: #1e293b). Use for contrast against the background color.' },
-        borderColor: { type: 'string', description: 'Border color as hex string (default: transparent). Use "transparent" for no border.' },
         parentId: { type: 'string', description: 'CRITICAL: ID of a frame to attach this sticky note to. Without this, the note will NOT move with any frame. Get the frame ID from the createFrame response.' },
       },
       required: ['text'],
@@ -45,8 +44,7 @@ const tools = [
         width: { type: 'number', description: 'Width in pixels (default: 120). Not needed for lines.' },
         height: { type: 'number', description: 'Height in pixels (default: 120). Not needed for lines.' },
         color: { type: 'string', description: 'Fill color as hex string (default: #dbeafe)' },
-        strokeColor: { type: 'string', description: 'Stroke/outline color as hex string (default: #4f46e5)' },
-        borderColor: { type: 'string', description: 'Border color as hex string (default: transparent)' },
+        strokeColor: { type: 'string', description: 'Border/outline color as hex string (default: #4f46e5)' },
         fromX: { type: 'number', description: 'Line start X coordinate. Use this for lines instead of x/width/rotation.' },
         fromY: { type: 'number', description: 'Line start Y coordinate.' },
         toX: { type: 'number', description: 'Line end X coordinate.' },
@@ -104,7 +102,6 @@ const tools = [
         textAlign: { type: 'string', enum: ['left', 'center', 'right'], description: 'Text alignment (default: left)' },
         color: { type: 'string', description: 'Text color as hex string (default: #1e293b)' },
         bgColor: { type: 'string', description: 'Background color (default: transparent)' },
-        borderColor: { type: 'string', description: 'Border color (default: transparent)' },
         parentId: { type: 'string', description: 'ID of a frame to attach this text to.' },
       },
       required: ['text'],
@@ -156,11 +153,11 @@ const tools = [
   },
   {
     name: 'updateText',
-    description: 'Update the text content of a sticky note.',
+    description: 'Update the text content of a sticky note or text element.',
     input_schema: {
       type: 'object' as const,
       properties: {
-        objectId: { type: 'string', description: 'ID of the sticky note to update' },
+        objectId: { type: 'string', description: 'ID of the sticky note or text element to update' },
         newText: { type: 'string', description: 'New text content' },
       },
       required: ['objectId', 'newText'],
@@ -168,15 +165,15 @@ const tools = [
   },
   {
     name: 'changeColor',
-    description: 'Change colors of an existing object. For sticky notes: color (background), textColor, borderColor. For shapes: color (fill), strokeColor, borderColor. For connectors: color. Provide only the color properties you want to change.',
+    description: 'Change colors of an existing object. For sticky notes: color (background), textColor. For shapes: color (fill), strokeColor (border). For text elements: color (text), bgColor (background). For connectors: color. Provide only the color properties you want to change.',
     input_schema: {
       type: 'object' as const,
       properties: {
         objectId: { type: 'string', description: 'ID of the object to recolor' },
         newColor: { type: 'string', description: 'New background/fill color as hex string' },
-        textColor: { type: 'string', description: 'New text color (sticky notes only)' },
-        strokeColor: { type: 'string', description: 'New stroke/outline color (shapes only)' },
-        borderColor: { type: 'string', description: 'New border color (sticky notes and shapes)' },
+        textColor: { type: 'string', description: 'New text color (sticky notes and text elements)' },
+        strokeColor: { type: 'string', description: 'New border/outline color (shapes only)' },
+        bgColor: { type: 'string', description: 'New background color (text elements only)' },
       },
       required: ['objectId'],
     },
@@ -301,23 +298,20 @@ const SYSTEM_PROMPT = `You are an AI assistant for Flow Space, a collaborative w
 You can create and manipulate objects on the whiteboard using the provided tools.
 
 ## Available Object Types
-- **Sticky Notes**: Text notes with customizable background color, text color, and border color. Default size: 200x200px.
+- **Sticky Notes**: Text notes with customizable background and text color. Default size: 200x200px.
   - color: background color (default: #fef9c3)
   - textColor: text color (default: #1e293b) — use for contrast against background
-  - borderColor: border color (default: transparent)
 - **Shapes**: Many shape types available. Default size: 120x120px.
   - shapeType options: rect, circle, triangle, diamond, pentagon, hexagon, octagon, star, arrow, cross, line
   - color: fill color (default: #dbeafe)
-  - strokeColor: stroke/outline color (default: #4f46e5)
-  - borderColor: border color (default: transparent)
-- **Text Elements**: Standalone text (headings, labels, paragraphs) on the canvas. No background by default. Default size: 300x50px.
+  - strokeColor: border/outline color (default: #4f46e5)
+- **Text Elements**: Standalone text (headings, labels, paragraphs) on the canvas. No background by default. Height auto-grows to fit content. Default width: 300px.
   - fontSize: 16, 24, 36, or 48 (default: 24)
   - fontWeight: "normal" or "bold" (default: normal)
   - fontStyle: "normal" or "italic" (default: normal)
   - textAlign: "left", "center", or "right" (default: left)
   - color: text color (default: #1e293b)
   - bgColor: optional background color (default: transparent)
-  - borderColor: optional border (default: transparent)
 - **Stickers**: Single emoji characters that can be placed and resized. Default size: 150x150px. Use any emoji like 🎉, ❤️, 👍, 🚀, etc.
 - **Lines**: Created via createShape with shapeType "line". Use fromX/fromY/toX/toY to specify start and end points — the server automatically computes position, length, and rotation.
   - Example: Horizontal line from (100, 200) to (300, 200): fromX=100, fromY=200, toX=300, toY=200
@@ -384,7 +378,7 @@ Available preset colors (for any color property):
 - Dark green: #166534, Light blue: #93c5fd
 
 Text colors for sticky notes: default #1e293b (dark), use #ffffff for white text on dark backgrounds.
-Shape stroke colors: default #4f46e5 (indigo).
+Shape border colors: default #4f46e5 (indigo).
 Connector colors: default #6366f1 (indigo).
 
 ## Multi-Step Planning
@@ -485,7 +479,6 @@ async function executeTool(
         height: 200,
         color: input.color ?? '#fef9c3',
         textColor: input.textColor ?? '#1e293b',
-        borderColor: input.borderColor ?? 'transparent',
         rotation: 0,
         createdBy: userId,
         updatedAt: now,
@@ -530,7 +523,6 @@ async function executeTool(
         height: shapeHeight,
         color: input.color ?? '#dbeafe',
         strokeColor: input.strokeColor ?? '#4f46e5',
-        borderColor: input.borderColor ?? 'transparent',
         rotation: shapeRotation,
         createdBy: userId,
         updatedAt: now,
@@ -577,7 +569,6 @@ async function executeTool(
         textAlign: input.textAlign ?? 'left',
         color: input.color ?? '#1e293b',
         bgColor: input.bgColor ?? 'transparent',
-        borderColor: input.borderColor ?? 'transparent',
         rotation: 0,
         createdBy: userId,
         updatedAt: now,
@@ -667,7 +658,6 @@ async function executeTool(
       if (input.newColor !== undefined) colorUpdates.color = input.newColor;
       if (input.textColor !== undefined) colorUpdates.textColor = input.textColor;
       if (input.strokeColor !== undefined) colorUpdates.strokeColor = input.strokeColor;
-      if (input.borderColor !== undefined) colorUpdates.borderColor = input.borderColor;
       if (input.bgColor !== undefined) colorUpdates.bgColor = input.bgColor;
       await docRef.update(colorUpdates);
       return JSON.stringify({ success: true });

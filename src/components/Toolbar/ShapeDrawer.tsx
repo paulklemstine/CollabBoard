@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { ColorPanel } from './ColorPanel';
 import type { ShapeType } from '../../types/board';
 
@@ -12,28 +12,16 @@ interface ShapeDrawerProps {
   onAddShape: (shapeType: ShapeType) => void;
   onAddFrame: () => void;
   onAddSticky: () => void;
-  isEditing?: boolean;
 }
 
 export function ShapeDrawer({
   fillColor, strokeColor, borderColor,
   onFillColorChange, onStrokeColorChange, onBorderColorChange,
   onAddShape, onAddFrame, onAddSticky,
-  isEditing,
 }: ShapeDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [tab, setTab] = useState<'shapes' | 'colors'>('shapes');
   const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Auto-open to colors tab when isEditing transitions to true
-  const prevIsEditing = useRef(false);
-  useEffect(() => {
-    if (isEditing && !prevIsEditing.current) {
-      setIsOpen(true);
-      setTab('colors');
-    }
-    prevIsEditing.current = !!isEditing;
-  }, [isEditing]);
 
   const handleMouseEnter = useCallback(() => {
     if (closeTimeout.current) { clearTimeout(closeTimeout.current); closeTimeout.current = null; }
@@ -116,17 +104,12 @@ export function ShapeDrawer({
       <div className="flex items-stretch">
         <button
           onClick={() => { setIsOpen((o) => !o); setTab('shapes'); }}
-          className={`btn-lift px-3.5 py-2.5 rounded-l-xl text-sm font-bold transition-all duration-200 ${
-            isEditing ? 'text-white' : 'text-indigo-700'
-          }`}
-          style={isEditing ? {
-            background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-            boxShadow: '0 4px 16px rgba(99, 102, 241, 0.4)',
-          } : {
+          className="btn-lift px-3.5 py-2.5 rounded-l-xl text-sm font-bold text-indigo-700 transition-all duration-200"
+          style={{
             background: 'linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 50%, #a5b4fc 100%)',
             boxShadow: '0 2px 10px rgba(99, 102, 241, 0.25)',
           }}
-          title={isEditing ? 'Editing shape' : 'Shapes'}
+          title="Shapes"
         >
           <div className="flex items-center gap-1.5">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -134,7 +117,7 @@ export function ShapeDrawer({
               <rect x="3" y="3" width="7" height="7" rx="1" />
               <rect x="14" y="14" width="7" height="7" rx="1" />
             </svg>
-            {isEditing ? 'Editing' : 'Shapes'}
+            Shapes
           </div>
         </button>
         <button
@@ -187,21 +170,11 @@ export function ShapeDrawer({
                     stroke={strokeColor === 'transparent' ? 'none' : strokeColor}
                     strokeWidth="3"
                   />
-                  {borderColor !== 'transparent' && (
-                    <rect
-                      x="2" y="2" width="56" height="56" rx="10"
-                      fill="none"
-                      stroke={borderColor}
-                      strokeWidth="2"
-                      strokeDasharray="4 3"
-                    />
-                  )}
                 </svg>
               </div>
 
               <ColorPanel label="Fill" color={fillColor} onChange={onFillColorChange} showTransparent />
-              <ColorPanel label="Stroke" color={strokeColor} onChange={onStrokeColorChange} showTransparent />
-              <ColorPanel label="Border" color={borderColor} onChange={onBorderColorChange} showTransparent />
+              <ColorPanel label="Border" color={strokeColor} onChange={onStrokeColorChange} showTransparent />
             </div>
           )}
         </div>

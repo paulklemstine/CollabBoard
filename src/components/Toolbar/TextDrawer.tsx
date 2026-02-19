@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { ColorPanel } from './ColorPanel';
 
 interface TextDrawerProps {
@@ -15,7 +15,6 @@ interface TextDrawerProps {
   onTextAlignChange: (align: 'left' | 'center' | 'right') => void;
   onTextColorChange: (color: string) => void;
   onAdd: () => void;
-  isEditing?: boolean;
 }
 
 const FONTS = [
@@ -29,19 +28,9 @@ export function TextDrawer({
   fontSize, fontFamily, fontWeight, fontStyle, textAlign, textColor,
   onFontSizeChange, onFontFamilyChange, onFontWeightChange, onFontStyleChange, onTextAlignChange, onTextColorChange,
   onAdd,
-  isEditing,
 }: TextDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Auto-open drawer when isEditing transitions to true
-  const prevIsEditing = useRef(false);
-  useEffect(() => {
-    if (isEditing && !prevIsEditing.current) {
-      setIsOpen(true);
-    }
-    prevIsEditing.current = !!isEditing;
-  }, [isEditing]);
 
   const handleMouseEnter = useCallback(() => {
     if (closeTimeout.current) { clearTimeout(closeTimeout.current); closeTimeout.current = null; }
@@ -60,24 +49,19 @@ export function TextDrawer({
       <div className="flex items-stretch">
         <button
           onClick={onAdd}
-          className={`btn-lift flex items-center gap-1.5 px-3.5 py-2.5 rounded-l-xl text-sm font-bold transition-all duration-200 ${
-            isEditing ? 'text-white' : 'text-cyan-900'
-          }`}
-          style={isEditing ? {
-            background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
-            boxShadow: '0 4px 16px rgba(6, 182, 212, 0.4)',
-          } : {
+          className="btn-lift flex items-center gap-1.5 px-3.5 py-2.5 rounded-l-xl text-sm font-bold text-cyan-900 transition-all duration-200"
+          style={{
             background: 'linear-gradient(135deg, #a5f3fc 0%, #22d3ee 50%, #06b6d4 100%)',
             boxShadow: '0 2px 10px rgba(6, 182, 212, 0.3)',
           }}
-          title={isEditing ? 'Editing text' : 'Add text'}
+          title="Add text"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <polyline points="4 7 4 4 20 4 20 7" />
             <line x1="12" y1="4" x2="12" y2="20" />
             <line x1="8" y1="20" x2="16" y2="20" />
           </svg>
-          {isEditing ? 'Editing' : 'Text'}
+          Text
         </button>
         <button
           onClick={() => setIsOpen((o) => !o)}

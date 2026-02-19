@@ -27,3 +27,4 @@ dist-ssr
 .firebase/*
 tmp/*
 functions/lib/
+nul

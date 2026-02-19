@@ -6,9 +6,9 @@ const mockArrayUnion = vi.fn((val: string) => `__arrayUnion_${val}__`);
 const mockDoc = vi.fn((_db: unknown, _col: string, _id: string) => `doc:userBoards/${_id}`);
 
 vi.mock('firebase/firestore', () => ({
-  doc: (...args: unknown[]) => mockDoc(...args),
-  setDoc: (...args: unknown[]) => mockSetDoc(...args),
-  onSnapshot: (...args: unknown[]) => mockOnSnapshot(...args),
+  doc: (db: unknown, col: string, id: string) => mockDoc(db, col, id),
+  setDoc: (ref: unknown, data: unknown, opts: unknown) => mockSetDoc(ref, data, opts),
+  onSnapshot: (ref: unknown, cb: unknown) => mockOnSnapshot(ref, cb),
   arrayUnion: (val: string) => mockArrayUnion(val),
 }));
 

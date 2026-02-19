@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useLayoutEffect } from 'react';
 import type Konva from 'konva';
 import type { AnyBoardObject } from '../services/boardService';
 import type { Frame } from '../types/board';
@@ -62,6 +62,22 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selec
   const isMarqueeActiveRef = useRef(false);
   const selectModeRef = useRef(selectMode);
   selectModeRef.current = selectMode;
+
+  // Track pending preview clears after transform commits.
+  // When Firestore's optimistic update fires onSnapshot (updating `objects`),
+  // useLayoutEffect clears the preview before the browser paints —
+  // so the user never sees a frame with both new positions AND old preview offsets.
+  const pendingClearRef = useRef<'drag' | 'transform' | null>(null);
+
+  useLayoutEffect(() => {
+    if (pendingClearRef.current === 'drag') {
+      setGroupDragOffset(null);
+      pendingClearRef.current = null;
+    } else if (pendingClearRef.current === 'transform') {
+      setTransformPreview(null);
+      pendingClearRef.current = null;
+    }
+  }, [objects]);
 
   const clearSelection = useCallback(() => {
     setSelectedIds(new Set());
@@ -295,17 +311,20 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selec
         }));
       }
 
-      await batchUpdateObjects(boardId, updates);
-
+      pendingClearRef.current = 'drag';
       setGroupHoveredFrameId(null);
       setSelectionBox((prev) => {
         if (!prev) return null;
         return { ...prev, x: prev.x + dx, y: prev.y + dy };
       });
 
-      setTimeout(() => {
+      await batchUpdateObjects(boardId, updates);
+
+      // Safety: if objects didn't change (no-op), clear manually
+      if (pendingClearRef.current === 'drag') {
+        pendingClearRef.current = null;
         setGroupDragOffset(null);
-      }, 100);
+      }
     },
     [boardId]
   );
@@ -330,16 +349,20 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selec
 
       const bbox: BBox = { x: sbox.x, y: sbox.y, width: sbox.width, height: sbox.height };
       const updates = transformGroupResize(selected, bbox, scaleX, scaleY, sbox.x, sbox.y);
-      await batchUpdateObjects(boardId, updates);
 
+      pendingClearRef.current = 'transform';
       setSelectionBox((prev) => {
         if (!prev) return null;
         return { ...prev, width: prev.width * scaleX, height: prev.height * scaleY };
       });
 
-      setTimeout(() => {
+      await batchUpdateObjects(boardId, updates);
+
+      // Safety: if objects didn't change (no-op), clear manually
+      if (pendingClearRef.current === 'transform') {
+        pendingClearRef.current = null;
         setTransformPreview(null);
-      }, 100);
+      }
     },
     [boardId]
   );
@@ -364,16 +387,20 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selec
 
       const bbox: BBox = { x: sbox.x, y: sbox.y, width: sbox.width, height: sbox.height };
       const updates = transformGroupRotate(selected, bbox, deltaAngle);
-      await batchUpdateObjects(boardId, updates);
 
+      pendingClearRef.current = 'transform';
       setSelectionBox((prev) => {
         if (!prev) return null;
         return { ...prev, rotation: prev.rotation + deltaAngle };
       });
 
-      setTimeout(() => {
+      await batchUpdateObjects(boardId, updates);
+
+      // Safety: if objects didn't change (no-op), clear manually
+      if (pendingClearRef.current === 'transform') {
+        pendingClearRef.current = null;
         setTransformPreview(null);
-      }, 100);
+      }
     },
     [boardId]
   );

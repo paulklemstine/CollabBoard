@@ -2,6 +2,8 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { Group, Text, Rect } from 'react-konva';
 import Konva from 'konva';
 import type { Sticker } from '../../types/board';
+import { calculateGroupObjectTransform } from '../../utils/groupTransform';
+import type { GroupTransformPreview, SelectionBox } from '../../hooks/useMultiSelect';
 
 const DRAG_THROTTLE_MS = 50;
 const MIN_SIZE = 50;
@@ -21,8 +23,8 @@ interface StickerComponentProps {
   isNew?: boolean;
   isSelected?: boolean;
   groupDragOffset?: { dx: number; dy: number } | null;
-  groupTransformPreview?: any;
-  selectionBox?: any;
+  groupTransformPreview?: GroupTransformPreview | null;
+  selectionBox?: SelectionBox | null;
 }
 
 export function StickerComponent({
@@ -115,31 +117,8 @@ export function StickerComponent({
   };
 
   // Calculate live transform offsets for multi-select
-  const liveTransform = groupTransformPreview && selectionBox && isSelected
-    ? (() => {
-        const { scaleX, scaleY, rotationDelta, newCenterX, newCenterY } = groupTransformPreview;
-        const { centerX, centerY } = selectionBox;
-        const objCenterX = sticker.x + localWidth / 2;
-        const objCenterY = sticker.y + localHeight / 2;
-        const dx = objCenterX - centerX;
-        const dy = objCenterY - centerY;
-        const rad = rotationDelta * (Math.PI / 180);
-        const cos = Math.cos(rad);
-        const sin = Math.sin(rad);
-        const rotatedDx = dx * cos - dy * sin;
-        const rotatedDy = dx * sin + dy * cos;
-        const scaledDx = rotatedDx * scaleX;
-        const scaledDy = rotatedDy * scaleY;
-        return {
-          orbitOffset: {
-            x: newCenterX + scaledDx - objCenterX,
-            y: newCenterY + scaledDy - objCenterY,
-          },
-          scaleX,
-          scaleY,
-          rotationDelta,
-        };
-      })()
+  const liveTransform = groupTransformPreview && selectionBox
+    ? calculateGroupObjectTransform(sticker, selectionBox, groupTransformPreview)
     : null;
 
   // Scale emoji font size proportionally - make it larger to fill space better

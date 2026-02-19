@@ -6,7 +6,7 @@ const mockAddVisitedBoard = vi.fn();
 const mockUnsubscribe = vi.fn();
 
 vi.mock('../services/userBoardsService', () => ({
-  subscribeToVisitedBoardIds: vi.fn((userId: string, cb: (ids: string[]) => void) => {
+  subscribeToVisitedBoardIds: vi.fn((_userId: string, cb: (ids: string[]) => void) => {
     subscribeCb = cb;
     return mockUnsubscribe;
   }),

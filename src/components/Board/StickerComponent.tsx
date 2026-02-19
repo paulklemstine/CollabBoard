@@ -65,8 +65,9 @@ export function StickerComponent({
     }
   }, [sticker.width, sticker.height, isResizing]);
 
-  // Animate GIF: render <img> frames onto an offscreen canvas and
-  // continuously push updates to the Konva Image node
+  // Animate GIF: append a hidden <img> to the DOM so the browser decodes
+  // and advances GIF frames, then continuously capture them onto a canvas
+  // for Konva to render.
   useEffect(() => {
     if (!sticker.gifUrl) {
       setGifCanvas(null);
@@ -74,6 +75,10 @@ export function StickerComponent({
     }
 
     const img = document.createElement('img');
+    // Hide the img but keep it in the DOM so the browser animates GIF frames
+    img.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;pointer-events:none;opacity:0;';
+    document.body.appendChild(img);
+
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     let stopped = false;
@@ -91,7 +96,6 @@ export function StickerComponent({
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(img, 0, 0);
         }
-        // Force Konva Image to re-render by getting its layer to batchDraw
         gifImageRef.current?.getLayer()?.batchDraw();
         gifAnimRef.current = requestAnimationFrame(tick);
       };
@@ -104,6 +108,7 @@ export function StickerComponent({
       stopped = true;
       cancelAnimationFrame(gifAnimRef.current);
       img.src = '';
+      img.remove();
     };
   }, [sticker.gifUrl]);
 

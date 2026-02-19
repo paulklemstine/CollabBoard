@@ -51,10 +51,10 @@ export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboar
             </div>
             <div>
               <h1 className="text-2xl font-extrabold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 bg-clip-text text-transparent">
-                Collab Board
+                Flow Space
               </h1>
               <p className="text-sm text-white/70 font-medium" key={refreshKey}>
-                Welcome, {user.displayName || user.email?.split('@')[0] || 'User'}
+                Ready to build momentum, {user.displayName || user.email?.split('@')[0] || 'User'}?
               </p>
             </div>
           </div>
@@ -68,7 +68,7 @@ export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboar
 
         {/* Create Board */}
         <div className="glass-playful rounded-2xl p-6 mb-8 shadow-lg">
-          <h2 className="text-lg font-bold text-gray-800 mb-4">Create a new board</h2>
+          <h2 className="text-lg font-bold text-gray-800 mb-4">Start a new creative flow</h2>
           <CreateBoardForm onCreateBoard={handleCreateBoard} />
         </div>
 
@@ -79,8 +79,8 @@ export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboar
           </div>
         ) : boards.length === 0 ? (
           <div className="glass-playful rounded-2xl p-12 text-center shadow-lg">
-            <p className="text-gray-500 text-lg font-medium">No boards yet</p>
-            <p className="text-gray-400 text-sm mt-2">Create your first board to get started!</p>
+            <p className="text-gray-500 text-lg font-medium">No flows yet</p>
+            <p className="text-gray-400 text-sm mt-2">Spin up your first board and invite others to ideate in real time.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

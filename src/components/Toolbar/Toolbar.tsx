@@ -158,7 +158,7 @@ export function Toolbar({
 
       <div className="w-px h-8 mx-0.5" style={{ background: 'linear-gradient(to bottom, rgba(251,146,60,0.2), rgba(168,85,247,0.3), rgba(96,165,250,0.2))' }} />
 
-      {/* AI Assistant */}
+      {/* Flow AI */}
       <button
         onClick={onToggleAI}
         className={`btn-lift px-3.5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
@@ -170,7 +170,7 @@ export function Toolbar({
           background: 'linear-gradient(135deg, #a855f7 0%, #ec4899 100%)',
           boxShadow: '0 4px 16px rgba(168, 85, 247, 0.4)',
         } : undefined}
-        title="AI Assistant"
+        title="Flow AI"
       >
         <div className="flex items-center gap-1.5">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

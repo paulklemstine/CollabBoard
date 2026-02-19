@@ -105,10 +105,13 @@ export function AuthPanel({ user, onSignOut, onAuthChange }: AuthPanelProps) {
 
         <div className="text-center">
           <h2 className="text-2xl font-extrabold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 bg-clip-text text-transparent">
-            Collab Board
+            Flow Space
           </h2>
           <p className="text-sm text-gray-400 mt-1 font-medium">
-            Create together, in real-time
+            A playful space to think, remix, and create side-by-side.
+          </p>
+          <p className="text-xs text-gray-400/90 mt-2 max-w-[280px] mx-auto leading-relaxed">
+            Drop notes fast, shape ideas visually, and keep momentum with live presence + AI help.
           </p>
         </div>
 

@@ -5,7 +5,7 @@ const PRESETS = [
   '#ef4444', '#f97316', '#eab308',
   '#22c55e', '#06b6d4', '#3b82f6',
   '#8b5cf6', '#ec4899', '#9a3412',
-  '#fda4af', '#166534',
+  '#166534', '#93c5fd',
 ];
 
 const TRANSPARENT_BG = `repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50% / 12px 12px`;
@@ -14,10 +14,10 @@ interface ColorPanelProps {
   label: string;
   color: string;
   onChange: (color: string) => void;
-  allowTransparent?: boolean;
+  showTransparent?: boolean;
 }
 
-export function ColorPanel({ label, color, onChange, allowTransparent = true }: ColorPanelProps) {
+export function ColorPanel({ label, color, onChange, showTransparent = false }: ColorPanelProps) {
   const pickerRef = useRef<HTMLInputElement>(null);
   const isTransparent = color === 'transparent';
   const isCustom = !isTransparent && !PRESETS.includes(color);
@@ -26,7 +26,7 @@ export function ColorPanel({ label, color, onChange, allowTransparent = true }: 
     <div>
       <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">{label}</div>
       <div className="flex gap-1.5 items-center flex-wrap">
-        {allowTransparent && (
+        {showTransparent && (
           <button
             onClick={() => onChange('transparent')}
             className="w-7 h-7 rounded-lg transition-all hover:scale-110 border border-gray-300 shrink-0"
@@ -72,7 +72,7 @@ export function ColorPanel({ label, color, onChange, allowTransparent = true }: 
           ref={pickerRef}
           type="color"
           className="sr-only"
-          value={isTransparent || color === 'transparent' ? '#000000' : color}
+          value={isCustom ? (color || '#000000') : '#000000'}
           onChange={(e) => onChange(e.target.value)}
         />
       </div>

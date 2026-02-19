@@ -84,9 +84,9 @@ export function StickyDrawer({
               </div>
             </div>
 
-            <ColorPanel label="Background" color={bgColor} onChange={onBgColorChange} />
-            <ColorPanel label="Text" color={textColor} onChange={onTextColorChange} />
-            <ColorPanel label="Border" color={borderColor} onChange={onBorderColorChange} />
+            <ColorPanel label="Background" color={bgColor} onChange={onBgColorChange} showTransparent />
+            <ColorPanel label="Text" color={textColor} onChange={onTextColorChange} showTransparent />
+            <ColorPanel label="Border" color={borderColor} onChange={onBorderColorChange} showTransparent />
           </div>
         </div>
       )}

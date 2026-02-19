@@ -66,7 +66,8 @@ export function Toolbar({
       style={{
         position: 'fixed',
         bottom: 24,
-        left: 16,
+        left: '50%',
+        transform: 'translateX(-50%)',
         zIndex: 1000,
         pointerEvents: 'none',
         overflow: 'visible',

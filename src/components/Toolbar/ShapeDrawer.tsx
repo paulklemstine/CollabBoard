@@ -181,9 +181,9 @@ export function ShapeDrawer({
                 </svg>
               </div>
 
-              <ColorPanel label="Fill" color={fillColor} onChange={onFillColorChange} />
-              <ColorPanel label="Stroke" color={strokeColor} onChange={onStrokeColorChange} />
-              <ColorPanel label="Border" color={borderColor} onChange={onBorderColorChange} />
+              <ColorPanel label="Fill" color={fillColor} onChange={onFillColorChange} showTransparent />
+              <ColorPanel label="Stroke" color={strokeColor} onChange={onStrokeColorChange} showTransparent />
+              <ColorPanel label="Border" color={borderColor} onChange={onBorderColorChange} showTransparent />
             </div>
           )}
         </div>

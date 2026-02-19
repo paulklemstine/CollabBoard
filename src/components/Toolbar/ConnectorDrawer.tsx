@@ -119,7 +119,7 @@ export function ConnectorDrawer({
           className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 animate-bounce-in"
           style={{ zIndex: 1001 }}
         >
-          <div className="glass-playful rounded-2xl shadow-2xl p-3 flex flex-col gap-3" style={{ width: 280 }}>
+          <div className="glass-playful rounded-2xl shadow-2xl p-3 flex flex-col gap-3" style={{ width: 300 }}>
 
             {/* Path Style */}
             <div>

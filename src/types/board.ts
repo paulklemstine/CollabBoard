@@ -61,6 +61,15 @@ export interface AIMessage {
   objectsCreated?: string[];
 }
 
+export interface ChatMessage {
+  id: string;
+  userId: string;
+  displayName: string;
+  color: string;
+  text: string;
+  timestamp: number;
+}
+
 export interface CursorPosition {
   userId: string;
   x: number;

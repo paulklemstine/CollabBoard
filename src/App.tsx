@@ -25,6 +25,8 @@ import { PresencePanel } from './components/Presence/PresencePanel';
 import { Toolbar } from './components/Toolbar/Toolbar';
 import { AIChat } from './components/AIChat/AIChat';
 import { Minimap } from './components/Minimap/Minimap';
+import { ChatPanel } from './components/Chat/ChatPanel';
+import { useChat } from './hooks/useChat';
 import type { StickyNote, Shape, Frame, Sticker, Connector, BoardMetadata } from './types/board';
 import { calculateGroupObjectTransform } from './utils/groupTransform';
 import type { AnyBoardObject } from './services/boardService';
@@ -175,6 +177,14 @@ function BoardView({
   const toggleSelectMode = useCallback(() => setSelectMode((prev) => !prev), []);
   const [aiOpen, setAiOpen] = useState(false);
   const toggleAI = useCallback(() => setAiOpen((prev) => !prev), []);
+  const [chatOpen, setChatOpen] = useState(false);
+  const toggleChat = useCallback(() => setChatOpen((prev) => !prev), []);
+  const { messages: chatMessages, sendMessage: sendChatMessage } = useChat(
+    boardId,
+    user.uid,
+    user.displayName ?? 'Anonymous',
+    userColor,
+  );
 
   const {
     selectedIds,
@@ -617,6 +627,16 @@ function BoardView({
       <div className="absolute top-4 right-4 z-50 flex flex-col gap-3 items-end">
         <AuthPanel user={user as never} onSignOut={onSignOut} />
         <PresencePanel users={onlineUsers} cursors={cursors} onFollowUser={handleFollowUser} />
+      </div>
+      {/* Bottom left: Chat panel above toolbar */}
+      <div className="fixed bottom-[90px] left-4 z-50 w-[300px]">
+        <ChatPanel
+          messages={chatMessages}
+          currentUserId={user.uid}
+          onSend={sendChatMessage}
+          isOpen={chatOpen}
+          onToggle={toggleChat}
+        />
       </div>
     </div>
   );

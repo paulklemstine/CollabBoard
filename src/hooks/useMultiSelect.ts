@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useLayoutEffect } from 'react';
+import { useState, useCallback, useRef, useMemo, useLayoutEffect } from 'react';
 import type Konva from 'konva';
 import type { AnyBoardObject } from '../services/boardService';
 import type { Frame } from '../types/board';
@@ -34,7 +34,7 @@ export interface GroupTransformPreview {
   rotation: number;
 }
 
-/** Cached selection bbox — not recalculated from objects after transforms */
+/** Always-derived bounding box around selected objects */
 export interface SelectionBox {
   x: number;
   y: number;
@@ -48,9 +48,21 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selec
   const [marquee, setMarquee] = useState<Marquee | null>(null);
   const [isMarqueeActive, setIsMarqueeActive] = useState(false);
   const [groupDragOffset, setGroupDragOffset] = useState<GroupDragOffset | null>(null);
-  const [selectionBox, setSelectionBox] = useState<SelectionBox | null>(null);
   const [transformPreview, setTransformPreview] = useState<GroupTransformPreview | null>(null);
   const [groupHoveredFrameId, setGroupHoveredFrameId] = useState<string | null>(null);
+
+  // Derive selection box from actual objects — always correct, no manual tracking.
+  // When objects update (e.g. after Firestore commit), this recalculates automatically.
+  const selectionBox = useMemo<SelectionBox | null>(() => {
+    if (selectedIds.size === 0) return null;
+    const selected = objects.filter(
+      (o) => selectedIds.has(o.id) && o.type !== 'connector'
+    );
+    if (selected.length === 0) return null;
+    const bbox = getBoundingBox(selected);
+    if (!bbox) return null;
+    return { ...bbox, rotation: 0 };
+  }, [objects, selectedIds]);
 
   // Ref mirrors for use inside event callbacks (avoids stale closures)
   const objectsRef = useRef(objects);
@@ -82,7 +94,6 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selec
   const clearSelection = useCallback(() => {
     setSelectedIds(new Set());
     setGroupDragOffset(null);
-    setSelectionBox(null);
     setTransformPreview(null);
     setGroupHoveredFrameId(null);
   }, []);
@@ -99,13 +110,6 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selec
 
       setSelectedIds(new Set([id]));
       setGroupDragOffset(null);
-      setSelectionBox({
-        x: obj.x,
-        y: obj.y,
-        width: obj.width,
-        height: obj.height,
-        rotation: 0,
-      });
     },
     []
   );
@@ -118,7 +122,6 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selec
       // Clear selection on any empty-canvas click
       setSelectedIds(new Set());
       setGroupDragOffset(null);
-      setSelectionBox(null);
 
       // Only start marquee when select mode is active — otherwise allow normal pan
       if (!selectModeRef.current) return;
@@ -210,12 +213,6 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selec
 
         if (intersecting.size > 0) {
           setSelectedIds(intersecting);
-
-          const selectedObjs = objectsRef.current.filter((o) => intersecting.has(o.id));
-          const bbox = getBoundingBox(selectedObjs);
-          if (bbox) {
-            setSelectionBox({ ...bbox, rotation: 0 });
-          }
         }
 
         return null;
@@ -313,10 +310,6 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selec
 
       pendingClearRef.current = 'drag';
       setGroupHoveredFrameId(null);
-      setSelectionBox((prev) => {
-        if (!prev) return null;
-        return { ...prev, x: prev.x + dx, y: prev.y + dy };
-      });
 
       await batchUpdateObjects(boardId, updates);
 
@@ -344,17 +337,13 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selec
       );
       if (selected.length === 0) return;
 
-      const sbox = selectionBoxRef.current;
-      if (!sbox) return;
+      // Use raw object bounding box (not padded selectionBox) for transform anchor
+      const bbox = getBoundingBox(selected);
+      if (!bbox) return;
 
-      const bbox: BBox = { x: sbox.x, y: sbox.y, width: sbox.width, height: sbox.height };
-      const updates = transformGroupResize(selected, bbox, scaleX, scaleY, sbox.x, sbox.y);
+      const updates = transformGroupResize(selected, bbox, scaleX, scaleY, bbox.x, bbox.y);
 
       pendingClearRef.current = 'transform';
-      setSelectionBox((prev) => {
-        if (!prev) return null;
-        return { ...prev, width: prev.width * scaleX, height: prev.height * scaleY };
-      });
 
       await batchUpdateObjects(boardId, updates);
 
@@ -382,17 +371,13 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selec
       );
       if (selected.length === 0) return;
 
-      const sbox = selectionBoxRef.current;
-      if (!sbox) return;
+      // Use raw object bounding box (not padded selectionBox) for transform center
+      const bbox = getBoundingBox(selected);
+      if (!bbox) return;
 
-      const bbox: BBox = { x: sbox.x, y: sbox.y, width: sbox.width, height: sbox.height };
       const updates = transformGroupRotate(selected, bbox, deltaAngle);
 
       pendingClearRef.current = 'transform';
-      setSelectionBox((prev) => {
-        if (!prev) return null;
-        return { ...prev, rotation: prev.rotation + deltaAngle };
-      });
 
       await batchUpdateObjects(boardId, updates);
 

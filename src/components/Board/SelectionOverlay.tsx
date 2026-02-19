@@ -4,6 +4,7 @@ import type Konva from 'konva';
 import type { Marquee, GroupDragOffset, SelectionBox, GroupTransformPreview } from '../../hooks/useMultiSelect';
 
 const HANDLE_SIZE = 40;
+const SELECTION_PADDING = 8;
 
 interface SelectionOverlayProps {
   marquee: Marquee | null;
@@ -39,14 +40,15 @@ export function SelectionOverlay({
   const rotateStartRef = useRef<{ angle: number } | null>(null);
   const [isDeleteHovered, setIsDeleteHovered] = useState(false);
 
-  // Compute display position with drag offset applied
+  // Compute display position with drag offset + padding applied
   const box = selectionBox;
-  const displayX = box ? box.x + (groupDragOffset?.dx ?? 0) : 0;
-  const displayY = box ? box.y + (groupDragOffset?.dy ?? 0) : 0;
+  const P = SELECTION_PADDING;
+  const displayX = box ? box.x + (groupDragOffset?.dx ?? 0) - P : 0;
+  const displayY = box ? box.y + (groupDragOffset?.dy ?? 0) - P : 0;
 
-  // Apply live transform preview
-  const displayWidth = box ? box.width * (transformPreview?.scaleX ?? 1) : 0;
-  const displayHeight = box ? box.height * (transformPreview?.scaleY ?? 1) : 0;
+  // Apply live transform preview + padding
+  const displayWidth = box ? box.width * (transformPreview?.scaleX ?? 1) + P * 2 : 0;
+  const displayHeight = box ? box.height * (transformPreview?.scaleY ?? 1) + P * 2 : 0;
   const displayRotation = (box?.rotation ?? 0) + (transformPreview?.rotation ?? 0);
 
   const handleBBoxDragStart = useCallback(

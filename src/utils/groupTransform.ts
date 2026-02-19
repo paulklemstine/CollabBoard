@@ -26,30 +26,33 @@ export function calculateGroupObjectTransform(
 ): ObjectTransform {
   const { scaleX, scaleY, rotation: rotationDelta } = transformPreview;
 
-  // Selection box center (pivot point for rotation and scaling)
-  const centerX = selectionBox.x + selectionBox.width / 2;
-  const centerY = selectionBox.y + selectionBox.height / 2;
-
   // Object center
   const objCenterX = object.x + object.width / 2;
   const objCenterY = object.y + object.height / 2;
 
-  // Vector from selection center to object center
-  const dx = objCenterX - centerX;
-  const dy = objCenterY - centerY;
+  let orbitOffsetX = 0;
+  let orbitOffsetY = 0;
 
-  // Apply rotation to the offset vector
-  const rad = rotationDelta * (Math.PI / 180);
-  const cos = Math.cos(rad);
-  const sin = Math.sin(rad);
+  if (rotationDelta !== 0) {
+    // Rotate around selection box center (matches transformGroupRotate)
+    const centerX = selectionBox.x + selectionBox.width / 2;
+    const centerY = selectionBox.y + selectionBox.height / 2;
+    const dx = objCenterX - centerX;
+    const dy = objCenterY - centerY;
+    const rad = rotationDelta * (Math.PI / 180);
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    orbitOffsetX = (dx * cos - dy * sin) - dx;
+    orbitOffsetY = (dx * sin + dy * cos) - dy;
+  }
 
-  // Rotated and scaled offset
-  const rotatedDx = (dx * cos - dy * sin) * scaleX;
-  const rotatedDy = (dx * sin + dy * cos) * scaleY;
-
-  // Calculate orbit offset (how much the object moves due to rotation/scale around center)
-  const orbitOffsetX = rotatedDx - dx;
-  const orbitOffsetY = rotatedDy - dy;
+  if (scaleX !== 1 || scaleY !== 1) {
+    // Scale from selection box top-left (matches transformGroupResize + SelectionOverlay)
+    const dx = objCenterX - selectionBox.x;
+    const dy = objCenterY - selectionBox.y;
+    orbitOffsetX += dx * (scaleX - 1);
+    orbitOffsetY += dy * (scaleY - 1);
+  }
 
   return {
     scaleX,

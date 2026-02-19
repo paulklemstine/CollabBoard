@@ -225,14 +225,29 @@ function BoardView({
     zoomIn: () => void;
     zoomOut: () => void;
     resetZoom: () => void;
+    setTransform: (transform: StageTransform) => void;
   } | null>(null);
 
   const handleMouseMove = useCallback(
     (x: number, y: number) => {
-      updateCursor(x, y);
+      updateCursor(x, y, stageTransform);
       updateCursorPosition(x, y);
     },
-    [updateCursor, updateCursorPosition]
+    [updateCursor, updateCursorPosition, stageTransform]
+  );
+
+  const handleFollowUser = useCallback(
+    (userId: string) => {
+      const cursor = cursors.find((c) => c.userId === userId);
+      if (cursor && zoomControls && cursor.viewportX != null && cursor.viewportY != null && cursor.viewportScale != null) {
+        zoomControls.setTransform({
+          x: cursor.viewportX,
+          y: cursor.viewportY,
+          scale: cursor.viewportScale,
+        });
+      }
+    },
+    [cursors, zoomControls]
   );
 
   // Note: cursor position during drag is handled by Board's onMouseMove,
@@ -496,7 +511,7 @@ function BoardView({
         </Board>
       </div>
       <CursorsOverlay cursors={cursors} stageTransform={stageTransform} />
-      <PresencePanel users={onlineUsers} />
+      <PresencePanel users={onlineUsers} cursors={cursors} onFollowUser={handleFollowUser} />
       <Toolbar
         onAddStickyNote={(color) => addStickyNote(stageTransform, undefined, undefined, color)}
         onAddShape={(shapeType, color) => addShape(stageTransform, shapeType, color)}

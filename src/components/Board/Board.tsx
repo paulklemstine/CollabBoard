@@ -13,6 +13,7 @@ export interface ZoomControls {
   zoomIn: () => void;
   zoomOut: () => void;
   resetZoom: () => void;
+  setTransform: (transform: StageTransform) => void;
 }
 
 interface BoardProps {
@@ -145,6 +146,16 @@ export function Board({ boardId: _boardId, onMouseMove, onTransformChange, onSta
     notifyTransform(stage);
   }, [notifyTransform]);
 
+  const setTransform = useCallback((transform: StageTransform) => {
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    setScale(transform.scale);
+    stage.scale({ x: transform.scale, y: transform.scale });
+    stage.position({ x: transform.x, y: transform.y });
+    notifyTransform(stage);
+  }, [notifyTransform]);
+
   // Use a ref to avoid re-registering the listener when onMouseMove changes
   const onMouseMoveRef = useRef(onMouseMove);
   onMouseMoveRef.current = onMouseMove;
@@ -193,9 +204,10 @@ export function Board({ boardId: _boardId, onMouseMove, onTransformChange, onSta
         zoomIn,
         zoomOut,
         resetZoom,
+        setTransform,
       });
     }
-  }, [scale, zoomIn, zoomOut, resetZoom, onZoomControlsChange]);
+  }, [scale, zoomIn, zoomOut, resetZoom, setTransform, onZoomControlsChange]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>

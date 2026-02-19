@@ -54,7 +54,7 @@ export function useCursors(
   }, [boardId, userId]);
 
   const updateCursor = useCallback(
-    (x: number, y: number) => {
+    (x: number, y: number, viewport?: { x: number; y: number; scale: number }) => {
       const now = Date.now();
       if (now - lastUpdateRef.current < THROTTLE_MS) return;
       lastUpdateRef.current = now;
@@ -67,6 +67,11 @@ export function useCursors(
         name: displayName,
         color: userColor,
         timestamp: now,
+        ...(viewport && {
+          viewportX: viewport.x,
+          viewportY: viewport.y,
+          viewportScale: viewport.scale,
+        }),
       });
     },
     [boardId, userId, displayName, userColor]

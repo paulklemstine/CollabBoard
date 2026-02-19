@@ -67,6 +67,10 @@ export interface CursorPosition {
   name: string;
   color: string;
   timestamp: number;
+  /** Peer's viewport transform — used to replicate their view */
+  viewportX?: number;
+  viewportY?: number;
+  viewportScale?: number;
 }
 
 export interface PresenceUser {

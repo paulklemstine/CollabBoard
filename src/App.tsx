@@ -182,6 +182,7 @@ function BoardView({
     isMarqueeActive,
     groupDragOffset,
     selectionBox,
+    selectionHidden,
     transformPreview,
     clearSelection,
     isSelected: isObjectSelected,
@@ -537,17 +538,48 @@ function BoardView({
         onResetZoom={zoomControls?.resetZoom}
       />
       <AIChat boardId={boardId} isOpen={aiOpen} onClose={() => setAiOpen(false)} />
-      {/* Top left: Back button and minimap */}
+      {/* Top left: Back/Share buttons and minimap */}
       <div className="absolute top-4 left-4 z-50 flex flex-col gap-3">
-        <button
-          onClick={onNavigateBack}
-          className="glass-playful rounded-xl px-3 py-2 text-sm font-semibold text-gray-700 hover:text-purple-600 transition-colors duration-200 shadow-lg flex items-center gap-1.5"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-          Boards
-        </button>
+        <div className="glass-playful rounded-xl shadow-lg flex items-center">
+          <button
+            onClick={onNavigateBack}
+            className="px-3 py-2 text-sm font-semibold text-gray-700 hover:text-purple-600 transition-colors duration-200 flex items-center gap-1.5"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            Boards
+          </button>
+          <div className="w-px h-6 bg-gray-300" />
+          <button
+            onClick={() => {
+              const url = `${window.location.origin}/${boardId}`;
+              navigator.clipboard.writeText(url).then(() => {
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              });
+            }}
+            className="px-3 py-2 text-sm font-semibold text-gray-700 hover:text-purple-600 transition-colors duration-200 flex items-center gap-1.5"
+          >
+            {copied ? (
+              <>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                Copied!
+              </>
+            ) : (
+              <>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+                  <polyline points="16 6 12 2 8 6" />
+                  <line x1="12" y1="2" x2="12" y2="15" />
+                </svg>
+                Share
+              </>
+            )}
+          </button>
+        </div>
         <Minimap
           transform={stageTransform}
           objects={objects.map((obj) => ({
@@ -559,44 +591,14 @@ function BoardView({
           }))}
         />
       </div>
-      {/* Top center: Board name and share button */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3">
-        {boardMetadata && (
-          <div className="glass-playful rounded-xl px-5 py-2.5 shadow-lg">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 bg-clip-text text-transparent">
-              {boardMetadata.name}
-            </h1>
-          </div>
-        )}
-        <button
-          onClick={() => {
-            const url = `${window.location.origin}/${boardId}`;
-            navigator.clipboard.writeText(url).then(() => {
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
-            });
-          }}
-          className="glass-playful rounded-xl px-3 py-2 text-sm font-semibold text-gray-700 hover:text-purple-600 transition-colors duration-200 shadow-lg flex items-center gap-1.5"
-        >
-          {copied ? (
-            <>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              Copied!
-            </>
-          ) : (
-            <>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-                <polyline points="16 6 12 2 8 6" />
-                <line x1="12" y1="2" x2="12" y2="15" />
-              </svg>
-              Share
-            </>
-          )}
-        </button>
-      </div>
+      {/* Top center: Board name */}
+      {boardMetadata && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 glass-playful rounded-xl px-5 py-2.5 shadow-lg">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 bg-clip-text text-transparent">
+            {boardMetadata.name}
+          </h1>
+        </div>
+      )}
       {/* Top right: Sign out and Presence */}
       <div className="absolute top-4 right-4 z-50 flex flex-col gap-3 items-end">
         <AuthPanel user={user as never} onSignOut={onSignOut} />

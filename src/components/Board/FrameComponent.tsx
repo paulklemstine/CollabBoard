@@ -284,16 +284,43 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDisso
       }}
     >
       {/* Frame border */}
-      <Rect
-        ref={borderRef}
-        width={localWidth}
-        height={localHeight}
-        stroke={isConnectorHighlighted ? '#818cf8' : '#a78bfa'}
-        strokeWidth={isConnectorHighlighted ? 4 : 2.5}
-        dash={[12, 6]}
-        fill="rgba(250, 245, 255, 0.12)"
-        cornerRadius={16}
-      />
+      {frame.borderless ? (
+        <>
+          {/* Invisible hit area for borderless frames */}
+          <Rect
+            ref={borderRef}
+            width={localWidth}
+            height={localHeight}
+            fill="transparent"
+            cornerRadius={16}
+          />
+          {/* Subtle dashed outline on hover so user can discover the group */}
+          {isMouseHovered && (
+            <Rect
+              width={localWidth}
+              height={localHeight}
+              stroke="#94a3b8"
+              strokeWidth={1}
+              dash={[6, 4]}
+              fill="transparent"
+              cornerRadius={16}
+              opacity={0.4}
+              listening={false}
+            />
+          )}
+        </>
+      ) : (
+        <Rect
+          ref={borderRef}
+          width={localWidth}
+          height={localHeight}
+          stroke={isConnectorHighlighted ? '#818cf8' : '#a78bfa'}
+          strokeWidth={isConnectorHighlighted ? 4 : 2.5}
+          dash={[12, 6]}
+          fill="rgba(250, 245, 255, 0.12)"
+          cornerRadius={16}
+        />
+      )}
       {/* Selection highlight */}
       {isSelected && (
         <Rect
@@ -321,56 +348,61 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDisso
           listening={false}
         />
       )}
-      {/* Title background with vibrant rainbow gradient */}
-      <Rect
-        x={0}
-        y={-36}
-        width={localWidth}
-        height={36}
-        fillLinearGradientStartPoint={{ x: 0, y: 0 }}
-        fillLinearGradientEndPoint={{ x: localWidth, y: 0 }}
-        fillLinearGradientColorStops={[
-          0, 'rgba(251, 146, 60, 0.18)',
-          0.25, 'rgba(251, 113, 133, 0.16)',
-          0.5, 'rgba(168, 85, 247, 0.16)',
-          0.75, 'rgba(96, 165, 250, 0.14)',
-          1, 'rgba(74, 222, 128, 0.12)'
-        ]}
-        cornerRadius={[16, 16, 0, 0]}
-      />
-      {/* Left accent bar — rainbow */}
-      <Rect
-        x={0}
-        y={-36}
-        width={4}
-        height={36}
-        fillLinearGradientStartPoint={{ x: 0, y: 0 }}
-        fillLinearGradientEndPoint={{ x: 0, y: 36 }}
-        fillLinearGradientColorStops={[0, '#f472b6', 0.33, '#a78bfa', 0.66, '#60a5fa', 1, '#34d399']}
-        cornerRadius={[16, 0, 0, 0]}
-      />
-      {/* Title text */}
-      <Text
-        ref={titleRef}
-        x={16}
-        y={-28}
-        text={frame.title || 'Double-click to edit'}
-        fontSize={14}
-        fontFamily="'Inter', sans-serif"
-        fontStyle="700"
-        fill={frame.title ? '#581c87' : '#a78bfa'}
-        listening={false}
-      />
-      {/* Double-click area for title editing */}
-      <Rect
-        x={0}
-        y={-36}
-        width={localWidth - 30}
-        height={36}
-        fill="transparent"
-        onDblClick={() => setIsEditing(true)}
-        onDblTap={() => setIsEditing(true)}
-      />
+      {/* Title bar — hidden for borderless frames */}
+      {!frame.borderless && (
+        <>
+          {/* Title background with vibrant rainbow gradient */}
+          <Rect
+            x={0}
+            y={-36}
+            width={localWidth}
+            height={36}
+            fillLinearGradientStartPoint={{ x: 0, y: 0 }}
+            fillLinearGradientEndPoint={{ x: localWidth, y: 0 }}
+            fillLinearGradientColorStops={[
+              0, 'rgba(251, 146, 60, 0.18)',
+              0.25, 'rgba(251, 113, 133, 0.16)',
+              0.5, 'rgba(168, 85, 247, 0.16)',
+              0.75, 'rgba(96, 165, 250, 0.14)',
+              1, 'rgba(74, 222, 128, 0.12)'
+            ]}
+            cornerRadius={[16, 16, 0, 0]}
+          />
+          {/* Left accent bar — rainbow */}
+          <Rect
+            x={0}
+            y={-36}
+            width={4}
+            height={36}
+            fillLinearGradientStartPoint={{ x: 0, y: 0 }}
+            fillLinearGradientEndPoint={{ x: 0, y: 36 }}
+            fillLinearGradientColorStops={[0, '#f472b6', 0.33, '#a78bfa', 0.66, '#60a5fa', 1, '#34d399']}
+            cornerRadius={[16, 0, 0, 0]}
+          />
+          {/* Title text */}
+          <Text
+            ref={titleRef}
+            x={16}
+            y={-28}
+            text={frame.title || 'Double-click to edit'}
+            fontSize={14}
+            fontFamily="'Inter', sans-serif"
+            fontStyle="700"
+            fill={frame.title ? '#581c87' : '#a78bfa'}
+            listening={false}
+          />
+          {/* Double-click area for title editing */}
+          <Rect
+            x={0}
+            y={-36}
+            width={localWidth - 30}
+            height={36}
+            fill="transparent"
+            onDblClick={() => setIsEditing(true)}
+            onDblTap={() => setIsEditing(true)}
+          />
+        </>
+      )}
       {/* Dissolve frame button (top-left) — removes frame, keeps children */}
       {onDissolve && isMouseHovered && (
         <Group

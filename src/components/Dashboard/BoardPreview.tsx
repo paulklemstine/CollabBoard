@@ -174,6 +174,8 @@ export function BoardPreview({ boardId }: BoardPreviewProps) {
 
         // --- Frame ---
         if (obj.type === 'frame') {
+          // Borderless frames are invisible grouping containers — skip in preview
+          if (obj.borderless) return null;
           const titleFontSize = Math.max(3, 12 * scale);
           return (
             <g key={obj.id}>

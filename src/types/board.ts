@@ -56,6 +56,8 @@ export interface Shape extends BoardObject {
 export interface Frame extends BoardObject {
   type: 'frame';
   title: string;
+  /** When true, frame renders with no visible border or title bar — invisible grouping container */
+  borderless?: boolean;
 }
 
 export interface Sticker extends BoardObject {

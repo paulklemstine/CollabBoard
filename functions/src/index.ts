@@ -56,15 +56,16 @@ const tools = [
   },
   {
     name: 'createFrame',
-    description: 'Create a frame (grouping container) on the whiteboard. Returns the frame ID - save this to use as parentId when creating children. Frames visually group objects and can be nested inside other frames.',
+    description: 'Create a frame (grouping container) on the whiteboard. Returns the frame ID - save this to use as parentId when creating children. Frames visually group objects and can be nested inside other frames. Set borderless=true for an invisible grouping container with no visible border or title bar.',
     input_schema: {
       type: 'object' as const,
       properties: {
-        title: { type: 'string', description: 'Title text displayed on the frame' },
+        title: { type: 'string', description: 'Title text displayed on the frame (ignored when borderless)' },
         x: { type: 'number', description: 'X position in ABSOLUTE coordinates (default: 0)' },
         y: { type: 'number', description: 'Y position in ABSOLUTE coordinates (default: 0)' },
         width: { type: 'number', description: 'Width in pixels (default: 400)' },
         height: { type: 'number', description: 'Height in pixels (default: 300)' },
+        borderless: { type: 'boolean', description: 'If true, creates a transparent borderless frame — invisible grouping container with no border or title bar. Great for logical groupings without visual clutter. (default: false)' },
         parentId: { type: 'string', description: 'ID of a parent frame to nest this frame inside.' },
       },
       required: ['title'],
@@ -350,6 +351,7 @@ You can create and manipulate objects on the whiteboard using the provided tools
   - Example: Frame at (100, 100, 400×300) → child at (120, 160, parentId: frameId) places it inside
   - Example: Frame at (0, 0, 400×300) → children at (20, 60, parentId: frameId), (240, 60, parentId: frameId)
 - Frames can also be nested inside other frames using parentId.
+- **Borderless frames**: Set borderless=true to create an invisible grouping container. Use these when you want to logically group objects that should move together but don't need a visible border or title. Borderless frames have no title bar, so children can start at frameY + 20 instead of frameY + 60.
 
 **Example: Creating a frame with children**
   1. createFrame(title: "Ideas", x: 0, y: 0, width: 400, height: 300) → returns {"id": "frame-xyz"}
@@ -438,6 +440,7 @@ interface ToolInput {
   newText?: string;
   newColor?: string;
   parentId?: string;
+  borderless?: boolean;
   newParentId?: string;
   rotation?: number;
   fromX?: number;
@@ -592,6 +595,7 @@ async function executeTool(
         createdBy: userId,
         updatedAt: now,
         parentId: input.parentId ?? '',
+        borderless: input.borderless ?? false,
       };
       await docRef.set(data);
       objectsCreated.push(docRef.id);

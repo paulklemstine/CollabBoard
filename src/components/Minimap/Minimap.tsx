@@ -1,11 +1,21 @@
 import { useRef, useEffect, useCallback } from 'react';
-import { Stage, Layer, Rect } from 'react-konva';
+import { Stage, Layer, Rect, Circle, Line } from 'react-konva';
 import type Konva from 'konva';
 import type { StageTransform } from '../Board/Board';
 
+interface MinimapObject {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  type: string;
+  color?: string;
+  shapeType?: string;
+}
+
 interface MinimapProps {
   transform: StageTransform;
-  objects?: Array<{ x: number; y: number; width: number; height: number; type: string }>;
+  objects?: MinimapObject[];
   onPanTo?: (worldX: number, worldY: number) => void;
 }
 
@@ -126,19 +136,85 @@ export function Minimap({ transform, objects = [], onPanTo }: MinimapProps) {
         style={{ cursor: onPanTo ? 'grab' : 'default' }}
       >
         <Layer>
-          {/* Render simplified objects */}
-          {objects.map((obj, index) => (
-            <Rect
-              key={index}
-              x={obj.x}
-              y={obj.y}
-              width={obj.width}
-              height={obj.height}
-              fill="#667eea"
-              opacity={0.6}
-              cornerRadius={2}
-            />
-          ))}
+          {/* Render simplified objects with actual colors */}
+          {objects.map((obj, index) => {
+            if (obj.type === 'connector') return null;
+
+            if (obj.type === 'frame') {
+              return (
+                <Rect
+                  key={index}
+                  x={obj.x}
+                  y={obj.y}
+                  width={obj.width}
+                  height={obj.height}
+                  stroke="#94a3b8"
+                  strokeWidth={2 / minimapScale}
+                  dash={[8 / minimapScale, 4 / minimapScale]}
+                  fill="transparent"
+                  opacity={0.4}
+                  cornerRadius={4}
+                  listening={false}
+                />
+              );
+            }
+
+            if (obj.type === 'shape' && obj.shapeType === 'circle') {
+              const rx = obj.width / 2;
+              const ry = obj.height / 2;
+              return (
+                <Circle
+                  key={index}
+                  x={obj.x + rx}
+                  y={obj.y + ry}
+                  radiusX={rx}
+                  radiusY={ry}
+                  fill={obj.color || '#818cf8'}
+                  opacity={0.75}
+                  listening={false}
+                />
+              );
+            }
+
+            if (obj.type === 'shape' && obj.shapeType === 'triangle') {
+              return (
+                <Line
+                  key={index}
+                  points={[
+                    obj.x + obj.width / 2, obj.y,
+                    obj.x + obj.width, obj.y + obj.height,
+                    obj.x, obj.y + obj.height,
+                  ]}
+                  closed
+                  fill={obj.color || '#818cf8'}
+                  opacity={0.75}
+                  listening={false}
+                />
+              );
+            }
+
+            const fill = obj.type === 'sticky'
+              ? (obj.color || '#fef08a')
+              : obj.type === 'shape'
+                ? (obj.color || '#818cf8')
+                : obj.type === 'sticker'
+                  ? '#c084fc'
+                  : '#667eea';
+
+            return (
+              <Rect
+                key={index}
+                x={obj.x}
+                y={obj.y}
+                width={obj.width}
+                height={obj.height}
+                fill={fill}
+                opacity={0.75}
+                cornerRadius={obj.type === 'sticky' ? 6 : 2}
+                listening={false}
+              />
+            );
+          })}
 
           {/* Viewport indicator */}
           <Rect

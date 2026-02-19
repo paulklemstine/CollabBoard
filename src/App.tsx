@@ -653,6 +653,8 @@ function BoardView({
             width: obj.width,
             height: obj.height,
             type: obj.type,
+            color: 'color' in obj ? (obj as any).color : undefined,
+            shapeType: 'shapeType' in obj ? (obj as any).shapeType : undefined,
           }))}
           onPanTo={handleMinimapPanTo}
         />

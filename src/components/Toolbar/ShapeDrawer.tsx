@@ -190,7 +190,7 @@ export function ShapeDrawer({ selectedColor, onAddShape, onAddFrame }: ShapeDraw
             {shapes.map((shape) => (
               <button
                 key={shape.type}
-                onClick={shape.action}
+                onClick={() => { shape.action(); setIsOpen(false); }}
                 className="flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-xl transition-all duration-200 hover:scale-105"
                 style={{
                   background: `linear-gradient(135deg, ${shape.color}15 0%, ${shape.color}25 100%)`,

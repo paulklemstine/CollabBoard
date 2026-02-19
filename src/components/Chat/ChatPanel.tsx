@@ -52,7 +52,13 @@ export function ChatPanel({ messages, currentUserId, onSend, isOpen, onToggle }:
   };
 
   return (
-    <div className="glass-playful rounded-2xl shadow-xl overflow-hidden animate-float-up w-full">
+    <div
+      className="glass-playful rounded-2xl shadow-xl overflow-hidden animate-float-up"
+      style={{
+        width: isOpen ? 300 : 'fit-content',
+        transition: 'width 0.25s ease-in-out',
+      }}
+    >
       {/* Header — always visible, acts as toggle */}
       <button
         onClick={onToggle}
@@ -86,8 +92,15 @@ export function ChatPanel({ messages, currentUserId, onSend, isOpen, onToggle }:
         </svg>
       </button>
 
-      {isOpen && (
-        <>
+      {/* Animated body */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateRows: isOpen ? '1fr' : '0fr',
+          transition: 'grid-template-rows 0.25s ease-in-out',
+        }}
+      >
+        <div style={{ overflow: 'hidden' }}>
           {/* Messages area */}
           <div className="border-t border-white/30 overflow-y-auto px-3 py-2 max-h-[300px] min-h-[120px] flex flex-col gap-1.5">
             {messages.length === 0 ? (
@@ -144,8 +157,8 @@ export function ChatPanel({ messages, currentUserId, onSend, isOpen, onToggle }:
               </button>
             </div>
           </div>
-        </>
-      )}
+        </div>
+      </div>
     </div>
   );
 }

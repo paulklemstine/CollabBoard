@@ -557,7 +557,7 @@ function BoardView({
         aiOpen={aiOpen}
       />
       {/* Bottom left: Chat panel above toolbar */}
-      <div className="fixed bottom-[100px] left-4 z-50 w-[300px]">
+      <div className="fixed bottom-[100px] left-4 z-50">
         <ChatPanel
           messages={chatMessages}
           currentUserId={user.uid}

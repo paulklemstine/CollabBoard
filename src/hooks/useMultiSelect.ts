@@ -50,6 +50,7 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selec
   const [groupDragOffset, setGroupDragOffset] = useState<GroupDragOffset | null>(null);
   const [transformPreview, setTransformPreview] = useState<GroupTransformPreview | null>(null);
   const [groupHoveredFrameId, setGroupHoveredFrameId] = useState<string | null>(null);
+  const [selectionHidden, setSelectionHidden] = useState(false);
 
   // Derive selection box from actual objects — always correct, no manual tracking.
   // When objects update (e.g. after Firestore commit), this recalculates automatically.
@@ -84,9 +85,11 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selec
   useLayoutEffect(() => {
     if (pendingClearRef.current === 'drag') {
       setGroupDragOffset(null);
+      setSelectionHidden(false);
       pendingClearRef.current = null;
     } else if (pendingClearRef.current === 'transform') {
       setTransformPreview(null);
+      setSelectionHidden(false);
       pendingClearRef.current = null;
     }
   }, [objects]);
@@ -309,6 +312,7 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selec
       }
 
       pendingClearRef.current = 'drag';
+      setSelectionHidden(true);
       setGroupHoveredFrameId(null);
 
       await batchUpdateObjects(boardId, updates);
@@ -317,6 +321,7 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selec
       if (pendingClearRef.current === 'drag') {
         pendingClearRef.current = null;
         setGroupDragOffset(null);
+        setSelectionHidden(false);
       }
     },
     [boardId]
@@ -344,6 +349,7 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selec
       const updates = transformGroupResize(selected, bbox, scaleX, scaleY, bbox.x, bbox.y);
 
       pendingClearRef.current = 'transform';
+      setSelectionHidden(true);
 
       await batchUpdateObjects(boardId, updates);
 
@@ -351,6 +357,7 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selec
       if (pendingClearRef.current === 'transform') {
         pendingClearRef.current = null;
         setTransformPreview(null);
+        setSelectionHidden(false);
       }
     },
     [boardId]
@@ -378,6 +385,7 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selec
       const updates = transformGroupRotate(selected, bbox, deltaAngle);
 
       pendingClearRef.current = 'transform';
+      setSelectionHidden(true);
 
       await batchUpdateObjects(boardId, updates);
 
@@ -385,6 +393,7 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selec
       if (pendingClearRef.current === 'transform') {
         pendingClearRef.current = null;
         setTransformPreview(null);
+        setSelectionHidden(false);
       }
     },
     [boardId]
@@ -396,6 +405,7 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string, selec
     isMarqueeActive,
     groupDragOffset,
     selectionBox,
+    selectionHidden,
     transformPreview,
     groupHoveredFrameId,
     clearSelection,

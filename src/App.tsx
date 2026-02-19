@@ -507,6 +507,7 @@ function BoardView({
             marquee={marquee}
             selectedIds={selectedIds}
             selectionBox={selectionBox}
+            selectionHidden={selectionHidden}
             groupDragOffset={groupDragOffset}
             transformPreview={transformPreview}
             onGroupDragMove={handleGroupDragMove}

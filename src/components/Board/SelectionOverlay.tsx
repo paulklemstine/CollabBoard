@@ -10,6 +10,7 @@ interface SelectionOverlayProps {
   marquee: Marquee | null;
   selectedIds: Set<string>;
   selectionBox: SelectionBox | null;
+  selectionHidden: boolean;
   groupDragOffset: GroupDragOffset | null;
   transformPreview: GroupTransformPreview | null;
   onGroupDragMove: (dx: number, dy: number) => void;
@@ -25,6 +26,7 @@ export function SelectionOverlay({
   marquee,
   selectedIds,
   selectionBox,
+  selectionHidden,
   groupDragOffset,
   transformPreview,
   onGroupDragMove,
@@ -224,7 +226,7 @@ export function SelectionOverlay({
       )}
 
       {/* Selection bounding box with handles — only for multi-select (2+) */}
-      {box && selectedIds.size > 1 && (
+      {box && selectedIds.size > 1 && !selectionHidden && (
         <Group
           x={displayX + displayWidth / 2}
           y={displayY + displayHeight / 2}

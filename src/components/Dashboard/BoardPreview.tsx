@@ -5,9 +5,9 @@ interface BoardPreviewProps {
   boardId: string;
 }
 
-const PREVIEW_W = 280;
-const PREVIEW_H = 120;
-const PAD = 12;
+const PREVIEW_W = 300;
+const PREVIEW_H = 140;
+const PAD = 16;
 
 function getColor(obj: AnyBoardObject): string {
   switch (obj.type) {
@@ -30,15 +30,17 @@ export function BoardPreview({ boardId }: BoardPreviewProps) {
     return () => { cancelled = true; };
   }, [boardId]);
 
-  // Skip connectors — they don't preview well
   const visible = objects?.filter((o) => o.type !== 'connector') ?? [];
 
   if (objects === null) {
-    // Loading
     return (
       <div
-        className="rounded-xl bg-gradient-to-br from-gray-100/60 to-gray-200/40 animate-pulse"
-        style={{ width: '100%', height: PREVIEW_H }}
+        className="animate-pulse"
+        style={{
+          width: '100%',
+          height: PREVIEW_H,
+          background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
+        }}
       />
     );
   }
@@ -46,10 +48,21 @@ export function BoardPreview({ boardId }: BoardPreviewProps) {
   if (visible.length === 0) {
     return (
       <div
-        className="rounded-xl bg-gradient-to-br from-gray-100/60 to-gray-200/40 flex items-center justify-center"
-        style={{ width: '100%', height: PREVIEW_H }}
+        className="flex items-center justify-center"
+        style={{
+          width: '100%',
+          height: PREVIEW_H,
+          background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%)',
+        }}
       >
-        <span className="text-xs text-gray-400 font-medium">Empty board</span>
+        <div className="flex flex-col items-center gap-1 opacity-40">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round">
+            <rect x="3" y="3" width="18" height="18" rx="3" strokeDasharray="4 3" />
+            <line x1="12" y1="8" x2="12" y2="16" />
+            <line x1="8" y1="12" x2="16" y2="12" />
+          </svg>
+          <span className="text-[10px] text-gray-400 font-medium">Empty</span>
+        </div>
       </div>
     );
   }
@@ -73,17 +86,17 @@ export function BoardPreview({ boardId }: BoardPreviewProps) {
 
   return (
     <svg
-      className="rounded-xl"
       width="100%"
       height={PREVIEW_H}
       viewBox={`0 0 ${PREVIEW_W} ${PREVIEW_H}`}
-      style={{ background: 'linear-gradient(135deg, rgba(241,245,249,0.8), rgba(226,232,240,0.5))' }}
+      preserveAspectRatio="xMidYMid meet"
+      style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%)' }}
     >
       {visible.map((obj) => {
         const x = offsetX + (obj.x - minX) * scale;
         const y = offsetY + (obj.y - minY) * scale;
-        const w = Math.max(obj.width * scale, 2);
-        const h = Math.max(obj.height * scale, 2);
+        const w = Math.max(obj.width * scale, 3);
+        const h = Math.max(obj.height * scale, 3);
         const color = getColor(obj);
 
         if (obj.type === 'frame') {
@@ -96,7 +109,7 @@ export function BoardPreview({ boardId }: BoardPreviewProps) {
               strokeWidth={1}
               strokeDasharray="4 2"
               rx={2}
-              opacity={0.5}
+              opacity={0.4}
             />
           );
         }
@@ -120,7 +133,7 @@ export function BoardPreview({ boardId }: BoardPreviewProps) {
               cx={x + w / 2} cy={y + h / 2}
               rx={w / 2} ry={h / 2}
               fill={color}
-              opacity={0.75}
+              opacity={0.8}
             />
           );
         }
@@ -131,7 +144,7 @@ export function BoardPreview({ boardId }: BoardPreviewProps) {
             x={x} y={y} width={w} height={h}
             fill={color}
             rx={obj.type === 'sticky' ? 3 : 1}
-            opacity={0.75}
+            opacity={0.8}
           />
         );
       })}

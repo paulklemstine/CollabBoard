@@ -26,17 +26,6 @@ export function ColorPanel({ label, color, onChange, showTransparent = false }: 
     <div>
       <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">{label}</div>
       <div className="flex gap-1.5 items-center flex-wrap">
-        {showTransparent && (
-          <button
-            onClick={() => onChange('transparent')}
-            className="w-7 h-7 rounded-lg transition-all hover:scale-110 border border-gray-300 shrink-0"
-            style={{
-              background: TRANSPARENT_BG,
-              boxShadow: isTransparent ? '0 0 0 2px white, 0 0 0 3.5px #6366f1' : 'none',
-            }}
-            title="Transparent"
-          />
-        )}
         {PRESETS.map((c) => (
           <button
             key={c}
@@ -50,6 +39,17 @@ export function ColorPanel({ label, color, onChange, showTransparent = false }: 
             title={c}
           />
         ))}
+        {showTransparent && (
+          <button
+            onClick={() => onChange('transparent')}
+            className="w-7 h-7 rounded-lg transition-all hover:scale-110 border border-gray-300 shrink-0"
+            style={{
+              background: TRANSPARENT_BG,
+              boxShadow: isTransparent ? '0 0 0 2px white, 0 0 0 3.5px #6366f1' : 'none',
+            }}
+            title="Transparent"
+          />
+        )}
         {/* Color picker */}
         <button
           onClick={() => pickerRef.current?.click()}

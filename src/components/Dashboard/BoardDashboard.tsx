@@ -39,14 +39,12 @@ export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboar
             <div
               className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg"
               style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+                background: 'linear-gradient(135deg, #818cf8 0%, #c084fc 50%, #f472b6 100%)',
               }}
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="7" height="7" rx="1" />
-                <rect x="14" y="3" width="7" height="7" rx="1" />
-                <rect x="3" y="14" width="7" height="7" rx="1" />
-                <rect x="14" y="14" width="7" height="7" rx="1" />
+              <svg width="28" height="28" viewBox="0 0 100 100" fill="none">
+                <path d="M 12 55 Q 25 35, 38 50 T 64 50 T 88 50" stroke="white" strokeWidth="7" strokeLinecap="round"/>
+                <path d="M 12 70 Q 25 50, 38 65 T 64 65 T 88 65" stroke="rgba(255,255,255,0.5)" strokeWidth="5" strokeLinecap="round"/>
               </svg>
             </div>
             <div>

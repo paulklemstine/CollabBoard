@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ref, onValue, set, onDisconnect, off } from 'firebase/database';
+import { ref, onValue, set, remove, onDisconnect, off } from 'firebase/database';
 import { rtdb } from '../services/firebase';
 import type { PresenceUser } from '../types/board';
 
@@ -8,8 +8,10 @@ const COLORS = [
   '#8b5cf6', '#ef4444', '#14b8a6', '#f97316', '#06b6d4',
 ];
 
-// Heartbeat: update presence every 30 seconds (keeps lastSeen fresh, but not used for timeout)
-export const HEARTBEAT_INTERVAL = 30000;
+// Heartbeat: update lastSeen every 15 seconds
+export const HEARTBEAT_INTERVAL = 15000;
+// Users not seen within this window are considered offline (stale RTDB entries)
+export const PRESENCE_TIMEOUT = 45000;
 
 export function pickColor(uid: string): string {
   let hash = 0;
@@ -53,7 +55,7 @@ export function usePresence(
     // Start heartbeat - update presence every HEARTBEAT_INTERVAL
     const heartbeatInterval = setInterval(updatePresence, HEARTBEAT_INTERVAL);
 
-    // Subscribe to all presence
+    // Subscribe to all presence — filter out stale users and self
     onValue(allPresenceRef, (snapshot) => {
       const data = snapshot.val();
       if (!data) {
@@ -61,8 +63,9 @@ export function usePresence(
         return;
       }
 
+      const now = Date.now();
       const users = Object.values(data as Record<string, PresenceUser>).filter(
-        (u) => u.online,
+        (u) => u.online && u.uid !== userId && (now - u.lastSeen) < PRESENCE_TIMEOUT,
       );
       setOnlineUsers(users);
     });
@@ -74,15 +77,8 @@ export function usePresence(
       // Unsubscribe from presence updates
       off(allPresenceRef);
 
-      // Mark user as offline
-      set(userPresenceRef, {
-        uid: userId,
-        displayName,
-        email,
-        color,
-        online: false,
-        lastSeen: Date.now(),
-      });
+      // Remove user presence entry entirely
+      remove(userPresenceRef);
     };
   }, [boardId, userId, displayName, email, color]);
 

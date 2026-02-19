@@ -26,6 +26,8 @@ const tools = [
         x: { type: 'number', description: 'X position on the canvas in ABSOLUTE coordinates (default: 0)' },
         y: { type: 'number', description: 'Y position on the canvas in ABSOLUTE coordinates (default: 0)' },
         color: { type: 'string', description: 'Background color as hex string (default: #fef9c3)' },
+        textColor: { type: 'string', description: 'Text color as hex string (default: #1e293b). Use for contrast against the background color.' },
+        borderColor: { type: 'string', description: 'Border color as hex string (default: transparent). Use "transparent" for no border.' },
         parentId: { type: 'string', description: 'CRITICAL: ID of a frame to attach this sticky note to. Without this, the note will NOT move with any frame. Get the frame ID from the createFrame response.' },
       },
       required: ['text'],
@@ -33,16 +35,18 @@ const tools = [
   },
   {
     name: 'createShape',
-    description: 'Create a shape (rectangle, circle, or line) on the whiteboard. For lines, use fromX/fromY/toX/toY to specify endpoints — the server computes position, length, and rotation automatically.',
+    description: 'Create a shape on the whiteboard. Supports: rect, circle, line, triangle, diamond, pentagon, hexagon, octagon, star, arrow, cross. For lines, use fromX/fromY/toX/toY to specify endpoints — the server computes position, length, and rotation automatically.',
     input_schema: {
       type: 'object' as const,
       properties: {
-        shapeType: { type: 'string', enum: ['rect', 'circle', 'line'], description: 'The type of shape' },
-        x: { type: 'number', description: 'X position (for rect/circle). Not needed for lines if using fromX/fromY/toX/toY.' },
-        y: { type: 'number', description: 'Y position (for rect/circle). Not needed for lines if using fromX/fromY/toX/toY.' },
-        width: { type: 'number', description: 'Width in pixels (for rect/circle, default: 120). Not needed for lines.' },
-        height: { type: 'number', description: 'Height in pixels (for rect/circle, default: 120). Not needed for lines.' },
-        color: { type: 'string', description: 'Fill/stroke color as hex string (default: #dbeafe)' },
+        shapeType: { type: 'string', enum: ['rect', 'circle', 'line', 'triangle', 'diamond', 'pentagon', 'hexagon', 'octagon', 'star', 'arrow', 'cross'], description: 'The type of shape to create' },
+        x: { type: 'number', description: 'X position (for all shapes except lines). Not needed for lines if using fromX/fromY/toX/toY.' },
+        y: { type: 'number', description: 'Y position (for all shapes except lines). Not needed for lines if using fromX/fromY/toX/toY.' },
+        width: { type: 'number', description: 'Width in pixels (default: 120). Not needed for lines.' },
+        height: { type: 'number', description: 'Height in pixels (default: 120). Not needed for lines.' },
+        color: { type: 'string', description: 'Fill color as hex string (default: #dbeafe)' },
+        strokeColor: { type: 'string', description: 'Stroke/outline color as hex string (default: #4f46e5)' },
+        borderColor: { type: 'string', description: 'Border color as hex string (default: transparent)' },
         fromX: { type: 'number', description: 'Line start X coordinate. Use this for lines instead of x/width/rotation.' },
         fromY: { type: 'number', description: 'Line start Y coordinate.' },
         toX: { type: 'number', description: 'Line end X coordinate.' },
@@ -85,13 +89,18 @@ const tools = [
   },
   {
     name: 'createConnector',
-    description: 'Create a connector line between two existing objects on the board.',
+    description: 'Create a connector line between two existing objects on the board. Supports line styles, arrows, and custom colors.',
     input_schema: {
       type: 'object' as const,
       properties: {
         fromId: { type: 'string', description: 'ID of the source object' },
         toId: { type: 'string', description: 'ID of the target object' },
-        style: { type: 'string', enum: ['straight', 'curved'], description: 'Connector style (default: straight)' },
+        style: { type: 'string', enum: ['straight', 'curved'], description: 'Connector curve style (default: straight)' },
+        lineType: { type: 'string', enum: ['solid', 'dashed', 'dotted'], description: 'Line dash style (default: solid)' },
+        startArrow: { type: 'boolean', description: 'Show arrowhead at the start/source end (default: false)' },
+        endArrow: { type: 'boolean', description: 'Show arrowhead at the end/target end (default: false)' },
+        strokeWidth: { type: 'number', description: 'Line thickness in pixels (default: 2)' },
+        color: { type: 'string', description: 'Connector color as hex string (default: #6366f1)' },
       },
       required: ['fromId', 'toId'],
     },
@@ -136,14 +145,17 @@ const tools = [
   },
   {
     name: 'changeColor',
-    description: 'Change the color of an existing object (sticky note or shape).',
+    description: 'Change colors of an existing object. For sticky notes: color (background), textColor, borderColor. For shapes: color (fill), strokeColor, borderColor. For connectors: color. Provide only the color properties you want to change.',
     input_schema: {
       type: 'object' as const,
       properties: {
         objectId: { type: 'string', description: 'ID of the object to recolor' },
-        newColor: { type: 'string', description: 'New color as hex string' },
+        newColor: { type: 'string', description: 'New background/fill color as hex string' },
+        textColor: { type: 'string', description: 'New text color (sticky notes only)' },
+        strokeColor: { type: 'string', description: 'New stroke/outline color (shapes only)' },
+        borderColor: { type: 'string', description: 'New border color (sticky notes and shapes)' },
       },
-      required: ['objectId', 'newColor'],
+      required: ['objectId'],
     },
   },
   {
@@ -266,15 +278,28 @@ const SYSTEM_PROMPT = `You are an AI assistant for Flow Space, a collaborative w
 You can create and manipulate objects on the whiteboard using the provided tools.
 
 ## Available Object Types
-- **Sticky Notes**: Text notes with customizable colors. Default size: 200x200px.
-- **Shapes**: Rectangles and circles. Default size: 120x120px.
+- **Sticky Notes**: Text notes with customizable background color, text color, and border color. Default size: 200x200px.
+  - color: background color (default: #fef9c3)
+  - textColor: text color (default: #1e293b) — use for contrast against background
+  - borderColor: border color (default: transparent)
+- **Shapes**: Many shape types available. Default size: 120x120px.
+  - shapeType options: rect, circle, triangle, diamond, pentagon, hexagon, octagon, star, arrow, cross, line
+  - color: fill color (default: #dbeafe)
+  - strokeColor: stroke/outline color (default: #4f46e5)
+  - borderColor: border color (default: transparent)
 - **Stickers**: Single emoji characters that can be placed and resized. Default size: 150x150px. Use any emoji like 🎉, ❤️, 👍, 🚀, etc.
 - **Lines**: Created via createShape with shapeType "line". Use fromX/fromY/toX/toY to specify start and end points — the server automatically computes position, length, and rotation.
   - Example: Horizontal line from (100, 200) to (300, 200): fromX=100, fromY=200, toX=300, toY=200
   - Example: Vertical line from (200, 100) to (200, 300): fromX=200, fromY=100, toX=200, toY=300
   - Example: Diagonal line: fromX=100, fromY=100, toX=300, toY=300
 - **Frames**: Grouping containers with titles. Default size: 400x300px.
-- **Connectors**: Lines connecting two objects. Styles: straight or curved.
+- **Connectors**: Lines connecting two objects with full styling options.
+  - style: "straight" or "curved" (connector path shape)
+  - lineType: "solid", "dashed", or "dotted" (default: solid)
+  - startArrow: true/false — show arrowhead at source end (default: false)
+  - endArrow: true/false — show arrowhead at target end (default: false)
+  - strokeWidth: line thickness in pixels (default: 2)
+  - color: connector color as hex string (default: #6366f1)
 
 ## Coordinate System
 - The canvas is infinite and scrollable.
@@ -316,12 +341,20 @@ You can create and manipulate objects on the whiteboard using the provided tools
 - For grids, use consistent row/column spacing (e.g., 220px for sticky notes, 140px for shapes).
 
 ## Color Palette (suggested defaults)
-- Yellow sticky: #fef9c3
-- Blue sticky: #dbeafe
-- Green sticky: #dcfce7
-- Pink sticky: #fce7f3
-- Purple sticky: #f3e8ff
-- Orange sticky: #ffedd5
+Background colors for sticky notes:
+- Yellow: #fef9c3, Blue: #dbeafe, Green: #dcfce7
+- Pink: #fce7f3, Purple: #f3e8ff, Orange: #ffedd5
+
+Available preset colors (for any color property):
+- Black: #000000, Slate: #475569, White: #ffffff
+- Red: #ef4444, Orange: #f97316, Yellow: #eab308
+- Green: #22c55e, Cyan: #06b6d4, Blue: #3b82f6
+- Purple: #8b5cf6, Pink: #ec4899, Brown: #9a3412
+- Dark green: #166534, Light blue: #93c5fd
+
+Text colors for sticky notes: default #1e293b (dark), use #ffffff for white text on dark backgrounds.
+Shape stroke colors: default #4f46e5 (indigo).
+Connector colors: default #6366f1 (indigo).
 
 ## Multi-Step Planning
 For complex requests (templates, layouts, diagrams), plan your approach before executing:
@@ -355,6 +388,9 @@ interface ToolInput {
   x?: number;
   y?: number;
   color?: string;
+  textColor?: string;
+  strokeColor?: string;
+  borderColor?: string;
   shapeType?: string;
   width?: number;
   height?: number;
@@ -364,6 +400,10 @@ interface ToolInput {
   fromId?: string;
   toId?: string;
   style?: string;
+  lineType?: string;
+  startArrow?: boolean;
+  endArrow?: boolean;
+  strokeWidth?: number;
   objectId?: string;
   newText?: string;
   newColor?: string;
@@ -408,6 +448,8 @@ async function executeTool(
         width: 200,
         height: 200,
         color: input.color ?? '#fef9c3',
+        textColor: input.textColor ?? '#1e293b',
+        borderColor: input.borderColor ?? 'transparent',
         rotation: 0,
         createdBy: userId,
         updatedAt: now,
@@ -451,6 +493,8 @@ async function executeTool(
         width: shapeWidth,
         height: shapeHeight,
         color: input.color ?? '#dbeafe',
+        strokeColor: input.strokeColor ?? '#4f46e5',
+        borderColor: input.borderColor ?? 'transparent',
         rotation: shapeRotation,
         createdBy: userId,
         updatedAt: now,
@@ -502,11 +546,16 @@ async function executeTool(
 
     case 'createConnector': {
       const docRef = objectsRef.doc();
-      const data = {
+      const data: Record<string, unknown> = {
         type: 'connector',
         fromId: input.fromId,
         toId: input.toId,
         style: input.style ?? 'straight',
+        lineType: input.lineType ?? 'solid',
+        startArrow: input.startArrow ?? false,
+        endArrow: input.endArrow ?? false,
+        strokeWidth: input.strokeWidth ?? 2,
+        color: input.color ?? '#6366f1',
         x: 0,
         y: 0,
         width: 0,
@@ -551,10 +600,12 @@ async function executeTool(
 
     case 'changeColor': {
       const docRef = objectsRef.doc(input.objectId!);
-      await docRef.update({
-        color: input.newColor,
-        updatedAt: now,
-      });
+      const colorUpdates: Record<string, unknown> = { updatedAt: now };
+      if (input.newColor !== undefined) colorUpdates.color = input.newColor;
+      if (input.textColor !== undefined) colorUpdates.textColor = input.textColor;
+      if (input.strokeColor !== undefined) colorUpdates.strokeColor = input.strokeColor;
+      if (input.borderColor !== undefined) colorUpdates.borderColor = input.borderColor;
+      await docRef.update(colorUpdates);
       return JSON.stringify({ success: true });
     }
 

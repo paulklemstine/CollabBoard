@@ -229,6 +229,13 @@ export function useBoard(boardId: string, userId: string) {
     [boardId]
   );
 
+  const moveLineEndpoint = useCallback(
+    (objectId: string, x: number, y: number, width: number, rotation: number) => {
+      updateObject(boardId, objectId, { x, y, width, rotation });
+    },
+    [boardId]
+  );
+
   /** Called during drag of non-frame objects — updates position + detects hover over frames */
   const handleDragMove = useCallback(
     (objectId: string, x: number, y: number) => {
@@ -605,5 +612,6 @@ export function useBoard(boardId: string, userId: string) {
     handleFrameDragMove,
     handleFrameDragEnd,
     dissolveFrame,
+    moveLineEndpoint,
   };
 }

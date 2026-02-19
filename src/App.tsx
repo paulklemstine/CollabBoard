@@ -160,6 +160,7 @@ function BoardView({
     handleFrameDragMove,
     handleFrameDragEnd,
     dissolveFrame,
+    moveLineEndpoint,
   } = useBoard(boardId, user.uid);
 
   const [selectMode, setSelectMode] = useState(false);
@@ -423,6 +424,7 @@ function BoardView({
               onClick={objectClick}
               onResize={selectMode ? resizeObject : undefined}
               onRotate={selectMode ? rotateObject : undefined}
+              onLineEndpointMove={selectMode ? moveLineEndpoint : undefined}
               dragOffset={getChildOffset(shape)}
               parentRotation={getParentRotation(shape.parentId)}
               onConnectorHoverEnter={objectHoverEnter}

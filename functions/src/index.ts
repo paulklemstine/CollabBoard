@@ -19,7 +19,7 @@ const tools = [
   {
     name: 'createStickyNote',
     description: 'Create a sticky note. Returns the created object ID.',
-    input_schema: {
+    schema: {
       type: 'object' as const,
       properties: {
         text: { type: 'string', description: 'The text content of the sticky note' },
@@ -46,7 +46,7 @@ const tools = [
   {
     name: 'createShape',
     description: 'Create a shape on the whiteboard. Supports: rect, circle, line, triangle, diamond, pentagon, hexagon, octagon, star, arrow, cross. For lines, use fromX/fromY/toX/toY to specify endpoints — the server computes position, length, and rotation automatically.',
-    input_schema: {
+    schema: {
       type: 'object' as const,
       properties: {
         shapeType: { type: 'string', enum: ['rect', 'circle', 'line', 'triangle', 'diamond', 'pentagon', 'hexagon', 'octagon', 'star', 'arrow', 'cross'], description: 'The type of shape to create' },
@@ -72,7 +72,7 @@ const tools = [
   {
     name: 'createFrame',
     description: 'Create a frame (grouping container). Returns the frame ID — use as parentId for children. Set borderless=true for invisible grouping.',
-    input_schema: {
+    schema: {
       type: 'object' as const,
       properties: {
         title: { type: 'string', description: 'Title text displayed on the frame (ignored when borderless)' },
@@ -99,7 +99,7 @@ const tools = [
   {
     name: 'createSticker',
     description: 'Create an emoji sticker on the whiteboard. Stickers are single emoji that can be placed and resized. Returns the created object ID.',
-    input_schema: {
+    schema: {
       type: 'object' as const,
       properties: {
         emoji: { type: 'string', description: 'A single emoji character (e.g., "🎉", "❤️", "👍")' },
@@ -117,7 +117,7 @@ const tools = [
   {
     name: 'createGifSticker',
     description: 'Create an animated GIF sticker on the whiteboard. Provide a search term and the client will find the best matching GIF from GIPHY. Returns the created object ID.',
-    input_schema: {
+    schema: {
       type: 'object' as const,
       properties: {
         searchTerm: { type: 'string', description: 'Keywords to search for a GIF (e.g. "celebration", "thumbs up", "mind blown", "fish swimming")' },
@@ -135,7 +135,7 @@ const tools = [
   {
     name: 'createText',
     description: 'Create a standalone text element on the whiteboard (heading, label, paragraph). No background by default. Supports font styling. Returns the created object ID.',
-    input_schema: {
+    schema: {
       type: 'object' as const,
       properties: {
         text: { type: 'string', description: 'The text content' },
@@ -162,7 +162,7 @@ const tools = [
   {
     name: 'createConnector',
     description: 'Create a connector line between two existing objects on the board. Supports line styles, arrows, and custom colors.',
-    input_schema: {
+    schema: {
       type: 'object' as const,
       properties: {
         fromId: { type: 'string', description: 'ID of the source object' },
@@ -183,7 +183,7 @@ const tools = [
   {
     name: 'moveObject',
     description: 'Move an existing object to a new position.',
-    input_schema: {
+    schema: {
       type: 'object' as const,
       properties: {
         objectId: { type: 'string', description: 'ID of the object to move' },
@@ -196,7 +196,7 @@ const tools = [
   {
     name: 'resizeObject',
     description: 'Resize an existing object.',
-    input_schema: {
+    schema: {
       type: 'object' as const,
       properties: {
         objectId: { type: 'string', description: 'ID of the object to resize' },
@@ -209,7 +209,7 @@ const tools = [
   {
     name: 'updateText',
     description: 'Update the text content of a sticky note or text element.',
-    input_schema: {
+    schema: {
       type: 'object' as const,
       properties: {
         objectId: { type: 'string', description: 'ID of the sticky note or text element to update' },
@@ -221,7 +221,7 @@ const tools = [
   {
     name: 'changeColor',
     description: 'Change colors of an existing object. For sticky notes: color (background), textColor, borderColor. For shapes: color (fill), strokeColor (border), borderColor. For text elements: color (text), bgColor (background), borderColor. For frames: color (background), borderColor, textColor. For connectors: color. Provide only the color properties you want to change.',
-    input_schema: {
+    schema: {
       type: 'object' as const,
       properties: {
         objectId: { type: 'string', description: 'ID of the object to recolor' },
@@ -237,7 +237,7 @@ const tools = [
   {
     name: 'deleteObject',
     description: 'Delete an existing object from the board.',
-    input_schema: {
+    schema: {
       type: 'object' as const,
       properties: {
         objectId: { type: 'string', description: 'ID of the object to delete' },
@@ -248,7 +248,7 @@ const tools = [
   {
     name: 'updateParent',
     description: 'Change the parent of an existing object. Use this to attach/detach objects to/from frames or change frame nesting. Set newParentId to empty string to make object independent (no parent).',
-    input_schema: {
+    schema: {
       type: 'object' as const,
       properties: {
         objectId: { type: 'string', description: 'ID of the object whose parent you want to change' },
@@ -260,7 +260,7 @@ const tools = [
   {
     name: 'embedInFrame',
     description: 'Move one or more existing objects into a frame. Auto-repositions them inside the frame in a vertical stack. Use this instead of calling updateParent + moveObject separately for each object.',
-    input_schema: {
+    schema: {
       type: 'object' as const,
       properties: {
         objectIds: { type: 'array', items: { type: 'string' }, description: 'IDs of existing objects to embed into the frame' },
@@ -272,7 +272,7 @@ const tools = [
   {
     name: 'alignObjects',
     description: 'Align multiple objects along an axis or distribute them evenly. Alignment snaps objects to a shared edge/center. Distribution spaces them evenly. After alignment, overlapping objects are nudged apart automatically.',
-    input_schema: {
+    schema: {
       type: 'object' as const,
       properties: {
         objectIds: { type: 'array', items: { type: 'string' }, description: 'Array of object IDs to align' },
@@ -285,7 +285,7 @@ const tools = [
   {
     name: 'layoutObjects',
     description: 'Arrange objects in a layout pattern. All modes prevent overlaps with configurable spacing. Use alignObjects for simple edge/center snapping or even distribution.',
-    input_schema: {
+    schema: {
       type: 'object' as const,
       properties: {
         objectIds: { type: 'array', items: { type: 'string' }, description: 'Array of object IDs to arrange' },
@@ -304,7 +304,7 @@ const tools = [
   {
     name: 'duplicateObject',
     description: 'Duplicate an object one or more times with optional offset.',
-    input_schema: {
+    schema: {
       type: 'object' as const,
       properties: {
         objectId: { type: 'string', description: 'ID of the object to duplicate' },
@@ -318,7 +318,7 @@ const tools = [
   {
     name: 'setZIndex',
     description: 'Control the layering order of an object (send to back, bring to front).',
-    input_schema: {
+    schema: {
       type: 'object' as const,
       properties: {
         objectId: { type: 'string', description: 'ID of the object to reorder' },
@@ -330,7 +330,7 @@ const tools = [
   {
     name: 'rotateObject',
     description: 'Rotate an object to a specific angle (in degrees).',
-    input_schema: {
+    schema: {
       type: 'object' as const,
       properties: {
         objectId: { type: 'string', description: 'ID of the object to rotate' },
@@ -342,7 +342,7 @@ const tools = [
   {
     name: 'generateFromTemplate',
     description: 'Generate common whiteboard templates (SWOT, Kanban, retrospective, etc.).',
-    input_schema: {
+    schema: {
       type: 'object' as const,
       properties: {
         templateType: { type: 'string', enum: ['swot', 'kanban', 'retrospective', 'eisenhower', 'mind-map'], description: 'Template type to generate' },
@@ -356,7 +356,7 @@ const tools = [
   {
     name: 'getObject',
     description: 'Get full details of a single object by its ID. Returns all fields including type, position, text, colors, parentId, etc.',
-    input_schema: {
+    schema: {
       type: 'object' as const,
       properties: {
         objectId: { type: 'string', description: 'ID of the object to retrieve' },
@@ -367,7 +367,7 @@ const tools = [
   {
     name: 'updateFrameTitle',
     description: 'Update the title of an existing frame.',
-    input_schema: {
+    schema: {
       type: 'object' as const,
       properties: {
         objectId: { type: 'string', description: 'ID of the frame to update' },
@@ -379,7 +379,7 @@ const tools = [
   {
     name: 'searchObjects',
     description: 'Search for objects on the board by type, text content, or parent frame. Returns lightweight summaries. All filters are optional and combined with AND logic.',
-    input_schema: {
+    schema: {
       type: 'object' as const,
       properties: {
         objectType: { type: 'string', description: 'Filter by object type (sticky, shape, frame, sticker, connector, text)' },
@@ -392,7 +392,7 @@ const tools = [
   {
     name: 'getBoardSummary',
     description: 'Get a high-level summary of the board: total count, count by type, and list of frames with their IDs and titles. Cheaper than getBoardState for understanding board structure.',
-    input_schema: {
+    schema: {
       type: 'object' as const,
       properties: {},
       required: [] as string[],
@@ -401,7 +401,7 @@ const tools = [
   {
     name: 'deleteObjects',
     description: 'Delete multiple objects at once by their IDs. More efficient than calling deleteObject repeatedly.',
-    input_schema: {
+    schema: {
       type: 'object' as const,
       properties: {
         objectIds: { type: 'array', items: { type: 'string' }, description: 'Array of object IDs to delete' },
@@ -412,7 +412,7 @@ const tools = [
   {
     name: 'getBoardState',
     description: 'Get the current state of all objects on the board. Use this to understand what is already on the board before manipulating existing objects.',
-    input_schema: {
+    schema: {
       type: 'object' as const,
       properties: {},
       required: [] as string[],
@@ -421,7 +421,7 @@ const tools = [
   {
     name: 'getSelectedObjects',
     description: 'Get details of the objects the user currently has selected. Returns compact object data for selected items only. Use when the user asks about their selection or says "these", "selected", etc.',
-    input_schema: {
+    schema: {
       type: 'object' as const,
       properties: {},
       required: [] as string[],
@@ -1927,6 +1927,7 @@ export const processAIRequest = onDocumentCreated(
       const model = new ChatOpenAI({
         model: 'minimax-m2.5-free',
         maxTokens: 4096,
+        maxRetries: 2,
         apiKey: opencodeApiKey.value(),
         configuration: {
           baseURL: 'https://opencode.ai/zen/v1',
@@ -2010,16 +2011,27 @@ export const processAIRequest = onDocumentCreated(
           );
         }
 
-        response = await modelWithTools.invoke(messages, {
-          callbacks: [langfuseHandler],
-        });
-        messages.push(response);
+        try {
+          response = await modelWithTools.invoke(messages, {
+            callbacks: [langfuseHandler],
+          });
+          messages.push(response);
+        } catch (loopError: unknown) {
+          // If the model fails after tools already executed, use a fallback
+          // (some API proxies fail on conversations containing tool results)
+          const errMsg = loopError instanceof Error ? loopError.message : String(loopError);
+          console.warn('Model call failed after tool execution, using fallback:', errMsg);
+          break;
+        }
       }
 
       // Extract final text response
+      const fallback = stepCount > 0
+        ? `Done! Completed ${stepCount} action${stepCount > 1 ? 's' : ''}.`
+        : 'Done!';
       const responseText =
         typeof response.content === 'string'
-          ? response.content
+          ? (response.content || fallback)
           : Array.isArray(response.content)
             ? response.content
                 .filter(
@@ -2027,7 +2039,7 @@ export const processAIRequest = onDocumentCreated(
                     typeof b === 'object' && 'type' in b && b.type === 'text',
                 )
                 .map((b) => b.text)
-                .join('\n') || 'Done!'
+                .join('\n') || fallback
             : 'Done!';
 
       // Update request document with response

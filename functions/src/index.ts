@@ -19,131 +19,27 @@ const langfuseHost = defineSecret('LANGFUSE_HOST');
 
 const tools = [
   {
-    name: 'createStickyNote',
-    description: 'Create sticky note. Returns {id}.',
+    name: 'executePlan',
+    description: 'Execute multiple creation ops in one atomic batch. Use tempIds for cross-refs (e.g. connector fromId refs a sticky tempId). Ops: createStickyNote, createShape, createFrame, createSticker, createGifSticker, createText, createConnector.',
     schema: {
       type: 'object' as const,
       properties: {
-        text: { type: 'string' },
-        x: { type: 'number' }, y: { type: 'number' },
-        color: { type: 'string', description: 'Hex bg color' },
-        textColor: { type: 'string', description: 'Hex text color' },
-        width: { type: 'number' }, height: { type: 'number' },
-        parentId: { type: 'string' },
-        borderColor: { type: 'string' },
-        fontSize: { type: 'number', description: '16|24|36|48' },
-        fontFamily: { type: 'string', enum: ['sans', 'serif', 'mono', 'cursive'] },
-        fontWeight: { type: 'string', enum: ['normal', 'bold'] },
-        fontStyle: { type: 'string', enum: ['normal', 'italic'] },
-        textAlign: { type: 'string', enum: ['left', 'center', 'right'] },
-        aiLabel: { type: 'string' }, aiGroupId: { type: 'number' }, aiGroupLabel: { type: 'string' },
+        operations: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              op: { type: 'string', enum: ['createStickyNote', 'createShape', 'createFrame', 'createSticker', 'createGifSticker', 'createText', 'createConnector'] },
+              tempId: { type: 'string', description: 'Optional temp ID for cross-referencing between ops' },
+              params: { type: 'object', description: 'Same params as the individual create tool' },
+            },
+            required: ['op'],
+          },
+        },
+        aiGroupId: { type: 'number' },
+        aiGroupLabel: { type: 'string' },
       },
-      required: ['text'],
-    },
-  },
-  {
-    name: 'createShape',
-    description: 'Create shape. Lines: use fromX/fromY/toX/toY. Returns {id}.',
-    schema: {
-      type: 'object' as const,
-      properties: {
-        shapeType: { type: 'string', enum: ['rect', 'circle', 'line', 'triangle', 'diamond', 'pentagon', 'hexagon', 'octagon', 'star', 'arrow', 'cross'] },
-        x: { type: 'number' }, y: { type: 'number' },
-        width: { type: 'number' }, height: { type: 'number' },
-        color: { type: 'string', description: 'Fill hex' },
-        strokeColor: { type: 'string', description: 'Border hex' },
-        fromX: { type: 'number' }, fromY: { type: 'number' },
-        toX: { type: 'number' }, toY: { type: 'number' },
-        parentId: { type: 'string' }, borderColor: { type: 'string' },
-        aiLabel: { type: 'string' }, aiGroupId: { type: 'number' }, aiGroupLabel: { type: 'string' },
-      },
-      required: ['shapeType'],
-    },
-  },
-  {
-    name: 'createFrame',
-    description: 'Create frame (container). Use its ID as parentId. borderless=true hides border+title.',
-    schema: {
-      type: 'object' as const,
-      properties: {
-        title: { type: 'string' },
-        x: { type: 'number' }, y: { type: 'number' },
-        width: { type: 'number' }, height: { type: 'number' },
-        borderless: { type: 'boolean' },
-        color: { type: 'string' }, borderColor: { type: 'string' }, textColor: { type: 'string' },
-        fontSize: { type: 'number' },
-        fontFamily: { type: 'string', enum: ['sans', 'serif', 'mono', 'cursive'] },
-        fontWeight: { type: 'string', enum: ['normal', 'bold'] },
-        fontStyle: { type: 'string', enum: ['normal', 'italic'] },
-        parentId: { type: 'string' },
-        aiLabel: { type: 'string' }, aiGroupId: { type: 'number' }, aiGroupLabel: { type: 'string' },
-      },
-      required: ['title'],
-    },
-  },
-  {
-    name: 'createSticker',
-    description: 'Create emoji sticker.',
-    schema: {
-      type: 'object' as const,
-      properties: {
-        emoji: { type: 'string' },
-        x: { type: 'number' }, y: { type: 'number' }, size: { type: 'number' },
-        parentId: { type: 'string' },
-        aiLabel: { type: 'string' }, aiGroupId: { type: 'number' }, aiGroupLabel: { type: 'string' },
-      },
-      required: ['emoji'],
-    },
-  },
-  {
-    name: 'createGifSticker',
-    description: 'Create GIF sticker from search term.',
-    schema: {
-      type: 'object' as const,
-      properties: {
-        searchTerm: { type: 'string' },
-        x: { type: 'number' }, y: { type: 'number' }, size: { type: 'number' },
-        parentId: { type: 'string' },
-        aiLabel: { type: 'string' }, aiGroupId: { type: 'number' }, aiGroupLabel: { type: 'string' },
-      },
-      required: ['searchTerm'],
-    },
-  },
-  {
-    name: 'createText',
-    description: 'Create text element (heading/label/paragraph).',
-    schema: {
-      type: 'object' as const,
-      properties: {
-        text: { type: 'string' },
-        x: { type: 'number' }, y: { type: 'number' },
-        width: { type: 'number' }, height: { type: 'number' },
-        fontSize: { type: 'number' },
-        fontWeight: { type: 'string', enum: ['normal', 'bold'] },
-        fontStyle: { type: 'string', enum: ['normal', 'italic'] },
-        textAlign: { type: 'string', enum: ['left', 'center', 'right'] },
-        color: { type: 'string' }, bgColor: { type: 'string' }, borderColor: { type: 'string' },
-        fontFamily: { type: 'string', enum: ['sans', 'serif', 'mono', 'cursive'] },
-        parentId: { type: 'string' },
-        aiLabel: { type: 'string' }, aiGroupId: { type: 'number' }, aiGroupLabel: { type: 'string' },
-      },
-      required: ['text'],
-    },
-  },
-  {
-    name: 'createConnector',
-    description: 'Connect two objects with a line.',
-    schema: {
-      type: 'object' as const,
-      properties: {
-        fromId: { type: 'string' }, toId: { type: 'string' },
-        style: { type: 'string', enum: ['straight', 'curved'] },
-        lineType: { type: 'string', enum: ['solid', 'dashed', 'dotted'] },
-        startArrow: { type: 'boolean' }, endArrow: { type: 'boolean' },
-        strokeWidth: { type: 'number' }, color: { type: 'string' },
-        aiLabel: { type: 'string' }, aiGroupId: { type: 'number' }, aiGroupLabel: { type: 'string' },
-      },
-      required: ['fromId', 'toId'],
+      required: ['operations'],
     },
   },
   {
@@ -284,18 +180,6 @@ const tools = [
     },
   },
   {
-    name: 'generateFromTemplate',
-    description: 'Generate template layout.',
-    schema: {
-      type: 'object' as const,
-      properties: {
-        templateType: { type: 'string', enum: ['swot', 'kanban', 'retrospective', 'eisenhower', 'mind-map'] },
-        x: { type: 'number' }, y: { type: 'number' }, title: { type: 'string' },
-      },
-      required: ['templateType'],
-    },
-  },
-  {
     name: 'getObject',
     description: 'Get full object details by ID.',
     schema: {
@@ -344,13 +228,7 @@ const tools = [
 
 // Human-readable labels for deterministic summaries (C1)
 const TOOL_LABELS: Record<string, string> = {
-  createStickyNote: 'Created sticky note',
-  createShape: 'Created shape',
-  createFrame: 'Created frame',
-  createSticker: 'Created sticker',
-  createGifSticker: 'Created GIF sticker',
-  createText: 'Created text element',
-  createConnector: 'Created connector',
+  executePlan: 'Executed plan',
   moveObject: 'Moved object',
   resizeObject: 'Resized object',
   updateText: 'Updated text',
@@ -363,7 +241,6 @@ const TOOL_LABELS: Record<string, string> = {
   duplicateObject: 'Duplicated object',
   setZIndex: 'Changed layer order',
   rotateObject: 'Rotated object',
-  generateFromTemplate: 'Generated template',
   getObject: 'Fetched object',
   updateFrameTitle: 'Updated frame title',
   searchObjects: 'Searched objects',
@@ -376,6 +253,9 @@ const TOOL_LABELS: Record<string, string> = {
 // ---- System prompt ----
 
 const SYSTEM_PROMPT = `You are Flow Space AI — a collaborative whiteboard assistant. Use tools to create/manipulate objects. Emit ALL tool calls in a single response.
+
+CREATE objects via executePlan — ONE call with all operations. Use tempIds to cross-reference (e.g. connector refs a sticky's tempId).
+Example: {"operations":[{"op":"createStickyNote","tempId":"s1","params":{"text":"Hello","x":100,"y":100}},{"op":"createConnector","params":{"fromId":"s1","toId":"s2"}}]}
 
 Compact board state keys: w=width, h=height, pid=parentId, rot=rotation, sel=selected.
 
@@ -791,6 +671,524 @@ function resolveFontFamily(input?: string): string {
   return FONT_FAMILY_MAP[input ?? 'sans'] ?? FONT_FAMILY_MAP.sans;
 }
 
+
+/**
+ * Pure function: builds Firestore document data for a creation operation
+ * without writing to the database. Used by executePlan and executeTool.
+ */
+
+// ---- Template Engine: bypass LLM for known patterns ----
+
+type TemplateMatch = {
+  type: 'flowchart';
+  nodes: string[];
+} | {
+  type: 'template';
+  templateType: 'swot' | 'kanban' | 'retrospective' | 'eisenhower' | 'mind-map';
+}
+
+function detectTemplate(prompt: string): TemplateMatch | null {
+  // Flowchart arrow syntax: "A -> B -> C" or "A --> B" or "A → B"
+  const arrowParts = prompt.split(/\s*(?:->|-->|→)\s*/);
+  if (arrowParts.length >= 2 && arrowParts.every(p => p.trim().length > 0 && p.trim().length < 100)) {
+    return { type: 'flowchart', nodes: arrowParts.map(p => p.trim()) };
+  }
+
+  // Structural templates
+  if (/\bswot\b/i.test(prompt)) return { type: 'template', templateType: 'swot' };
+  if (/\bkanban\b/i.test(prompt)) return { type: 'template', templateType: 'kanban' };
+  if (/\bretro(?:spective)?\b/i.test(prompt)) return { type: 'template', templateType: 'retrospective' };
+  if (/\beisenhower\b/i.test(prompt)) return { type: 'template', templateType: 'eisenhower' };
+  if (/\bmind\s*map\b/i.test(prompt)) return { type: 'template', templateType: 'mind-map' };
+
+  return null;
+}
+
+async function executeFlowchart(
+  nodes: string[],
+  boardId: string,
+  userId: string,
+  objectsCreated: string[],
+): Promise<string> {
+  const objectsRef = db.collection(`boards/${boardId}/objects`);
+  const now = Date.now();
+  const batch = db.batch();
+  const spacing = 280;
+  const startX = 100;
+  const startY = 300;
+  const nodeIds: string[] = [];
+
+  // Create stickies in a row
+  for (let i = 0; i < nodes.length; i++) {
+    const docRef = objectsRef.doc();
+    nodeIds.push(docRef.id);
+    batch.set(docRef, {
+      type: 'sticky',
+      text: nodes[i],
+      x: startX + i * spacing,
+      y: startY,
+      width: 200,
+      height: 200,
+      color: '#fef9c3',
+      textColor: '#1e293b',
+      rotation: 0,
+      createdBy: userId,
+      updatedAt: now,
+      parentId: '',
+      aiLabel: nodes[i],
+      aiGroupId: 'flowchart',
+    });
+    objectsCreated.push(docRef.id);
+  }
+
+  // Create connectors between adjacent nodes
+  for (let i = 0; i < nodes.length - 1; i++) {
+    const connRef = objectsRef.doc();
+    batch.set(connRef, {
+      type: 'connector',
+      fromId: nodeIds[i],
+      toId: nodeIds[i + 1],
+      style: 'straight',
+      lineType: 'solid',
+      startArrow: false,
+      endArrow: true,
+      strokeWidth: 2,
+      color: '#6366f1',
+      x: 0, y: 0, width: 0, height: 0,
+      rotation: 0,
+      createdBy: userId,
+      updatedAt: now,
+      parentId: '',
+    });
+    objectsCreated.push(connRef.id);
+  }
+
+  await batch.commit();
+  return `Done! Created flowchart with ${nodes.length} steps.`;
+}
+
+async function executeTemplate(
+  templateType: string,
+  boardId: string,
+  userId: string,
+  objectsCreated: string[],
+): Promise<string> {
+  const objectsRef = db.collection(`boards/${boardId}/objects`);
+  const now = Date.now();
+  const batch = db.batch();
+  const startX = 0;
+  const startY = 0;
+
+  switch (templateType) {
+    case 'swot': {
+      const frameWidth = 400;
+      const frameHeight = 300;
+      const gap = 20;
+      const titles = ['Strengths', 'Weaknesses', 'Opportunities', 'Threats'];
+      const colors = ['#dcfce7', '#fce7f3', '#dbeafe', '#ffedd5'];
+      const prompts = ['What are we good at?', 'Where can we improve?', 'What trends can we leverage?', 'What risks do we face?'];
+
+      for (let i = 0; i < 4; i++) {
+        const col = i % 2;
+        const row = Math.floor(i / 2);
+        const fx = startX + col * (frameWidth + gap);
+        const fy = startY + row * (frameHeight + gap);
+        const frameRef = objectsRef.doc();
+        batch.set(frameRef, {
+          type: 'frame', title: titles[i], x: fx, y: fy,
+          width: frameWidth, height: frameHeight, rotation: 0,
+          createdBy: userId, updatedAt: now, parentId: '', sentToBack: true,
+        });
+        objectsCreated.push(frameRef.id);
+
+        const stickyRef = objectsRef.doc();
+        batch.set(stickyRef, {
+          type: 'sticky', text: prompts[i], x: fx + 20, y: fy + 20,
+          width: 180, height: 180, color: colors[i], textColor: '#1e293b',
+          rotation: 0, createdBy: userId, updatedAt: now, parentId: frameRef.id,
+        });
+        objectsCreated.push(stickyRef.id);
+      }
+      break;
+    }
+
+    case 'kanban': {
+      const frameWidth = 350;
+      const frameHeight = 600;
+      const gap = 20;
+      const titles = ['To Do', 'In Progress', 'Done'];
+      const kanbanColors = ['#fef9c3', '#dbeafe', '#dcfce7'];
+      const kanbanPrompts = ['Add tasks here', 'Work in progress', 'Completed tasks'];
+
+      for (let i = 0; i < 3; i++) {
+        const fx = startX + i * (frameWidth + gap);
+        const fy = startY;
+        const frameRef = objectsRef.doc();
+        batch.set(frameRef, {
+          type: 'frame', title: titles[i], x: fx, y: fy,
+          width: frameWidth, height: frameHeight, rotation: 0,
+          createdBy: userId, updatedAt: now, parentId: '', sentToBack: true,
+        });
+        objectsCreated.push(frameRef.id);
+
+        const stickyRef = objectsRef.doc();
+        batch.set(stickyRef, {
+          type: 'sticky', text: kanbanPrompts[i], x: fx + 20, y: fy + 20,
+          width: 180, height: 180, color: kanbanColors[i], textColor: '#1e293b',
+          rotation: 0, createdBy: userId, updatedAt: now, parentId: frameRef.id,
+        });
+        objectsCreated.push(stickyRef.id);
+      }
+      break;
+    }
+
+    case 'retrospective': {
+      const retroFrameWidth = 400;
+      const retroFrameHeight = 500;
+      const retroGap = 20;
+      const retroTitles = ['What Went Well \u{1F60A}', 'What Didn\'t Go Well \u{1F61E}', 'Action Items \u{1F3AF}'];
+      const retroColors = ['#dcfce7', '#fce7f3', '#dbeafe'];
+      const retroPrompts = ['Add your wins here', 'What could be better?', 'Next steps to take'];
+
+      for (let i = 0; i < 3; i++) {
+        const fx = startX + i * (retroFrameWidth + retroGap);
+        const fy = startY;
+        const frameRef = objectsRef.doc();
+        batch.set(frameRef, {
+          type: 'frame', title: retroTitles[i], x: fx, y: fy,
+          width: retroFrameWidth, height: retroFrameHeight, rotation: 0,
+          createdBy: userId, updatedAt: now, parentId: '', sentToBack: true,
+        });
+        objectsCreated.push(frameRef.id);
+
+        const stickyRef = objectsRef.doc();
+        batch.set(stickyRef, {
+          type: 'sticky', text: retroPrompts[i], x: fx + 20, y: fy + 20,
+          width: 180, height: 180, color: retroColors[i], textColor: '#1e293b',
+          rotation: 0, createdBy: userId, updatedAt: now, parentId: frameRef.id,
+        });
+        objectsCreated.push(stickyRef.id);
+      }
+      break;
+    }
+
+    case 'eisenhower': {
+      const eiFrameWidth = 400;
+      const eiFrameHeight = 300;
+      const eiGap = 20;
+      const eiTitles = ['Urgent & Important', 'Not Urgent & Important', 'Urgent & Not Important', 'Neither'];
+      const eiColors = ['#fce7f3', '#dbeafe', '#ffedd5', '#f3e8ff'];
+      const eiPrompts = ['Do it now', 'Schedule it', 'Delegate it', 'Drop it'];
+
+      for (let i = 0; i < 4; i++) {
+        const col = i % 2;
+        const row = Math.floor(i / 2);
+        const fx = startX + col * (eiFrameWidth + eiGap);
+        const fy = startY + row * (eiFrameHeight + eiGap);
+        const frameRef = objectsRef.doc();
+        batch.set(frameRef, {
+          type: 'frame', title: eiTitles[i], x: fx, y: fy,
+          width: eiFrameWidth, height: eiFrameHeight, rotation: 0,
+          createdBy: userId, updatedAt: now, parentId: '', sentToBack: true,
+        });
+        objectsCreated.push(frameRef.id);
+
+        const stickyRef = objectsRef.doc();
+        batch.set(stickyRef, {
+          type: 'sticky', text: eiPrompts[i], x: fx + 20, y: fy + 20,
+          width: 180, height: 180, color: eiColors[i], textColor: '#1e293b',
+          rotation: 0, createdBy: userId, updatedAt: now, parentId: frameRef.id,
+        });
+        objectsCreated.push(stickyRef.id);
+      }
+      break;
+    }
+
+    case 'mind-map': {
+      const centerRef = objectsRef.doc();
+      batch.set(centerRef, {
+        type: 'sticky', text: 'Central Idea',
+        x: startX + 400, y: startY + 300, width: 200, height: 200,
+        color: '#fef9c3', rotation: 0, createdBy: userId, updatedAt: now, parentId: '',
+      });
+      objectsCreated.push(centerRef.id);
+
+      const positions = [
+        { x: startX, y: startY + 300 },
+        { x: startX + 800, y: startY + 300 },
+        { x: startX + 400, y: startY },
+        { x: startX + 400, y: startY + 600 },
+      ];
+
+      for (let i = 0; i < 4; i++) {
+        const branchRef = objectsRef.doc();
+        batch.set(branchRef, {
+          type: 'sticky', text: `Branch ${i + 1}`,
+          x: positions[i].x, y: positions[i].y, width: 200, height: 200,
+          color: '#dbeafe', rotation: 0, createdBy: userId, updatedAt: now, parentId: '',
+        });
+        objectsCreated.push(branchRef.id);
+
+        const connRef = objectsRef.doc();
+        batch.set(connRef, {
+          type: 'connector', fromId: centerRef.id, toId: branchRef.id,
+          style: 'curved', x: 0, y: 0, width: 0, height: 0,
+          rotation: 0, createdBy: userId, updatedAt: now, parentId: '',
+        });
+        objectsCreated.push(connRef.id);
+      }
+      break;
+    }
+  }
+
+  await batch.commit();
+
+  const templateNames: Record<string, string> = {
+    'swot': 'SWOT analysis', 'kanban': 'Kanban board', 'retrospective': 'retrospective',
+    'eisenhower': 'Eisenhower matrix', 'mind-map': 'mind map',
+  };
+  return `Done! Created ${templateNames[templateType] || templateType}.`;
+}
+
+function buildObjectData(
+  op: string,
+  params: ToolInput,
+  userId: string,
+  now: number,
+  resolvedGroupId?: string,
+): Record<string, unknown> {
+  const base: Record<string, unknown> = {
+    createdBy: userId,
+    updatedAt: now,
+    parentId: params.parentId ?? '',
+    rotation: 0,
+  };
+  if (params.aiLabel) base.aiLabel = params.aiLabel;
+  if (resolvedGroupId) base.aiGroupId = resolvedGroupId;
+
+  switch (op) {
+    case 'createStickyNote': {
+      const data: Record<string, unknown> = {
+        ...base,
+        type: 'sticky',
+        text: params.text ?? '',
+        x: params.x ?? 0,
+        y: params.y ?? 0,
+        width: params.width ?? 200,
+        height: params.height ?? 200,
+        color: params.color ?? '#fef9c3',
+        textColor: params.textColor ?? '#1e293b',
+      };
+      if (params.borderColor) data.borderColor = params.borderColor;
+      if (params.fontSize) data.fontSize = params.fontSize;
+      if (params.fontFamily) data.fontFamily = resolveFontFamily(params.fontFamily);
+      if (params.fontWeight && params.fontWeight !== 'normal') data.fontWeight = params.fontWeight;
+      if (params.fontStyle && params.fontStyle !== 'normal') data.fontStyle = params.fontStyle;
+      if (params.textAlign && params.textAlign !== 'left') data.textAlign = params.textAlign;
+      return data;
+    }
+
+    case 'createShape': {
+      const isLine = params.shapeType === 'line';
+      let shapeX = params.x ?? 0;
+      let shapeY = params.y ?? 0;
+      let shapeWidth = params.width ?? (isLine ? 200 : 120);
+      let shapeHeight = isLine ? 4 : (params.height ?? 120);
+      let shapeRotation = params.rotation ?? 0;
+
+      if (isLine && params.fromX != null && params.fromY != null && params.toX != null && params.toY != null) {
+        const dx = params.toX - params.fromX;
+        const dy = params.toY - params.fromY;
+        const length = Math.sqrt(dx * dx + dy * dy);
+        const angleDeg = Math.atan2(dy, dx) * (180 / Math.PI);
+        const centerX = (params.fromX + params.toX) / 2;
+        const centerY = (params.fromY + params.toY) / 2;
+        shapeWidth = length;
+        shapeHeight = 4;
+        shapeRotation = angleDeg;
+        shapeX = centerX - length / 2;
+        shapeY = centerY - 2;
+      }
+
+      const data: Record<string, unknown> = {
+        ...base,
+        type: 'shape',
+        shapeType: params.shapeType ?? 'rect',
+        x: shapeX,
+        y: shapeY,
+        width: shapeWidth,
+        height: shapeHeight,
+        color: params.color ?? '#dbeafe',
+        strokeColor: params.strokeColor ?? '#4f46e5',
+        rotation: shapeRotation,
+      };
+      if (params.borderColor) data.borderColor = params.borderColor;
+      return data;
+    }
+
+    case 'createFrame': {
+      const data: Record<string, unknown> = {
+        ...base,
+        type: 'frame',
+        title: params.title ?? 'Frame',
+        x: params.x ?? 0,
+        y: params.y ?? 0,
+        width: params.width ?? 400,
+        height: params.height ?? 300,
+        borderless: params.borderless ?? false,
+        sentToBack: true,
+      };
+      if (params.color) data.color = params.color;
+      if (params.borderColor) data.borderColor = params.borderColor;
+      if (params.textColor) data.textColor = params.textColor;
+      if (params.fontSize) data.fontSize = params.fontSize;
+      if (params.fontFamily) data.fontFamily = resolveFontFamily(params.fontFamily);
+      if (params.fontWeight && params.fontWeight !== 'normal') data.fontWeight = params.fontWeight;
+      if (params.fontStyle && params.fontStyle !== 'normal') data.fontStyle = params.fontStyle;
+      return data;
+    }
+
+    case 'createSticker': {
+      const size = params.size ?? 150;
+      return {
+        ...base,
+        type: 'sticker',
+        emoji: params.emoji ?? '😊',
+        x: params.x ?? 0,
+        y: params.y ?? 0,
+        width: size,
+        height: size,
+      };
+    }
+
+    case 'createGifSticker': {
+      const size = params.size ?? 150;
+      return {
+        ...base,
+        type: 'sticker',
+        emoji: '',
+        gifSearchTerm: params.searchTerm ?? '',
+        x: params.x ?? 0,
+        y: params.y ?? 0,
+        width: size,
+        height: size,
+      };
+    }
+
+    case 'createText': {
+      const data: Record<string, unknown> = {
+        ...base,
+        type: 'text',
+        text: params.text ?? '',
+        x: params.x ?? 0,
+        y: params.y ?? 0,
+        width: params.width ?? 300,
+        height: params.height ?? 50,
+        fontSize: params.fontSize ?? 24,
+        fontFamily: resolveFontFamily(params.fontFamily),
+        fontWeight: params.fontWeight ?? 'normal',
+        fontStyle: params.fontStyle ?? 'normal',
+        textAlign: params.textAlign ?? 'left',
+        color: params.color ?? '#1e293b',
+        bgColor: params.bgColor ?? 'transparent',
+      };
+      if (params.borderColor) data.borderColor = params.borderColor;
+      return data;
+    }
+
+    case 'createConnector': {
+      return {
+        ...base,
+        type: 'connector',
+        fromId: params.fromId,
+        toId: params.toId,
+        style: params.style ?? 'straight',
+        lineType: params.lineType ?? 'solid',
+        startArrow: params.startArrow ?? false,
+        endArrow: params.endArrow ?? false,
+        strokeWidth: params.strokeWidth ?? 2,
+        color: params.color ?? '#6366f1',
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0,
+        parentId: '',
+      };
+    }
+
+    default:
+      return { ...base, type: 'unknown' };
+  }
+}
+
+
+/**
+ * Execute a plan of creation operations in a single atomic batch write.
+ * Supports tempIds for cross-referencing between operations (e.g. connector → sticky).
+ */
+async function executeExecutePlan(
+  operations: Array<{ op: string; tempId?: string; params?: ToolInput }>,
+  boardId: string,
+  userId: string,
+  objectsCreated: string[],
+  groupLabels: Record<number, string>,
+  planAiGroupId?: string,
+  planAiGroupLabel?: string,
+): Promise<string> {
+  const objectsRef = db.collection(`boards/${boardId}/objects`);
+  const now = Date.now();
+  const batch = db.batch();
+
+  // Step 1: Allocate real Firestore IDs and build tempId map
+  const tempIdMap = new Map<string, string>();
+  const docRefs: FirebaseFirestore.DocumentReference[] = [];
+
+  for (const item of operations) {
+    const docRef = objectsRef.doc();
+    docRefs.push(docRef);
+    if (item.tempId) {
+      tempIdMap.set(item.tempId, docRef.id);
+    }
+  }
+
+  // Step 2: Build objects and add to batch
+  const created: string[] = [];
+  for (let i = 0; i < operations.length; i++) {
+    const item = operations[i];
+    const params: ToolInput = item.params ?? {};
+    const docRef = docRefs[i];
+
+    // Resolve tempId references in params
+    if (params.fromId && tempIdMap.has(params.fromId)) params.fromId = tempIdMap.get(params.fromId)!;
+    if (params.toId && tempIdMap.has(params.toId)) params.toId = tempIdMap.get(params.toId)!;
+    if (params.parentId && tempIdMap.has(params.parentId)) params.parentId = tempIdMap.get(params.parentId)!;
+
+    // Resolve group labels
+    if (params.aiGroupLabel && params.aiGroupId != null) {
+      groupLabels[params.aiGroupId] = params.aiGroupLabel;
+    }
+    // Use plan-level group if operation doesn't specify its own
+    const resolvedGroupId = params.aiGroupId != null
+      ? (groupLabels[params.aiGroupId] ?? `group-${params.aiGroupId}`)
+      : planAiGroupId;
+
+    // Apply plan-level aiGroupLabel to first op's params if not already set
+    if (planAiGroupLabel && !params.aiGroupLabel && params.aiGroupId == null && planAiGroupId) {
+      // already resolved via planAiGroupId
+    }
+
+    const data = buildObjectData(item.op, params, userId, now, resolvedGroupId);
+    batch.set(docRef, data);
+    objectsCreated.push(docRef.id);
+    created.push(docRef.id);
+  }
+
+  // Step 3: Single atomic write
+  await batch.commit();
+
+  return JSON.stringify({ success: true, created, count: created.length });
+}
+
 async function executeTool(
   toolName: string,
   input: ToolInput,
@@ -974,6 +1372,7 @@ async function executeTool(
         updatedAt: now,
         parentId: input.parentId ?? '',
         borderless: input.borderless ?? false,
+        sentToBack: true,
       };
       if (input.color) data.color = input.color;
       if (input.borderColor) data.borderColor = input.borderColor;
@@ -1141,11 +1540,14 @@ async function executeTool(
         if (childBottom > nextY) nextY = childBottom;
       }
 
-      const results: { id: string; repositioned: boolean }[] = [];
-      for (const id of ids) {
-        const docSnap = await objectsRef.doc(id).get();
+      const embedResults: { id: string; repositioned: boolean }[] = [];
+      const embedBatch = db.batch();
+      // Pre-fetch all objects in parallel
+      const embedDocs = await Promise.all(ids.map(id => objectsRef.doc(id).get()));
+      for (let i = 0; i < ids.length; i++) {
+        const docSnap = embedDocs[i];
         if (!docSnap.exists) {
-          results.push({ id, repositioned: false });
+          embedResults.push({ id: ids[i], repositioned: false });
           continue;
         }
         const obj = docSnap.data() as any;
@@ -1157,11 +1559,12 @@ async function executeTool(
 
         nextY += (obj.height || 200) + 10;
 
-        await objectsRef.doc(id).update(updates);
-        results.push({ id, repositioned: true });
+        embedBatch.update(objectsRef.doc(ids[i]), updates as FirebaseFirestore.UpdateData<any>);
+        embedResults.push({ id: ids[i], repositioned: true });
       }
+      await embedBatch.commit();
 
-      return JSON.stringify({ success: true, frameId, embedded: results.length, results });
+      return JSON.stringify({ success: true, frameId, embedded: embedResults.length, results: embedResults });
     }
 
     case 'alignObjects': {
@@ -1285,7 +1688,8 @@ async function executeTool(
       const offsetX = input.offsetX ?? 20;
       const offsetY = input.offsetY ?? 20;
 
-      const duplicates = [];
+      const duplicates: string[] = [];
+      const dupBatch = db.batch();
       for (let i = 1; i <= count; i++) {
         const docRef = objectsRef.doc();
         const duplicate = {
@@ -1296,10 +1700,11 @@ async function executeTool(
           createdBy: userId,
           updatedAt: now,
         };
-        await docRef.set(duplicate);
+        dupBatch.set(docRef, duplicate);
         objectsCreated.push(docRef.id);
         duplicates.push(docRef.id);
       }
+      await dupBatch.commit();
 
       return JSON.stringify({ success: true, duplicates });
     }
@@ -1765,6 +2170,29 @@ export const processAIRequest = onDocumentCreated(
     const objectsCreated: string[] = [];
     const groupLabels: Record<number, string> = {};
 
+    // Template engine: bypass LLM for known patterns
+    const templateMatch = detectTemplate(prompt);
+    if (templateMatch) {
+      try {
+        let responseText: string;
+        if (templateMatch.type === 'flowchart') {
+          responseText = await executeFlowchart(templateMatch.nodes, boardId, userId, objectsCreated);
+        } else {
+          responseText = await executeTemplate(templateMatch.templateType, boardId, userId, objectsCreated);
+        }
+        await requestRef.update({
+          status: 'completed',
+          response: responseText,
+          objectsCreated,
+          completedAt: Date.now(),
+        });
+        return; // Skip LLM entirely
+      } catch (err: unknown) {
+        console.error('Template engine error:', err);
+        // Fall through to LLM as fallback
+      }
+    }
+
     // Set LangSmith tracing env vars
     process.env.LANGCHAIN_TRACING_V2 = 'true';
     process.env.LANGCHAIN_API_KEY = langchainApiKey.value();
@@ -1828,7 +2256,6 @@ export const processAIRequest = onDocumentCreated(
       // LangChain ChatAnthropic with tools
       const model = new ChatAnthropic({
         model: 'claude-haiku-4-5-20251001',
-        maxTokens: 4096,
         maxRetries: 2,
         anthropicApiKey: anthropicApiKey.value(),
       });
@@ -1868,19 +2295,40 @@ export const processAIRequest = onDocumentCreated(
         // Check if this round is all read-only tools
         const allReadOnly = toolCalls.every(tc => READ_ONLY_TOOLS.has(tc.name));
 
-        // C3: Parallelize tool executions
+        // Parallelize tool executions with defensive error handling
         const results = await Promise.all(
           toolCalls.map(async (toolCall) => {
-            const result = await executeTool(
-              toolCall.name,
-              toolCall.args as ToolInput,
-              boardId,
-              userId,
-              objectsCreated,
-              groupLabels,
-              selectedIds,
-            );
-            return { id: toolCall.id, name: toolCall.name, result };
+            try {
+              const args = (toolCall.args && typeof toolCall.args === 'object') ? toolCall.args as ToolInput : {} as ToolInput;
+              let result: string;
+              if (toolCall.name === 'executePlan') {
+                const planArgs = toolCall.args as any;
+                result = await executeExecutePlan(
+                  planArgs.operations ?? [],
+                  boardId,
+                  userId,
+                  objectsCreated,
+                  groupLabels,
+                  planArgs.aiGroupId != null ? String(planArgs.aiGroupId) : undefined,
+                  planArgs.aiGroupLabel,
+                );
+              } else {
+                result = await executeTool(
+                  toolCall.name,
+                  args,
+                  boardId,
+                  userId,
+                  objectsCreated,
+                  groupLabels,
+                  selectedIds,
+                );
+              }
+              return { id: toolCall.id, name: toolCall.name, result };
+            } catch (toolErr: unknown) {
+              const errMsg = toolErr instanceof Error ? toolErr.message : 'Tool execution failed';
+              console.error(`Tool ${toolCall.name} error:`, toolErr);
+              return { id: toolCall.id, name: toolCall.name, result: JSON.stringify({ error: errMsg }) };
+            }
           }),
         );
 

@@ -1,7 +1,10 @@
 import { collection, addDoc, onSnapshot, doc } from 'firebase/firestore';
 import { db, auth } from './firebase';
+import { executeFastCommand } from './fastAIEngine';
 
-interface AICommandOutput {
+export type AIMode = 'fast' | 'pro';
+
+export interface AICommandOutput {
   response: string;
   objectsCreated: string[];
 }
@@ -11,13 +14,23 @@ export async function sendAICommand(
   prompt: string,
   onProgress?: (progress: string) => void,
   selectedIds?: string[],
+  mode: AIMode = 'fast',
 ): Promise<AICommandOutput> {
   const user = auth.currentUser;
   if (!user) {
     throw new Error('You must be signed in to use AI commands.');
   }
 
-  // Write request to Firestore — triggers the Cloud Function
+  // Fast mode: try client-side parsing first
+  if (mode === 'fast') {
+    const fastResult = await executeFastCommand(boardId, prompt, selectedIds);
+    if (fastResult) {
+      return fastResult;
+    }
+    // Fall through to Pro mode if fast engine can't handle it
+  }
+
+  // Pro mode: write to Firestore to trigger Cloud Function
   const requestsRef = collection(db, `boards/${boardId}/aiRequests`);
   const docRef = await addDoc(requestsRef, {
     prompt,

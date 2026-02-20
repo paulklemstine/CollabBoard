@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAI } from '../../hooks/useAI';
 import type { AIMessage } from '../../types/board';
+import type { AIMode } from '../../services/aiService';
 
 interface AIChatProps {
   boardId: string;
@@ -15,6 +16,45 @@ function SparkleIcon({ size = 20 }: { size?: number }) {
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 3l1.912 5.813a2 2 0 0 0 1.275 1.275L21 12l-5.813 1.912a2 2 0 0 0-1.275 1.275L12 21l-1.912-5.813a2 2 0 0 0-1.275-1.275L3 12l5.813-1.912a2 2 0 0 0 1.275-1.275L12 3z" />
     </svg>
+  );
+}
+
+function LightningIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+    </svg>
+  );
+}
+
+function ModeToggle({ mode, onModeChange }: { mode: AIMode; onModeChange: (m: AIMode) => void }) {
+  return (
+    <div className="flex items-center bg-gray-100 rounded-lg p-0.5 gap-0.5">
+      <button
+        onClick={() => onModeChange('fast')}
+        className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold transition-all duration-150 ${
+          mode === 'fast'
+            ? 'bg-violet-500 text-white shadow-sm'
+            : 'text-gray-500 hover:text-gray-700'
+        }`}
+        title="Fast mode — instant responses for common commands"
+      >
+        <LightningIcon size={11} />
+        Fast
+      </button>
+      <button
+        onClick={() => onModeChange('pro')}
+        className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold transition-all duration-150 ${
+          mode === 'pro'
+            ? 'bg-violet-500 text-white shadow-sm'
+            : 'text-gray-500 hover:text-gray-700'
+        }`}
+        title="Pro mode — full AI with all tools (slower)"
+      >
+        <SparkleIcon size={11} />
+        Pro
+      </button>
+    </div>
   );
 }
 
@@ -71,7 +111,7 @@ export function AIChat({ boardId, isOpen, onClose, onObjectsCreated, selectedIds
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { messages, isLoading, error, progress, sendCommand, dismissError } = useAI(boardId, onObjectsCreated, selectedIds);
+  const { messages, isLoading, error, progress, sendCommand, dismissError, mode, setMode } = useAI(boardId, onObjectsCreated, selectedIds);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -112,15 +152,18 @@ export function AIChat({ boardId, isOpen, onClose, onObjectsCreated, selectedIds
             Flow AI
           </span>
         </div>
-        <button
-          onClick={onClose}
-          className="w-7 h-7 rounded-lg hover:bg-black/5 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-2">
+          <ModeToggle mode={mode} onModeChange={setMode} />
+          <button
+            onClick={onClose}
+            className="w-7 h-7 rounded-lg hover:bg-black/5 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* Messages area */}
@@ -132,7 +175,9 @@ export function AIChat({ boardId, isOpen, onClose, onObjectsCreated, selectedIds
             </div>
             <p className="text-sm font-medium text-gray-500 mb-1">Your creative co-pilot is ready</p>
             <p className="text-xs text-gray-400">
-              Try: "Organize my chaos into something brilliant"
+              {mode === 'fast'
+                ? 'Try: "Create a SWOT analysis" or "Add 5 sticky notes"'
+                : 'Try: "Organize my chaos into something brilliant"'}
             </p>
           </div>
         ) : (
@@ -173,7 +218,7 @@ export function AIChat({ boardId, isOpen, onClose, onObjectsCreated, selectedIds
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Tell me what to build..."
+            placeholder={mode === 'fast' ? 'Quick command...' : 'Tell me what to build...'}
             disabled={isLoading}
             className="flex-1 bg-white/50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-300 disabled:opacity-50 transition-all"
           />

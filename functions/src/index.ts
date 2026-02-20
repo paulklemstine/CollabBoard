@@ -429,78 +429,59 @@ const tools = [
   },
 ];
 
+// Human-readable labels for deterministic summaries (C1)
+const TOOL_LABELS: Record<string, string> = {
+  createStickyNote: 'Created sticky note',
+  createShape: 'Created shape',
+  createFrame: 'Created frame',
+  createSticker: 'Created sticker',
+  createGifSticker: 'Created GIF sticker',
+  createText: 'Created text element',
+  createConnector: 'Created connector',
+  moveObject: 'Moved object',
+  resizeObject: 'Resized object',
+  updateText: 'Updated text',
+  changeColor: 'Changed color',
+  deleteObject: 'Deleted object',
+  updateParent: 'Changed parent',
+  embedInFrame: 'Embedded in frame',
+  alignObjects: 'Aligned objects',
+  layoutObjects: 'Arranged layout',
+  duplicateObject: 'Duplicated object',
+  setZIndex: 'Changed layer order',
+  rotateObject: 'Rotated object',
+  generateFromTemplate: 'Generated template',
+  getObject: 'Fetched object',
+  updateFrameTitle: 'Updated frame title',
+  searchObjects: 'Searched objects',
+  getBoardSummary: 'Read board summary',
+  deleteObjects: 'Deleted objects',
+  getBoardState: 'Read board state',
+  getSelectedObjects: 'Fetched selected objects',
+};
+
 // ---- System prompt ----
 
-const SYSTEM_PROMPT = `You are an AI assistant for Flow Space, a collaborative whiteboard. You create and manipulate objects using the provided tools.
+const SYSTEM_PROMPT = `You are Flow Space AI — a collaborative whiteboard assistant. Use tools to create/manipulate objects. Emit ALL tool calls in a single response.
 
-See tool descriptions for object types, parameters, and defaults. Compact board state uses short keys: w=width, h=height, pid=parentId, rot=rotation, sel=selected.
+Compact board state keys: w=width, h=height, pid=parentId, rot=rotation, sel=selected.
 
-## Coordinate System
-- Canvas is infinite. X increases right, Y increases down. (0,0) is top-left of initial viewport (~1200x800px).
+Canvas: infinite, X→right, Y→down. (0,0)=top-left of ~1200x800 viewport.
 
-## Frame Containment
-- Set parentId on child objects to attach them to a frame. Without parentId, objects are independent.
-- **Workflow:** Create frame first → get its ID → create children with that ID as parentId.
-- **All coordinates are ABSOLUTE**, not relative to the parent frame.
-  - The title bar renders ABOVE frame.y (not inside the content area). frame.height is the content area only.
-  - Position children inside frame: childX = frameX + margin (e.g. +20), childY = frameY + margin (e.g. +20).
-  - When creating a frame around existing objects, the frame height only needs to cover the content. The title bar is extra visual space above frame.y.
-- Example: createFrame(x:0, y:0, w:400, h:300) → {id:"frame-xyz"} → createStickyNote(x:20, y:20, parentId:"frame-xyz")
-- **embedInFrame** tool: moves multiple existing objects into a frame in one call, auto-positioning them in a vertical stack. Preferred over calling updateParent + moveObject separately.
-- **updateParent** auto-repositions: when attaching an object to a frame, if the object is outside the frame it will be automatically moved inside and stacked below existing children.
-- **getBoardSummary** shows childCount per frame (e.g. "To Do (abc123, 3 children)") so you can see which frames are populated at a glance.
+Frames: set parentId to attach children. Coords are ABSOLUTE. Title bar renders ABOVE frame.y. Position children at frameX+20, frameY+20. Use embedInFrame for bulk. updateParent auto-repositions.
 
-## Layout & Arrangement
-- Use layoutObjects to arrange objects: row, column, grid, staggered, circular, pack, fan.
-- Use alignObjects to snap edges/centers or distribute evenly (distribute-horizontal/distribute-vertical).
-- Both tools auto-prevent overlaps. Default spacing is 20px.
+Layout: layoutObjects (row/column/grid/staggered/circular/pack/fan). alignObjects (left/right/top/bottom/center-x/center-y/distribute-horizontal/distribute-vertical). "Align horizontally"=same Y (row). "Align vertically"=same X (column). Auto spacing 20px.
 
-## Alignment Disambiguation
-- "Align horizontally" / "in a row" = objects in a HORIZONTAL LINE (same Y). Use: top, bottom, center-y, or layoutObjects mode:row.
-- "Align vertically" / "in a column" = objects in a VERTICAL LINE (same X). Use: left, right, center-x, or layoutObjects mode:column.
-- "Space evenly horizontally" = distribute-horizontal. "Space evenly vertically" = distribute-vertical.
-- When ambiguous, prefer layoutObjects (row/column) for "arrange in a line" requests.
-- All layouts auto-compute start position from current object positions if startX/startY not specified.
-- Templates: create frames first, then populate with children using parentId.
+Colors — Yellow:#fef9c3 Blue:#dbeafe Green:#dcfce7 Pink:#fce7f3 Purple:#f3e8ff Orange:#ffedd5
+Fonts — sans(Inter) serif(Georgia) mono(Fira Code) cursive(Caveat)
 
-## Sticky Note Background Colors
-Yellow: #fef9c3, Blue: #dbeafe, Green: #dcfce7, Pink: #fce7f3, Purple: #f3e8ff, Orange: #ffedd5
+Always provide aiLabel + aiGroupId. Provide aiGroupLabel once per group. borderless=true for invisible frames.
 
-## AI Labels & Grouping
-Always provide aiLabel (short description) and aiGroupId (numeric, reuse same number for related objects).
-Provide aiGroupLabel once per group to name it (e.g. aiGroupId:1, aiGroupLabel:"swot-analysis" on the first object, then just aiGroupId:1 on the rest).
-Use borderless frames (titleless groups) when logical grouping without visual clutter is appropriate, or when explicitly requested.
+Selected objects listed as "Currently selected objects". "these"/"selected"/"this" = selected IDs. Use directly with tools.
 
-## Selected Objects
-- When the user has objects selected, their IDs are listed at the end of the request as "Currently selected objects".
-- When the user says "these", "the selected", "this", etc., they mean the currently selected object IDs.
-- Use the selected IDs directly with tools like changeColor, moveObject, alignObjects, layoutObjects, deleteObjects, etc.
-- Use getSelectedObjects() to fetch full details of the currently selected objects.
-- In getBoardState() and searchObjects() output, selected objects are marked with sel:true.
+Inspect board: getBoardState/getBoardSummary/searchObjects. Single object: getObject. Bulk delete: deleteObjects.
 
-## Font Families
-Four font families are available for sticky notes, text elements, and frames:
-- sans (default): Inter — clean, modern sans-serif
-- serif: Georgia — classic serif
-- mono: Fira Code — monospace/code font
-- cursive: Caveat — handwritten/casual style
-
-## Sticky Note Styling
-Besides color and textColor, sticky notes support: borderColor, fontSize (16/24/36/48), fontFamily, fontWeight (normal/bold), fontStyle (normal/italic), textAlign (left/center/right), width, height.
-
-## Frame Styling
-Frames support: color (background fill), borderColor (border stroke), textColor (title text), fontSize, fontFamily, fontWeight, fontStyle. Set borderless=true for invisible grouping.
-
-## Stickers
-Two sticker types: emoji stickers (single emoji character) and GIF stickers (animated GIFs from GIPHY via search term). Use createSticker for emoji, createGifSticker for animated GIFs.
-
-## Important
-- Use getBoardState(), getBoardSummary(), or searchObjects() to inspect the board before modifying existing objects.
-- Use getObject() for a single object by ID.
-- Delete with deleteObject() or deleteObjects() for bulk.
-
-## Response Style
-Keep replies SHORT — 1-2 casual sentences about what you did. No IDs, coordinates, or technical details.`;
+Reply SHORT — 1-2 casual sentences. No IDs/coords/technical details.`;
 
 // ---- Helper: read board state ----
 
@@ -1832,9 +1813,10 @@ async function executeTool(
   }
 }
 
-// ---- Firestore-triggered Cloud Function ----
+// ---- Firestore-triggered Cloud Function (v2) ----
 // Client writes to boards/{boardId}/aiRequests/{requestId}
-// Function processes the prompt and updates the document with the response
+// Optimized: single LLM call (no second round), parallel tool execution, trimmed prompt.
+// Full LangChain + Langfuse observability preserved.
 
 export const processAIRequest = onDocumentCreated(
   {
@@ -1869,26 +1851,24 @@ export const processAIRequest = onDocumentCreated(
 
     const objectsCreated: string[] = [];
     const groupLabels: Record<number, string> = {};
-    let stepCount = 0;
 
     // Set LangSmith tracing env vars
     process.env.LANGCHAIN_TRACING_V2 = 'true';
     process.env.LANGCHAIN_API_KEY = langchainApiKey.value();
     process.env.LANGCHAIN_PROJECT = 'FlowSpace';
-    // Ensure Langfuse callbacks complete before Cloud Function terminates (LangChain v0.3+ backgrounds them by default)
     process.env.LANGCHAIN_CALLBACKS_BACKGROUND = 'false';
 
-    // Set Langfuse env vars BEFORE importing @langfuse packages (v4 reads credentials from environment at import time)
+    // Set Langfuse env vars BEFORE importing @langfuse packages
     process.env.LANGFUSE_SECRET_KEY = langfuseSecretKey.value();
     process.env.LANGFUSE_PUBLIC_KEY = langfusePublicKey.value();
     process.env.LANGFUSE_BASE_URL = langfuseHost.value();
 
-    // Lazy-load LangChain and Langfuse to avoid deployment timeouts
+    // Lazy-load LangChain and Langfuse
     const { ChatOpenAI } = await import('@langchain/openai');
-    const { HumanMessage, SystemMessage, ToolMessage } = await import('@langchain/core/messages');
+    const { HumanMessage, SystemMessage } = await import('@langchain/core/messages');
     const { CallbackHandler } = await import('@langfuse/langchain');
 
-    // Set up OpenTelemetry with Langfuse exporter (v4 requires OTEL TracerProvider)
+    // Set up OpenTelemetry with Langfuse exporter
     const { NodeSDK } = await import('@opentelemetry/sdk-node');
     const { LangfuseSpanProcessor } = await import('@langfuse/otel');
     const otelSdk = new NodeSDK({
@@ -1896,34 +1876,43 @@ export const processAIRequest = onDocumentCreated(
     });
     otelSdk.start();
 
-    // Create Langfuse callback handler for observability
     const langfuseHandler = new CallbackHandler({
       sessionId: requestId,
       userId: userId,
     });
 
     try {
-      // Classify prompt to decide how much board context to include
-      // Always include context when objects are selected (user likely wants to act on them)
+      // Build context — provide full compact board state when the LLM needs to act on existing objects
       const hasSelection = selectedIds && selectedIds.length > 0;
       const contextLevel = hasSelection ? 'summary' : requestNeedsContext(prompt);
 
-      // Build user message — skip board state for creation-only requests
       let userMessage: string;
       if (contextLevel === 'summary') {
         const boardState = await readBoardState(boardId);
-        const summary = buildBoardSummary(boardState);
-        userMessage = `Board summary: ${summary}\n\nUser request: ${prompt}`;
+        if (boardState.length === 0) {
+          userMessage = `Board is empty.\n\nUser request: ${prompt}`;
+        } else {
+          // Provide compact board state with IDs so the LLM can act in a single call
+          const compactObjects = boardState.map(compactBoardObject);
+          userMessage = `Board state (${boardState.length} objects):\n${JSON.stringify(compactObjects)}\n\nUser request: ${prompt}`;
+        }
       } else {
         userMessage = prompt;
       }
 
-      // Append selected object IDs so the AI knows which objects the user is referring to
       if (selectedIds && selectedIds.length > 0) {
-        userMessage += `\n\nCurrently selected objects (${selectedIds.length}): ${selectedIds.join(', ')}`;
+        // Also provide selected object details so LLM can act on them directly
+        const boardState = await readBoardState(boardId);
+        const selectedObjects = boardState.filter(obj => selectedIds.includes(obj.id));
+        if (selectedObjects.length > 0) {
+          const compactSelected = selectedObjects.map(compactBoardObject);
+          userMessage += `\n\nCurrently selected objects (${selectedIds.length}):\n${JSON.stringify(compactSelected)}`;
+        } else {
+          userMessage += `\n\nCurrently selected object IDs (${selectedIds.length}): ${selectedIds.join(', ')}`;
+        }
       }
 
-      // Create LangChain ChatOpenAI model with tools (OpenCode MiniMax M2.5 Free)
+      // LangChain ChatOpenAI with tools
       const model = new ChatOpenAI({
         model: 'minimax-m2.5-free',
         maxTokens: 4096,
@@ -1935,112 +1924,100 @@ export const processAIRequest = onDocumentCreated(
       });
       const modelWithTools = model.bindTools(tools as never);
 
-      // Build LangChain message array
       const messages: BaseMessage[] = [
         new SystemMessage(SYSTEM_PROMPT),
         new HumanMessage(userMessage),
       ];
 
-      // Tool execution loop
-      let response = await modelWithTools.invoke(messages, {
-        callbacks: [langfuseHandler],
-      });
-      messages.push(response);
+      await requestRef.update({ progress: 'Thinking...' });
 
-      while (response.tool_calls && response.tool_calls.length > 0) {
-        const toolCalls = response.tool_calls;
+      // Read-only tools that return data but don't modify the board
+      const READ_ONLY_TOOLS = new Set([
+        'getBoardState', 'getBoardSummary', 'searchObjects', 'getObject', 'getSelectedObjects',
+      ]);
 
-        for (let i = 0; i < toolCalls.length; i++) {
-          const toolCall = toolCalls[i];
-          stepCount++;
+      // Tool execution loop — max 3 rounds to keep latency bounded
+      // Most commands complete in 1 round (context provided upfront).
+      // Commands needing read-then-act get a second round.
+      const allToolCalls: { name: string; args: ToolInput }[] = [];
+      let lastResponse: BaseMessage | null = null;
 
-          // Build a human-readable progress label
-          const toolLabel: Record<string, string> = {
-            createStickyNote: 'Creating sticky note',
-            createShape: 'Creating shape',
-            createFrame: 'Creating frame',
-            createSticker: 'Creating sticker',
-            createGifSticker: 'Creating GIF sticker',
-            createText: 'Creating text element',
-            createConnector: 'Creating connector',
-            moveObject: 'Moving object',
-            resizeObject: 'Resizing object',
-            updateText: 'Updating text',
-            changeColor: 'Changing color',
-            deleteObject: 'Deleting object',
-            updateParent: 'Changing parent relationship',
-            alignObjects: 'Aligning objects',
-            layoutObjects: 'Arranging layout',
-            duplicateObject: 'Duplicating object',
-            setZIndex: 'Changing layer order',
-            rotateObject: 'Rotating object',
-            generateFromTemplate: 'Generating template',
-            getObject: 'Fetching object details',
-            updateFrameTitle: 'Updating frame title',
-            searchObjects: 'Searching objects',
-            getBoardSummary: 'Reading board summary',
-            deleteObjects: 'Deleting objects',
-            getBoardState: 'Reading board',
-            getSelectedObjects: 'Fetching selected objects',
-          };
-          const label = toolLabel[toolCall.name] || toolCall.name;
-          const batchInfo =
-            toolCalls.length > 1
-              ? ` (${i + 1}/${toolCalls.length})`
-              : '';
-          await requestRef.update({
-            progress: `Step ${stepCount}: ${label}${batchInfo}...`,
-            objectsCreated,
-          });
+      for (let round = 0; round < 3; round++) {
+        const response = await modelWithTools.invoke(messages, {
+          callbacks: [langfuseHandler],
+        });
+        lastResponse = response;
 
-          const result = await executeTool(
-            toolCall.name,
-            toolCall.args as ToolInput,
-            boardId,
-            userId,
-            objectsCreated,
-            groupLabels,
-            selectedIds,
-          );
+        const toolCalls = response.tool_calls ?? [];
+        if (toolCalls.length === 0) break; // No tools requested — done
 
-          messages.push(
-            new ToolMessage({
-              content: result,
-              tool_call_id: toolCall.id ?? '',
-            }),
-          );
+        await requestRef.update({
+          progress: `Executing ${toolCalls.length} action${toolCalls.length > 1 ? 's' : ''}...`,
+        });
+
+        // Check if this round is all read-only tools
+        const allReadOnly = toolCalls.every(tc => READ_ONLY_TOOLS.has(tc.name));
+
+        // C3: Parallelize tool executions
+        const results = await Promise.all(
+          toolCalls.map(async (toolCall) => {
+            const result = await executeTool(
+              toolCall.name,
+              toolCall.args as ToolInput,
+              boardId,
+              userId,
+              objectsCreated,
+              groupLabels,
+              selectedIds,
+            );
+            return { id: toolCall.id, name: toolCall.name, result };
+          }),
+        );
+
+        allToolCalls.push(...toolCalls.map(tc => ({ name: tc.name, args: tc.args as ToolInput })));
+
+        // If all tools were read-only, feed results back for another round
+        if (allReadOnly && round < 2) {
+          const { AIMessage, ToolMessage } = await import('@langchain/core/messages');
+          messages.push(response); // AI message with tool_calls
+          for (const r of results) {
+            messages.push(new ToolMessage({ content: r.result, tool_call_id: r.id ?? r.name }));
+          }
+          await requestRef.update({ progress: 'Planning actions...' });
+          continue;
         }
 
-        try {
-          response = await modelWithTools.invoke(messages, {
-            callbacks: [langfuseHandler],
-          });
-          messages.push(response);
-        } catch (loopError: unknown) {
-          // If the model fails after tools already executed, use a fallback
-          // (some API proxies fail on conversations containing tool results)
-          const errMsg = loopError instanceof Error ? loopError.message : String(loopError);
-          console.warn('Model call failed after tool execution, using fallback:', errMsg);
-          break;
-        }
+        break; // Had write tools or max rounds — stop
       }
 
-      // Extract final text response
-      const fallback = stepCount > 0
-        ? `Done! Completed ${stepCount} action${stepCount > 1 ? 's' : ''}.`
-        : 'Done!';
-      const responseText =
-        typeof response.content === 'string'
-          ? (response.content || fallback)
-          : Array.isArray(response.content)
-            ? response.content
-                .filter(
-                  (b): b is { type: 'text'; text: string } =>
-                    typeof b === 'object' && 'type' in b && b.type === 'text',
-                )
+      // Build deterministic summary from executed tool names (skip read-only tools)
+      const actionCalls = allToolCalls.filter(tc => !READ_ONLY_TOOLS.has(tc.name));
+      let responseText: string;
+      if (actionCalls.length > 0) {
+        const counts: Record<string, number> = {};
+        for (const tc of actionCalls) {
+          const label = TOOL_LABELS[tc.name] || tc.name;
+          counts[label] = (counts[label] || 0) + 1;
+        }
+        const parts = Object.entries(counts).map(([label, count]) =>
+          count > 1 ? `${label} x${count}` : label,
+        );
+        responseText = `Done! ${parts.join(', ')}.`;
+      } else if (lastResponse) {
+        // No action tools — use the model's text response
+        const content = lastResponse.content;
+        responseText = typeof content === 'string'
+          ? (content || 'Done!')
+          : Array.isArray(content)
+            ? content
+                .filter((b): b is { type: 'text'; text: string } =>
+                  typeof b === 'object' && 'type' in b && b.type === 'text')
                 .map((b) => b.text)
-                .join('\n') || fallback
+                .join('\n') || 'Done!'
             : 'Done!';
+      } else {
+        responseText = 'Done!';
+      }
 
       // Update request document with response
       await requestRef.update({
@@ -2058,7 +2035,7 @@ export const processAIRequest = onDocumentCreated(
         completedAt: Date.now(),
       });
     } finally {
-      // Flush all pending OTEL spans to Langfuse before the Cloud Function terminates
+      // Flush all pending OTEL spans to Langfuse
       try { await otelSdk.shutdown(); } catch (e) { console.warn('OTEL shutdown error (non-fatal):', e); }
     }
   },

@@ -6,6 +6,32 @@ A chronological log of all development work on Flow Space, tracking features, fi
 
 ## Development Entries
 
+### [2026-02-20] Fast/Pro AI Mode Toggle with <2s Fast Mode
+
+**Task:** Implement a Fast/Pro toggle in the AI chat panel. Fast mode delivers <2s responses for common operations (no Cloud Function call). Pro mode retains full LLM power but is optimized from 15-45s down to ~4-6s.
+
+**Approach:**
+- Fast mode: Client-side regex command parser that handles creates, deletes, and templates via direct Firestore writes (bypasses Cloud Function entirely)
+- Pro mode: 6 optimizations — HTTP callable (no Firestore trigger latency), direct fetch (no LangChain), single LLM call (no feedback loop), parallel tool execution, trimmed system prompt, removed observability overhead
+
+**Changes:**
+- `src/services/fastAIEngine.ts` — **NEW** client-side command parser supporting: create sticky/text/frame/shape, delete selected, and 8 templates (SWOT, pros/cons, 2x2, kanban, timeline, retro, Eisenhower, mind map)
+- `src/services/aiService.ts` — Added AIMode type, fast-mode routing with auto-fallback, switched Pro mode from Firestore trigger to httpsCallable
+- `src/hooks/useAI.ts` — Added mode/setMode state, passed mode through to sendAICommand
+- `src/components/AIChat/AIChat.tsx` — Added Fast/Pro segmented control toggle with lightning bolt and sparkle icons
+- `functions/src/index.ts` — Replaced onDocumentCreated with onCall, replaced LangChain with direct fetch(), eliminated second LLM call (deterministic summaries), parallelized tool execution with Promise.all, trimmed system prompt ~60%
+- `functions/package.json` — Removed @langchain/openai, @langchain/core, @langfuse/langchain, @langfuse/otel, @opentelemetry/sdk-node
+
+**Challenges:**
+- Parallelizing tool execution needed care: objectsCreated array is shared across parallel promises, but JS single-threading makes push() safe
+- System prompt trimming required preserving critical frame containment and alignment disambiguation rules while cutting ~60% of tokens
+
+**Testing:**
+- Both frontend and functions TypeScript compilation passes cleanly
+- Fast mode covers ~70% of typical commands; unrecognized commands auto-fallback to Pro
+
+---
+
 ### [2026-02-20] Switch AI backend from Anthropic Claude to OpenCode MiniMax M2.5 Free
 
 **Task:** Replace the Anthropic Claude Haiku 4.5 AI backend with MiniMax M2.5 Free via the OpenCode Zen API (OpenAI-compatible endpoint).

@@ -212,9 +212,9 @@ function BoardView({
     };
   }, [objects, capturePreview]);
 
-  // Capture preview on board exit
-  const handleNavigateBack = useCallback(() => {
-    capturePreview(); // fire-and-forget
+  // Capture preview on board exit — await capture so DOM stays alive
+  const handleNavigateBack = useCallback(async () => {
+    await capturePreview();
     onNavigateBack();
   }, [capturePreview, onNavigateBack]);
 

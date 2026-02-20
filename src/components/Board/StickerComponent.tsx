@@ -76,6 +76,7 @@ export function StickerComponent({
     const container = stage.container();
 
     const img = document.createElement('img');
+    img.crossOrigin = 'anonymous';
     img.src = sticker.gifUrl;
     img.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;transform-origin:0 0;';
     container.appendChild(img);

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { sendAICommand } from '../services/aiService';
 import type { AIMessage } from '../types/board';
 
@@ -7,6 +7,10 @@ export function useAI(boardId: string, onObjectsCreated?: (ids: string[]) => voi
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
+
+  // Use ref to avoid stale closure — selection may change between renders
+  const selectedIdsRef = useRef(selectedIds);
+  selectedIdsRef.current = selectedIds;
 
   const sendCommand = useCallback(
     async (prompt: string) => {
@@ -26,7 +30,7 @@ export function useAI(boardId: string, onObjectsCreated?: (ids: string[]) => voi
       setError(null);
 
       try {
-        const result = await sendAICommand(boardId, trimmed, (p) => setProgress(p), selectedIds);
+        const result = await sendAICommand(boardId, trimmed, (p) => setProgress(p), selectedIdsRef.current);
 
         const assistantMessage: AIMessage = {
           id: `assistant-${Date.now()}`,

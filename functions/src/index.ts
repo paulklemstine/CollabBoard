@@ -245,7 +245,7 @@ const tools = [
       type: 'object' as const,
       properties: {
         objectIds: { type: 'array', items: { type: 'string' }, description: 'Array of object IDs to align' },
-        alignment: { type: 'string', enum: ['left', 'right', 'top', 'bottom', 'center-horizontal', 'center-vertical', 'distribute-horizontal', 'distribute-vertical'], description: 'Alignment mode. left/right/top/bottom snap edges. center-horizontal/vertical snap centers. distribute-horizontal/vertical space objects evenly.' },
+        alignment: { type: 'string', enum: ['left', 'right', 'top', 'bottom', 'center-x', 'center-y', 'distribute-horizontal', 'distribute-vertical'], description: 'Alignment mode. left/right/top/bottom snap edges. center-x: align centers along X axis (same center X → objects form a VERTICAL column). center-y: align centers along Y axis (same center Y → objects form a HORIZONTAL row). distribute-horizontal/vertical space objects evenly.' },
         spacing: { type: 'number', description: 'Minimum gap between objects in pixels (default: 20). Used for overlap nudging and distribute modes.' },
       },
       required: ['objectIds', 'alignment'],
@@ -387,13 +387,22 @@ const tools = [
       required: [] as string[],
     },
   },
+  {
+    name: 'getSelectedObjects',
+    description: 'Get details of the objects the user currently has selected. Returns compact object data for selected items only. Use when the user asks about their selection or says "these", "selected", etc.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {},
+      required: [] as string[],
+    },
+  },
 ];
 
 // ---- System prompt ----
 
 const SYSTEM_PROMPT = `You are an AI assistant for Flow Space, a collaborative whiteboard. You create and manipulate objects using the provided tools.
 
-See tool descriptions for object types, parameters, and defaults. Compact board state uses short keys: w=width, h=height, pid=parentId, rot=rotation.
+See tool descriptions for object types, parameters, and defaults. Compact board state uses short keys: w=width, h=height, pid=parentId, rot=rotation, sel=selected.
 
 ## Coordinate System
 - Canvas is infinite. X increases right, Y increases down. (0,0) is top-left of initial viewport (~1200x800px).
@@ -410,6 +419,12 @@ See tool descriptions for object types, parameters, and defaults. Compact board 
 - Use layoutObjects to arrange objects: row, column, grid, staggered, circular, pack, fan.
 - Use alignObjects to snap edges/centers or distribute evenly (distribute-horizontal/distribute-vertical).
 - Both tools auto-prevent overlaps. Default spacing is 20px.
+
+## Alignment Disambiguation
+- "Align horizontally" / "in a row" = objects in a HORIZONTAL LINE (same Y). Use: top, bottom, center-y, or layoutObjects mode:row.
+- "Align vertically" / "in a column" = objects in a VERTICAL LINE (same X). Use: left, right, center-x, or layoutObjects mode:column.
+- "Space evenly horizontally" = distribute-horizontal. "Space evenly vertically" = distribute-vertical.
+- When ambiguous, prefer layoutObjects (row/column) for "arrange in a line" requests.
 - All layouts auto-compute start position from current object positions if startX/startY not specified.
 - Templates: create frames first, then populate with children using parentId.
 
@@ -425,6 +440,8 @@ Use borderless frames (titleless groups) when logical grouping without visual cl
 - When the user has objects selected, their IDs are listed at the end of the request as "Currently selected objects".
 - When the user says "these", "the selected", "this", etc., they mean the currently selected object IDs.
 - Use the selected IDs directly with tools like changeColor, moveObject, alignObjects, layoutObjects, deleteObjects, etc.
+- Use getSelectedObjects() to fetch full details of the currently selected objects.
+- In getBoardState() and searchObjects() output, selected objects are marked with sel:true.
 
 ## Important
 - Use getBoardState(), getBoardSummary(), or searchObjects() to inspect the board before modifying existing objects.
@@ -819,6 +836,7 @@ async function executeTool(
   userId: string,
   objectsCreated: string[],
   groupLabels: Record<number, string>,
+  selectedIds?: string[],
 ): Promise<string> {
   const objectsRef = db.collection(`boards/${boardId}/objects`);
   const now = Date.now();
@@ -1112,13 +1130,13 @@ async function executeTool(
           nudgeOverlaps(objectData, 'x', spacing);
           break;
         }
-        case 'center-horizontal': {
+        case 'center-x': {
           const avg = objectData.reduce((s, o) => s + o.x + o.width / 2, 0) / objectData.length;
           objectData.forEach(o => { o.x = avg - o.width / 2; });
           nudgeOverlaps(objectData, 'y', spacing);
           break;
         }
-        case 'center-vertical': {
+        case 'center-y': {
           const avg = objectData.reduce((s, o) => s + o.y + o.height / 2, 0) / objectData.length;
           objectData.forEach(o => { o.y = avg - o.height / 2; });
           nudgeOverlaps(objectData, 'x', spacing);
@@ -1485,7 +1503,12 @@ async function executeTool(
       if (input.parentId !== undefined) {
         filtered = filtered.filter((o: any) => o.parentId === input.parentId);
       }
-      const summaries = filtered.map(compactBoardObject);
+      const selectedSet = selectedIds?.length ? new Set(selectedIds) : undefined;
+      const summaries = filtered.map((o: any) => {
+        const c = compactBoardObject(o);
+        if (selectedSet?.has(o.id)) c.sel = true;
+        return c;
+      });
       return JSON.stringify({ results: summaries, count: summaries.length });
     }
 
@@ -1515,7 +1538,22 @@ async function executeTool(
 
     case 'getBoardState': {
       const objects = await readBoardState(boardId);
-      return JSON.stringify({ objects: objects.map(compactBoardObject) });
+      const selectedSet = selectedIds?.length ? new Set(selectedIds) : undefined;
+      return JSON.stringify({ objects: objects.map((o: any) => {
+        const c = compactBoardObject(o);
+        if (selectedSet?.has(o.id)) c.sel = true;
+        return c;
+      }) });
+    }
+
+    case 'getSelectedObjects': {
+      if (!selectedIds || selectedIds.length === 0) {
+        return JSON.stringify({ objects: [], count: 0, note: 'No objects are currently selected.' });
+      }
+      const allObjects = await readBoardState(boardId);
+      const selectedSet = new Set(selectedIds);
+      const selected = (allObjects as any[]).filter((o: any) => selectedSet.has(o.id));
+      return JSON.stringify({ objects: selected.map(compactBoardObject), count: selected.length });
     }
 
     default:
@@ -1668,6 +1706,7 @@ export const processAIRequest = onDocumentCreated(
             getBoardSummary: 'Reading board summary',
             deleteObjects: 'Deleting objects',
             getBoardState: 'Reading board',
+            getSelectedObjects: 'Fetching selected objects',
           };
           const label = toolLabel[toolCall.name] || toolCall.name;
           const batchInfo =
@@ -1686,6 +1725,7 @@ export const processAIRequest = onDocumentCreated(
             userId,
             objectsCreated,
             groupLabels,
+            selectedIds,
           );
 
           messages.push(

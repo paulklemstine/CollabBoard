@@ -500,7 +500,7 @@ When creating objects, ALWAYS provide:
 - aiLabel: short description of what the object represents (e.g. "main idea", "pro argument", "SWOT strengths frame")
 - aiGroupId: shared kebab-case slug for all objects in the same logical operation (e.g. "swot-analysis", "pros-cons-list")
 
-**Group framing rule:** For each distinct aiGroupId, create a borderless frame (borderless=true) sized to contain all objects in that group, and set every object's parentId to that frame. This lets the user move the entire group as one unit. Create the borderless frame first, then create the children inside it.
+Objects sharing an aiGroupId are logically related but do NOT need to be wrapped in a frame automatically. Only create a borderless grouping frame if the user explicitly asks to group objects together.
 
 ## Important
 - Always use getBoardState() or getBoardSummary() first if you need to know what's already on the board before manipulating existing objects. Use getBoardSummary() when you only need counts and frame info — it's cheaper than getBoardState().
@@ -698,6 +698,10 @@ async function executeTool(
             res.on('error', reject);
           }).on('error', reject);
         });
+        if (!json.data || !Array.isArray(json.data)) {
+          console.error('GIPHY unexpected response:', JSON.stringify(json).slice(0, 500));
+          return JSON.stringify({ error: 'GIPHY returned unexpected response', details: (json as any).message ?? 'unknown' });
+        }
         const results = json.data.map((g) => ({
           id: g.id,
           title: g.title,

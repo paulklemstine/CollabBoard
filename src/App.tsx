@@ -626,14 +626,15 @@ function BoardView({
               selectionBox={selectedIds.size > 1 && isObjectSelected(sticker.id) ? selectionBox : null}
             />
           ))}
-          {showAILabels && objects.filter((o) => o.aiLabel).map((o) => (
+          {showAILabels && objects.filter((o) => o.aiLabel || o.aiGroupId).map((o) => (
             <AILabelOverlay
               key={`ai-label-${o.id}`}
               x={o.x}
               y={o.y}
               width={o.width}
               height={o.height}
-              label={o.aiLabel!}
+              label={o.aiLabel ?? ''}
+              groupId={o.aiGroupId}
             />
           ))}
           <SelectionOverlay

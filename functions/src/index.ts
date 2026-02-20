@@ -7,7 +7,7 @@ import type { BaseMessage } from '@langchain/core/messages';
 initializeApp();
 const db = getFirestore();
 
-const anthropicApiKey = defineSecret('ANTHROPIC_API_KEY');
+const opencodeApiKey = defineSecret('OPENCODE_API_KEY');
 const langchainApiKey = defineSecret('LANGCHAIN_API_KEY');
 const langfuseSecretKey = defineSecret('LANGFUSE_SECRET_KEY');
 const langfusePublicKey = defineSecret('LANGFUSE_PUBLIC_KEY');
@@ -1839,7 +1839,7 @@ async function executeTool(
 export const processAIRequest = onDocumentCreated(
   {
     document: 'boards/{boardId}/aiRequests/{requestId}',
-    secrets: [anthropicApiKey, langchainApiKey, langfuseSecretKey, langfusePublicKey, langfuseHost],
+    secrets: [opencodeApiKey, langchainApiKey, langfuseSecretKey, langfusePublicKey, langfuseHost],
     timeoutSeconds: 300,
     memory: '512MiB',
     maxInstances: 10,
@@ -1884,7 +1884,7 @@ export const processAIRequest = onDocumentCreated(
     process.env.LANGFUSE_BASE_URL = langfuseHost.value();
 
     // Lazy-load LangChain and Langfuse to avoid deployment timeouts
-    const { ChatAnthropic } = await import('@langchain/anthropic');
+    const { ChatOpenAI } = await import('@langchain/openai');
     const { HumanMessage, SystemMessage, ToolMessage } = await import('@langchain/core/messages');
     const { CallbackHandler } = await import('@langfuse/langchain');
 
@@ -1923,11 +1923,14 @@ export const processAIRequest = onDocumentCreated(
         userMessage += `\n\nCurrently selected objects (${selectedIds.length}): ${selectedIds.join(', ')}`;
       }
 
-      // Create LangChain ChatAnthropic model with tools
-      const model = new ChatAnthropic({
-        model: 'claude-haiku-4-5-20251001',
+      // Create LangChain ChatOpenAI model with tools (OpenCode MiniMax M2.5 Free)
+      const model = new ChatOpenAI({
+        model: 'minimax-m2.5-free',
         maxTokens: 4096,
-        anthropicApiKey: anthropicApiKey.value(),
+        apiKey: opencodeApiKey.value(),
+        configuration: {
+          baseURL: 'https://opencode.ai/zen/v1',
+        },
       });
       const modelWithTools = model.bindTools(tools as never);
 

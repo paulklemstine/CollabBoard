@@ -6,6 +6,32 @@ A chronological log of all development work on Flow Space, tracking features, fi
 
 ## Development Entries
 
+### [2026-02-20] Switch AI backend from Anthropic Claude to OpenCode MiniMax M2.5 Free
+
+**Task:** Replace the Anthropic Claude Haiku 4.5 AI backend with MiniMax M2.5 Free via the OpenCode Zen API (OpenAI-compatible endpoint).
+
+**Approach:**
+- Swapped LangChain provider package from `@langchain/anthropic` to `@langchain/openai`
+- Changed secret from `ANTHROPIC_API_KEY` to `OPENCODE_API_KEY`
+- Configured `ChatOpenAI` with custom baseURL pointing to `https://opencode.ai/zen/v1`
+- LangChain's provider abstraction meant tool definitions, system prompt, and execution loop needed zero changes
+
+**Changes:**
+- `functions/package.json` — Replaced `@langchain/anthropic` with `@langchain/openai` ^0.5.0
+- `functions/src/index.ts` — 4 targeted edits: secret definition, secrets array, lazy import (ChatAnthropic→ChatOpenAI), model instantiation with OpenCode baseURL
+
+**Challenges:**
+- None — LangChain's abstraction made this a clean 4-line swap
+
+**Testing:**
+- TypeScript compiles cleanly (`npx tsc --noEmit` passes)
+- Firebase deploy succeeded
+- Need manual test with an AI request on the board
+
+**Commit:** (pending)
+
+---
+
 ### [2026-02-19] GIPHY animated stickers (GIFs) in Sticker drawer
 
 **Task:** Add an animated stickers/GIFs library so users can place GIPHY GIFs on the board alongside emoji stickers.

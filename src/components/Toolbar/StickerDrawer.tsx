@@ -127,7 +127,7 @@ export function StickerDrawer({ onAddSticker, onAddGifSticker }: StickerDrawerPr
         >
           <div className="glass-playful rounded-2xl shadow-2xl p-5">
             {/* Tabs: Emoji | GIFs */}
-            <div className="flex gap-1 mb-3 rounded-xl p-0.5 bg-gray-100">
+            <div className="flex gap-1 mb-3 rounded-xl p-0.5 bg-violet-50/60">
               <button
                 type="button"
                 onClick={() => switchTab('emoji')}
@@ -167,7 +167,7 @@ export function StickerDrawer({ onAddSticker, onAddGifSticker }: StickerDrawerPr
                   setPage((p) => Math.max(0, p - 1));
                 }}
                 disabled={page === 0}
-                className="flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200 hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed bg-white/40 border border-gray-200"
+                className="flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200 hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed bg-white/40 border border-violet-200/60"
                 title="Previous page"
               >
                 <span style={{ fontSize: '20px' }}>←</span>
@@ -182,7 +182,7 @@ export function StickerDrawer({ onAddSticker, onAddGifSticker }: StickerDrawerPr
                       onAddSticker(emoji);
                       setIsOpen(false);
                     }}
-                    className="flex items-center justify-center w-14 h-14 rounded-xl transition-all duration-200 hover:scale-110 bg-white/40 border border-gray-200 hover:border-violet-300"
+                    className="flex items-center justify-center w-14 h-14 rounded-xl transition-all duration-200 hover:scale-110 bg-white/40 border border-violet-200/60 hover:border-violet-400"
                     title={`Add ${emoji}`}
                   >
                     <span style={{ fontSize: '32px' }}>{emoji}</span>
@@ -197,7 +197,7 @@ export function StickerDrawer({ onAddSticker, onAddGifSticker }: StickerDrawerPr
                   setPage((p) => Math.min(totalPages - 1, p + 1));
                 }}
                 disabled={page === totalPages - 1}
-                className="flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200 hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed bg-white/40 border border-gray-200"
+                className="flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200 hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed bg-white/40 border border-violet-200/60"
                 title="Next page"
               >
                 <span style={{ fontSize: '20px' }}>→</span>

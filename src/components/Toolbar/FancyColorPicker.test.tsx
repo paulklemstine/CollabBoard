@@ -4,108 +4,61 @@ import userEvent from '@testing-library/user-event';
 import { FancyColorPicker } from './FancyColorPicker';
 
 describe('FancyColorPicker', () => {
-  it('renders the color wheel canvas', () => {
+  it('renders the SV area, hue bar, and hex input', () => {
     render(<FancyColorPicker selectedColor="#ef4444" onSelectColor={vi.fn()} />);
 
-    const canvas = document.querySelector('canvas');
-    expect(canvas).toBeInTheDocument();
+    // Hex input should show the color
+    const hexInput = screen.getByRole('textbox');
+    expect(hexInput).toBeInTheDocument();
+    expect((hexInput as HTMLInputElement).value).toBe('EF4444');
   });
 
-  it('renders brightness slider', () => {
-    render(<FancyColorPicker selectedColor="#ef4444" onSelectColor={vi.fn()} />);
+  it('renders preview swatch with the selected color', () => {
+    const { container } = render(<FancyColorPicker selectedColor="#3b82f6" onSelectColor={vi.fn()} />);
 
-    const slider = screen.getByRole('slider');
-    expect(slider).toBeInTheDocument();
+    // Preview swatch should have the background color
+    const swatch = container.querySelector('[style*="background: #3b82f6"]') ??
+                   container.querySelector('[style*="background: rgb(59, 130, 246)"]');
+    expect(swatch).toBeTruthy();
   });
 
-  it('renders all preset colors', () => {
-    render(<FancyColorPicker selectedColor="#ef4444" onSelectColor={vi.fn()} />);
-
-    const presetButtons = screen.getAllByRole('button');
-    // 16 preset colors
-    expect(presetButtons).toHaveLength(16);
-  });
-
-  it('calls onSelectColor when a preset is clicked', async () => {
+  it('calls onSelectColor when hex input is submitted', async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
 
     render(<FancyColorPicker selectedColor="#000000" onSelectColor={onSelect} />);
 
-    const presetButtons = screen.getAllByRole('button');
-    await user.click(presetButtons[0]); // Click first preset (#fecaca)
+    const hexInput = screen.getByRole('textbox');
+    await user.clear(hexInput);
+    await user.type(hexInput, 'ff6600{Enter}');
 
-    expect(onSelect).toHaveBeenCalledWith('#fecaca');
+    expect(onSelect).toHaveBeenCalledWith('#ff6600');
   });
 
-  it('updates internal HSV state when preset color is selected', async () => {
-    const user = userEvent.setup();
-    const onSelect = vi.fn();
-
-    render(<FancyColorPicker selectedColor="#000000" onSelectColor={onSelect} />);
-
-    const presetButtons = screen.getAllByRole('button');
-    const slider = screen.getByRole('slider') as HTMLInputElement;
-
-    // Initially, brightness should be at default (90)
-    expect(slider.value).toBe('90');
-
-    // Click a preset with high brightness (e.g., #ef4444 - bright red)
-    await user.click(presetButtons[8]); // #ef4444
-
-    // After clicking preset, the internal state should update
-    // #ef4444 is rgb(239, 68, 68) which has brightness ~94%
-    expect(onSelect).toHaveBeenCalledWith('#ef4444');
-
-    // The slider value should reflect the preset's brightness
-    // Allow some tolerance for HSV conversion rounding
-    const brightnessValue = parseInt(slider.value);
-    expect(brightnessValue).toBeGreaterThan(85);
-    expect(brightnessValue).toBeLessThan(100);
-  });
-
-  it('updates current color display when preset is selected', async () => {
-    const user = userEvent.setup();
-    const onSelect = vi.fn();
-
-    render(<FancyColorPicker selectedColor="#000000" onSelectColor={onSelect} />);
-
-    const presetButtons = screen.getAllByRole('button');
-    await user.click(presetButtons[8]); // #ef4444
-
-    // The color display should show the selected preset color
-    const colorDisplay = screen.getByText('#ef4444');
-    expect(colorDisplay).toBeInTheDocument();
-  });
-
-  it('highlights selected preset with border', () => {
-    render(<FancyColorPicker selectedColor="#ef4444" onSelectColor={vi.fn()} />);
-
-    const presetButtons = screen.getAllByRole('button');
-    // Find the button with #ef4444 background
-    const selectedButton = presetButtons.find(
-      (btn) => (btn as HTMLButtonElement).style.backgroundColor === 'rgb(239, 68, 68)'
-    );
-
-    expect(selectedButton).toBeDefined();
-    expect((selectedButton as HTMLButtonElement).style.border).toContain('#6366f1');
-  });
-
-  it('updates brightness slider when brightness is changed', async () => {
+  it('reverts invalid hex input on blur', async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
 
     render(<FancyColorPicker selectedColor="#ef4444" onSelectColor={onSelect} />);
 
-    const slider = screen.getByRole('slider') as HTMLInputElement;
+    const hexInput = screen.getByRole('textbox') as HTMLInputElement;
+    await user.clear(hexInput);
+    await user.type(hexInput, 'zzz');
+    await user.tab(); // blur
 
-    // Change brightness to 50
-    await user.clear(slider);
-    await user.type(slider, '50');
+    // Should revert to current color
+    expect(hexInput.value).toBe('EF4444');
+  });
 
-    // onSelectColor should be called with a darker version of the current color
-    expect(onSelect).toHaveBeenCalled();
-    const calledColor = onSelect.mock.calls[onSelect.mock.calls.length - 1][0];
-    expect(calledColor).toMatch(/^#[0-9a-f]{6}$/);
+  it('updates hex display when selectedColor prop changes', () => {
+    const { rerender } = render(
+      <FancyColorPicker selectedColor="#ef4444" onSelectColor={vi.fn()} />
+    );
+
+    const hexInput = screen.getByRole('textbox') as HTMLInputElement;
+    expect(hexInput.value).toBe('EF4444');
+
+    rerender(<FancyColorPicker selectedColor="#22c55e" onSelectColor={vi.fn()} />);
+    expect(hexInput.value).toBe('22C55E');
   });
 });

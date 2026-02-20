@@ -94,7 +94,7 @@ export function ConnectorDrawer({
         </button>
         <button
           onClick={() => setIsOpen((o) => !o)}
-          className={`btn-lift px-1.5 py-2.5 rounded-r-xl text-sm transition-all duration-200 border-l border-gray-200 flex items-center justify-center ${
+          className={`btn-lift px-1.5 py-2.5 rounded-r-xl text-sm transition-all duration-200 border-l border-violet-200/60 flex items-center justify-center ${
             connectMode
               ? 'text-white/80'
               : 'text-gray-500 hover:text-violet-600'
@@ -177,7 +177,7 @@ export function ConnectorDrawer({
                   onClick={() => update({ startArrow: !connectorStyle.startArrow })}
                   className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
                     connectorStyle.startArrow
-                      ? 'bg-indigo-500 text-white shadow-md'
+                      ? 'bg-violet-500 text-white shadow-md'
                       : 'bg-white/40 text-gray-600 hover:bg-white/70'
                   }`}
                 >
@@ -191,7 +191,7 @@ export function ConnectorDrawer({
                   onClick={() => update({ endArrow: !connectorStyle.endArrow })}
                   className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
                     connectorStyle.endArrow
-                      ? 'bg-indigo-500 text-white shadow-md'
+                      ? 'bg-violet-500 text-white shadow-md'
                       : 'bg-white/40 text-gray-600 hover:bg-white/70'
                   }`}
                 >

@@ -134,7 +134,7 @@ export function ChatDrawer({ messages, currentUserId, onSend }: ChatDrawerProps)
             </div>
 
             {/* Input area */}
-            <div className="px-3 py-2 border-t border-gray-200">
+            <div className="px-3 py-2 border-t border-violet-200/60">
               <div className="flex items-center gap-2">
                 <input
                   ref={inputRef}
@@ -143,7 +143,7 @@ export function ChatDrawer({ messages, currentUserId, onSend }: ChatDrawerProps)
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Type a message..."
-                  className="flex-1 bg-white/50 border border-gray-200 rounded-xl px-3 py-1.5 text-sm text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-300 transition-all"
+                  className="flex-1 bg-white/50 border border-violet-200/60 rounded-xl px-3 py-1.5 text-sm text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-300 transition-all"
                 />
                 <button
                   onClick={handleSubmit}

@@ -217,7 +217,7 @@ export function Toolbar({
   };
 
   const divider = (
-    <div className="w-px h-8 mx-0.5 bg-gray-200" />
+    <div className="w-px h-8 mx-0.5 bg-violet-200/60" />
   );
 
   return (

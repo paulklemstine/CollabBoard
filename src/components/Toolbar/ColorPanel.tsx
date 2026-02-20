@@ -1,4 +1,5 @@
-import { useRef } from 'react';
+import { useRef, useState, useCallback } from 'react';
+import { FancyColorPicker } from './FancyColorPicker';
 
 const PRESETS = [
   '#000000', '#475569', '#ffffff',
@@ -18,9 +19,21 @@ interface ColorPanelProps {
 }
 
 export function ColorPanel({ label, color, onChange, showTransparent = false }: ColorPanelProps) {
-  const pickerRef = useRef<HTMLInputElement>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTransparent = color === 'transparent';
   const isCustom = !isTransparent && !PRESETS.includes(color);
+
+  const handleMouseEnter = useCallback(() => {
+    if (closeTimeout.current) { clearTimeout(closeTimeout.current); closeTimeout.current = null; }
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    if (!pickerOpen) return;
+    closeTimeout.current = setTimeout(() => setPickerOpen(false), 300);
+  }, [pickerOpen]);
 
   return (
     <div>
@@ -50,31 +63,49 @@ export function ColorPanel({ label, color, onChange, showTransparent = false }: 
             title="Transparent"
           />
         )}
-        {/* Color picker */}
-        <button
-          onClick={() => pickerRef.current?.click()}
-          className="w-7 h-7 rounded-full transition-all hover:scale-110 shrink-0 relative flex items-center justify-center"
-          style={{
-            background: isCustom ? color : '#f1f5f9',
-            border: isCustom ? `2px solid ${color}` : '2px dashed #94a3b8',
-            boxShadow: isCustom ? `0 0 0 2px white, 0 0 0 3.5px ${color}` : 'none',
-          }}
-          title="Custom color"
+        {/* Custom color picker trigger */}
+        <div
+          className="relative shrink-0"
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={isCustom ? '#fff' : '#64748b'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={isCustom ? { filter: 'drop-shadow(0 0 1px rgba(0,0,0,0.4))' } : undefined}>
-            <path d="M2 22l1-1h3l9-9" />
-            <path d="M15 12l-8.5 8.5" />
-            <path d="M16 6l2-2a1.5 1.5 0 013 0l-1 1a1.5 1.5 0 010 3l-2 2" />
-            <path d="M12 8l4 4" />
-          </svg>
-        </button>
-        <input
-          ref={pickerRef}
-          type="color"
-          className="sr-only"
-          value={isCustom ? (color || '#000000') : '#000000'}
-          onChange={(e) => onChange(e.target.value)}
-        />
+          <button
+            ref={buttonRef}
+            onClick={() => setPickerOpen(o => !o)}
+            className="w-7 h-7 rounded-full transition-all hover:scale-110 flex items-center justify-center"
+            style={{
+              background: isCustom ? color : '#f1f5f9',
+              border: isCustom ? `2px solid ${color}` : '2px dashed #94a3b8',
+              boxShadow: isCustom
+                ? `0 0 0 2px white, 0 0 0 3.5px ${color}`
+                : pickerOpen
+                  ? '0 0 0 2px white, 0 0 0 3.5px #8b5cf6'
+                  : 'none',
+            }}
+            title="Custom color"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={isCustom ? '#fff' : '#64748b'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={isCustom ? { filter: 'drop-shadow(0 0 1px rgba(0,0,0,0.4))' } : undefined}>
+              <path d="M2 22l1-1h3l9-9" />
+              <path d="M15 12l-8.5 8.5" />
+              <path d="M16 6l2-2a1.5 1.5 0 013 0l-1 1a1.5 1.5 0 010 3l-2 2" />
+              <path d="M12 8l4 4" />
+            </svg>
+          </button>
+
+          {/* Popover */}
+          {pickerOpen && (
+            <div
+              ref={popoverRef}
+              className="absolute bottom-full mb-2 right-0 glass-playful rounded-2xl shadow-2xl animate-bounce-in"
+              style={{ zIndex: 1002 }}
+            >
+              <FancyColorPicker
+                selectedColor={isTransparent ? '#000000' : color}
+                onSelectColor={onChange}
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

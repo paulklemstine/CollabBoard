@@ -24,6 +24,7 @@ interface BoardProps {
   onStageMouseMove?: (e: Konva.KonvaEventObject<MouseEvent>) => void;
   onStageMouseUp?: (e: Konva.KonvaEventObject<MouseEvent>) => void;
   onZoomControlsChange?: (controls: ZoomControls) => void;
+  onContainerRef?: (el: HTMLDivElement | null) => void;
   children?: React.ReactNode;
 }
 
@@ -31,7 +32,7 @@ const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 5;
 const ZOOM_STEP = 1.2;
 
-export function Board({ boardId: _boardId, onMouseMove, onTransformChange, onStageMouseDown, onStageMouseMove, onStageMouseUp, onZoomControlsChange, children }: BoardProps) {
+export function Board({ boardId: _boardId, onMouseMove, onTransformChange, onStageMouseDown, onStageMouseMove, onStageMouseUp, onZoomControlsChange, onContainerRef, children }: BoardProps) {
   const [dimensions, setDimensions] = useState({
     width: window.innerWidth,
     height: window.innerHeight,
@@ -198,7 +199,7 @@ export function Board({ boardId: _boardId, onMouseMove, onTransformChange, onSta
       const rect = container.getBoundingClientRect();
       const pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
       const hit = stage.getIntersection(pos);
-      if (hit && hit !== stage) return;
+      if (hit && hit !== (stage as unknown)) return;
       isPanningRef.current = true;
       panPointerIdRef.current = e.pointerId;
       panStartRef.current = {
@@ -259,8 +260,13 @@ export function Board({ boardId: _boardId, onMouseMove, onTransformChange, onSta
     }
   }, [scale, zoomIn, zoomOut, resetZoom, setTransform, onZoomControlsChange]);
 
+  const containerRefCb = useCallback((el: HTMLDivElement | null) => {
+    onContainerRef?.(el);
+  }, [onContainerRef]);
+
   return (
     <div
+      ref={containerRefCb}
       style={{ position: 'relative', width: '100%', height: '100%' }}
       onContextMenu={(e) => e.preventDefault()}
     >

@@ -17,6 +17,7 @@
     "dotenv": "^17.3.1",
     "firebase": "^12.9.0",
     "gifuct-js": "^2.1.2",
+    "html-to-image": "^1.11.13",
     "konva": "^10.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

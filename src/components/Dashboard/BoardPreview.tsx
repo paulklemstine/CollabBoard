@@ -6,6 +6,7 @@ import type { Connector } from '../../types/board';
 
 interface BoardPreviewProps {
   boardId: string;
+  thumbnailUrl?: string;
 }
 
 const PREVIEW_W = 300;
@@ -52,16 +53,29 @@ function getShapePoints(shapeType: string): number[] | null {
   }
 }
 
-export function BoardPreview({ boardId }: BoardPreviewProps) {
+export function BoardPreview({ boardId, thumbnailUrl }: BoardPreviewProps) {
   const [objects, setObjects] = useState<AnyBoardObject[] | null>(null);
 
   useEffect(() => {
+    if (thumbnailUrl) return; // Skip fetching objects when we have a screenshot
     let cancelled = false;
     getBoardObjects(boardId).then((objs) => {
       if (!cancelled) setObjects(objs);
     });
     return () => { cancelled = true; };
-  }, [boardId]);
+  }, [boardId, thumbnailUrl]);
+
+  // If we have a thumbnail screenshot, render it directly
+  if (thumbnailUrl) {
+    return (
+      <img
+        src={thumbnailUrl}
+        alt="Board preview"
+        className="w-full object-cover"
+        style={{ height: PREVIEW_H }}
+      />
+    );
+  }
 
   if (objects === null) {
     return (
@@ -356,16 +370,8 @@ export function BoardPreview({ boardId }: BoardPreviewProps) {
           );
         }
 
-        // Fallback
-        return (
-          <rect
-            key={obj.id}
-            x={x} y={y} width={w} height={h}
-            fill={color}
-            rx={1}
-            opacity={0.8}
-          />
-        );
+        // Fallback (unreachable — all types handled above)
+        return null;
       })}
     </svg>
   );

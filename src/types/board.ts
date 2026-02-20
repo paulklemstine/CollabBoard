@@ -7,6 +7,7 @@ export interface BoardMetadata {
   createdAt: number;
   updatedAt: number;
   isPublic?: boolean;
+  thumbnailUrl?: string;
 }
 
 export interface BoardObject {

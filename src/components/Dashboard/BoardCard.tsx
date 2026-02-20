@@ -59,7 +59,7 @@ export function BoardCard({ board, onSelect, onDelete, canDelete, isOwner, onTog
       >
         {/* Preview with overlaid title and quick look button */}
         <div className="relative">
-          <BoardPreview boardId={board.id} />
+          <BoardPreview boardId={board.id} thumbnailUrl={board.thumbnailUrl} />
           {/* Quick look button */}
           <button
             onClick={handleQuickLook}

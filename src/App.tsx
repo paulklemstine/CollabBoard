@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ref, set, remove } from 'firebase/database';
-import { rtdb } from './services/firebase';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { toJpeg } from 'html-to-image';
+import { rtdb, storage } from './services/firebase';
 import { signOutUser } from './services/authService';
-import { subscribeToBoardMetadata } from './services/boardMetadataService';
+import { subscribeToBoardMetadata, updateBoardMetadata } from './services/boardMetadataService';
 import { addVisitedBoard } from './services/userBoardsService';
 import { useAuth } from './hooks/useAuth';
 import { useRouter } from './hooks/useRouter';
@@ -102,6 +104,26 @@ function BoardView({
 }) {
   const [boardMetadata, setBoardMetadata] = useState<BoardMetadata | null>(null);
   const [copied, setCopied] = useState(false);
+  const stageContainerRef = useRef<HTMLDivElement | null>(null);
+  const captureInFlightRef = useRef(false);
+
+  const capturePreview = useCallback(async () => {
+    const el = stageContainerRef.current;
+    if (!el || captureInFlightRef.current) return;
+    captureInFlightRef.current = true;
+    try {
+      const dataUrl = await toJpeg(el, { quality: 0.7, width: 600, height: 400 });
+      const blob = await (await fetch(dataUrl)).blob();
+      const sRef = storageRef(storage, `boards/${boardId}/preview.jpg`);
+      await uploadBytes(sRef, blob, { contentType: 'image/jpeg' });
+      const url = await getDownloadURL(sRef);
+      await updateBoardMetadata(boardId, { thumbnailUrl: url });
+    } catch {
+      // Non-critical — silently ignore capture failures
+    } finally {
+      captureInFlightRef.current = false;
+    }
+  }, [boardId]);
 
   // Track visit so private boards persist in user's "My Boards"
   useEffect(() => {
@@ -176,6 +198,29 @@ function BoardView({
     moveLineEndpoint,
     updateObjectProperties,
   } = useBoard(boardId, user.uid);
+
+  // Debounced preview capture: 30s after last object change
+  const captureTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (objects.length === 0) return;
+    if (captureTimerRef.current) clearTimeout(captureTimerRef.current);
+    captureTimerRef.current = setTimeout(() => {
+      capturePreview();
+    }, 30_000);
+    return () => {
+      if (captureTimerRef.current) clearTimeout(captureTimerRef.current);
+    };
+  }, [objects, capturePreview]);
+
+  // Capture preview on board exit
+  const handleNavigateBack = useCallback(() => {
+    capturePreview(); // fire-and-forget
+    onNavigateBack();
+  }, [capturePreview, onNavigateBack]);
+
+  const handleContainerRef = useCallback((el: HTMLDivElement | null) => {
+    stageContainerRef.current = el;
+  }, []);
 
   const [aiOpen, setAiOpen] = useState(false);
   const toggleAI = useCallback(() => setAiOpen((prev) => !prev), []);
@@ -489,6 +534,7 @@ function BoardView({
           onStageMouseMove={connectMode ? undefined : handleStageMouseMove}
           onStageMouseUp={connectMode ? undefined : handleStageMouseUp}
           onZoomControlsChange={setZoomControls}
+          onContainerRef={handleContainerRef}
         >
           {/* Render order: Connectors → Frames → Shapes → Sticky Notes (connectors always behind) */}
           {connectors.map((connector) => (
@@ -682,7 +728,7 @@ function BoardView({
       <div className="absolute top-4 left-4 z-50 flex flex-col gap-3">
         <div className="glass-playful rounded-xl shadow-lg flex items-center">
           <button
-            onClick={onNavigateBack}
+            onClick={handleNavigateBack}
             className="px-3 py-2 text-sm font-semibold text-gray-700 hover:text-purple-600 transition-colors duration-200 flex items-center gap-1.5"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

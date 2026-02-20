@@ -195,7 +195,7 @@ export function StickerComponent({
   // Scale emoji font size proportionally - make it larger to fill space better
   const fontSize = (localWidth / BASE_SIZE) * BASE_FONT_SIZE;
   // Visible panel trimmed to hug the emoji glyph tighter
-  const panelX = 4;
+  const panelX = 10;
   const panelHeight = localHeight - 4;
 
   return (

@@ -432,18 +432,6 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
             }
             cornerRadius={[16, 16, 0, 0]}
           />
-          {/* Left accent bar — derives from border color */}
-          <Rect
-            x={0}
-            y={-titleBarH}
-            width={4}
-            height={titleBarH}
-            fill={isCustomBorder ? bc : undefined}
-            fillLinearGradientStartPoint={isCustomBorder ? undefined : { x: 0, y: 0 }}
-            fillLinearGradientEndPoint={isCustomBorder ? undefined : { x: 0, y: titleBarH }}
-            fillLinearGradientColorStops={isCustomBorder ? undefined : [0, '#f472b6', 0.33, '#a78bfa', 0.66, '#60a5fa', 1, '#34d399']}
-            cornerRadius={[16, 0, 0, 0]}
-          />
           {/* Title text */}
           <Text
             ref={titleRef}

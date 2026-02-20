@@ -257,7 +257,7 @@ export function StickerComponent({
         <Rect
           ref={selectionRectRef}
           x={panelX}
-          width={localWidth - panelX}
+          width={localWidth - panelX + localWidth * 0.05}
           height={panelHeight}
           stroke="#3b82f6"
           strokeWidth={3}
@@ -271,7 +271,7 @@ export function StickerComponent({
       {isSelected && selectionBox && (
         <Rect
           x={panelX}
-          width={localWidth - panelX}
+          width={localWidth - panelX + localWidth * 0.05}
           height={panelHeight}
           fill="transparent"
           shadowColor="#8b5cf6"

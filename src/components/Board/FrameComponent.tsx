@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { Group, Rect, Text } from 'react-konva';
+import { Group, Line, Rect, Text } from 'react-konva';
 import Konva from 'konva';
 import type { Frame } from '../../types/board';
 import { hexToRgba } from '../../utils/colors';
@@ -311,7 +311,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
       }}
     >
       {/* Hit expansion — prevents onMouseLeave race when reaching action buttons */}
-      <Rect x={-34} y={-40} width={localWidth + 64} height={localHeight + 70}
+      <Rect x={-34} y={-titleBarH - 40} width={localWidth + 64} height={localHeight + titleBarH + 70}
             fill="transparent" listening={true} />
       {/* Frame border */}
       {frame.borderless ? (
@@ -462,6 +462,14 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
             fill={frame.title ? (frame.textColor || '#581c87') : (isCustomBg ? hexToRgba(bg, 0.5) : '#a78bfa')}
             listening={false}
           />
+          {/* Title/body separator line */}
+          <Line
+            points={[0, 0, localWidth, 0]}
+            stroke={frame.borderColor || '#a78bfa'}
+            strokeWidth={2.5}
+            dash={[12, 6]}
+            listening={false}
+          />
           {/* Double-click area for title editing */}
           <Rect
             x={0}
@@ -479,7 +487,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
       {onDissolve && isMouseHovered && (
         <Group
           x={-24}
-          y={-20}
+          y={-titleBarH - 20}
           onClick={(e) => {
             e.cancelBubble = true;
             onDissolve(frame.id);
@@ -526,7 +534,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
       {onDuplicate && isMouseHovered && (
         <Group
           x={localWidth - 66}
-          y={-20}
+          y={-titleBarH - 20}
           onClick={(e) => {
             e.cancelBubble = true;
             onDuplicate(frame.id);
@@ -573,7 +581,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
       {onDelete && isMouseHovered && (
         <Group
           x={localWidth - 20}
-          y={-20}
+          y={-titleBarH - 20}
           onClick={(e) => {
             e.cancelBubble = true;
             onDelete(frame.id);

@@ -8,7 +8,7 @@ import { useMarchingAnts } from '../../hooks/useMarchingAnts';
 
 const DRAG_THROTTLE_MS = 50;
 const MIN_SIZE = 50;
-const BASE_FONT_SIZE = 120;
+const BASE_FONT_SIZE = 145;
 const BASE_SIZE = 150;
 
 interface StickerComponentProps {
@@ -245,9 +245,6 @@ export function StickerComponent({
         <Text
           text={sticker.emoji}
           fontSize={fontSize}
-          width={localWidth}
-          align="center"
-          y={(localHeight - fontSize) / 2}
           listening={false}
         />
       )}

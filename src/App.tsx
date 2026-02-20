@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ref, set, remove } from 'firebase/database';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { toJpeg } from 'html-to-image';
 import { rtdb, storage } from './services/firebase';
 import { signOutUser } from './services/authService';
 import { subscribeToBoardMetadata, updateBoardMetadata } from './services/boardMetadataService';
@@ -112,8 +111,42 @@ function BoardView({
     if (!el || captureInFlightRef.current) return;
     captureInFlightRef.current = true;
     try {
-      const dataUrl = await toJpeg(el, { quality: 0.7, width: 600, height: 400 });
-      const blob = await (await fetch(dataUrl)).blob();
+      // Read the Konva canvas directly (html-to-image can't clone canvas content)
+      const sourceCanvas = el.querySelector('canvas');
+      if (!sourceCanvas) return;
+
+      const WIDTH = 600;
+      const HEIGHT = 400;
+      const offscreen = document.createElement('canvas');
+      offscreen.width = WIDTH;
+      offscreen.height = HEIGHT;
+      const ctx = offscreen.getContext('2d');
+      if (!ctx) return;
+
+      // Draw Konva canvas scaled to preview size
+      ctx.drawImage(sourceCanvas, 0, 0, WIDTH, HEIGHT);
+
+      // Composite GIF overlay <img> elements using their CSS matrix transforms
+      const sx = WIDTH / sourceCanvas.width;
+      const sy = HEIGHT / sourceCanvas.height;
+      const imgs = el.querySelectorAll('img');
+      for (const img of imgs) {
+        const match = img.style.transform.match(/matrix\(([^)]+)\)/);
+        if (!match) continue;
+        const [a, b, c, d, e, f] = match[1].split(',').map(Number);
+        const w = parseFloat(img.style.width) || img.naturalWidth;
+        const h = parseFloat(img.style.height) || img.naturalHeight;
+        ctx.save();
+        ctx.setTransform(a * sx, b * sy, c * sx, d * sy, e * sx, f * sy);
+        try { ctx.drawImage(img, 0, 0, w, h); } catch { /* cross-origin fallback */ }
+        ctx.restore();
+      }
+
+      const blob = await new Promise<Blob | null>((resolve) =>
+        offscreen.toBlob(resolve, 'image/jpeg', 0.7)
+      );
+      if (!blob) return;
+
       const sRef = storageRef(storage, `boards/${boardId}/preview.jpg`);
       await uploadBytes(sRef, blob, { contentType: 'image/jpeg' });
       const url = await getDownloadURL(sRef);

@@ -445,6 +445,9 @@ See tool descriptions for object types, parameters, and defaults. Compact board 
   - Position children inside frame: childX = frameX + margin (e.g. +20), childY = frameY + 60 (36px title bar + margin).
   - Borderless frames have no title bar, so children start at frameY + 20.
 - Example: createFrame(x:0, y:0, w:400, h:300) → {id:"frame-xyz"} → createStickyNote(x:20, y:60, parentId:"frame-xyz")
+- **embedInFrame** tool: moves multiple existing objects into a frame in one call, auto-positioning them in a vertical stack. Preferred over calling updateParent + moveObject separately.
+- **updateParent** auto-repositions: when attaching an object to a frame, if the object is outside the frame it will be automatically moved inside and stacked below existing children.
+- **getBoardSummary** shows childCount per frame (e.g. "To Do (abc123, 3 children)") so you can see which frames are populated at a glance.
 
 ## Layout & Arrangement
 - Use layoutObjects to arrange objects: row, column, grid, staggered, circular, pack, fan.
@@ -1609,23 +1612,27 @@ async function executeTool(
         }
 
         case 'eisenhower': {
-          // Urgent/Important matrix
-          const frameWidth = 400;
-          const frameHeight = 300;
-          const gap = 20;
-          const titles = ['Urgent & Important', 'Not Urgent & Important', 'Urgent & Not Important', 'Neither'];
+          // Urgent/Important matrix with starter stickies
+          const eiFrameWidth = 400;
+          const eiFrameHeight = 300;
+          const eiGap = 20;
+          const eiTitles = ['Urgent & Important', 'Not Urgent & Important', 'Urgent & Not Important', 'Neither'];
+          const eiColors = ['#fce7f3', '#dbeafe', '#ffedd5', '#f3e8ff'];
+          const eiPrompts = ['Do it now', 'Schedule it', 'Delegate it', 'Drop it'];
 
           for (let i = 0; i < 4; i++) {
             const col = i % 2;
             const row = Math.floor(i / 2);
             const frameRef = objectsRef.doc();
+            const fx = startX + col * (eiFrameWidth + eiGap);
+            const fy = startY + row * (eiFrameHeight + eiGap);
             const frameData = {
               type: 'frame',
-              title: titles[i],
-              x: startX + col * (frameWidth + gap),
-              y: startY + row * (frameHeight + gap),
-              width: frameWidth,
-              height: frameHeight,
+              title: eiTitles[i],
+              x: fx,
+              y: fy,
+              width: eiFrameWidth,
+              height: eiFrameHeight,
               rotation: 0,
               createdBy: userId,
               updatedAt: now,
@@ -1634,6 +1641,25 @@ async function executeTool(
             await frameRef.set(frameData);
             objectsCreated.push(frameRef.id);
             created.push(frameRef.id);
+
+            // Starter sticky inside frame
+            const stickyRef = objectsRef.doc();
+            await stickyRef.set({
+              type: 'sticky',
+              text: eiPrompts[i],
+              x: fx + 20,
+              y: fy + 56,
+              width: 180,
+              height: 180,
+              color: eiColors[i],
+              textColor: '#1e293b',
+              rotation: 0,
+              createdBy: userId,
+              updatedAt: now,
+              parentId: frameRef.id,
+            });
+            objectsCreated.push(stickyRef.id);
+            created.push(stickyRef.id);
           }
           break;
         }

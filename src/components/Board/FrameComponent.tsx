@@ -256,6 +256,10 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
     };
   }, [isEditing, frame.id, frame.title, frame.rotation, localWidth, onTitleChange, parentRotation]);
 
+  // Title bar height (only used for bordered frames, but computed here so border rect can use it)
+  const titleFontSize = frame.fontSize ?? 14;
+  const titleBarH = frame.borderless ? 0 : Math.max(36, titleFontSize + 20);
+
   // Calculate live transform when part of a multi-select group
   const liveTransform = groupTransformPreview && selectionBox
     ? calculateGroupObjectTransform(frame, selectionBox, groupTransformPreview)
@@ -341,8 +345,9 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
       ) : (
         <Rect
           ref={borderRef}
+          y={-titleBarH}
           width={localWidth}
-          height={localHeight}
+          height={localHeight + titleBarH}
           stroke={isConnectorHighlighted ? '#818cf8' : (frame.borderColor || '#a78bfa')}
           strokeWidth={isConnectorHighlighted ? 4 : 2.5}
           dash={[12, 6]}
@@ -354,9 +359,9 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
       {isSelected && (
         <Rect
           x={-4}
-          y={-4}
+          y={-titleBarH - 4}
           width={localWidth + 8}
-          height={localHeight + 8}
+          height={localHeight + titleBarH + 8}
           stroke="#3b82f6"
           strokeWidth={3}
           dash={[8, 4]}
@@ -423,8 +428,6 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
         const bc = frame.borderColor || '#a78bfa';
         const isCustomBg = !!bg;
         const isCustomBorder = !!frame.borderColor;
-        const titleFontSize = frame.fontSize ?? 14;
-        const titleBarH = Math.max(36, titleFontSize + 20);
         return (
         <>
           {/* Title background — tint of the frame's background color */}

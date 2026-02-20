@@ -1,5 +1,6 @@
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { batchAddObjects, batchDeleteObjects, type AnyBoardObject } from '../services/boardService';
+import { loadUndoState, saveUndoState } from '../services/undoHistoryService';
 
 export interface UndoChange {
   objectId: string;
@@ -12,19 +13,54 @@ export interface UndoEntry {
 }
 
 const MAX_UNDO = 50;
+const SAVE_DEBOUNCE_MS = 2000;
 
-export function useUndoRedo(boardId: string) {
+export function useUndoRedo(boardId: string, userId: string) {
   const undoStackRef = useRef<UndoEntry[]>([]);
   const redoStackRef = useRef<UndoEntry[]>([]);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   const isUndoRedoingRef = useRef(false);
   const lockRef = useRef(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const updateFlags = useCallback(() => {
     setCanUndo(undoStackRef.current.length > 0);
     setCanRedo(redoStackRef.current.length > 0);
   }, []);
+
+  const scheduleSave = useCallback(() => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+    }
+    saveTimerRef.current = setTimeout(() => {
+      saveTimerRef.current = null;
+      saveUndoState(boardId, userId, undoStackRef.current, redoStackRef.current);
+    }, SAVE_DEBOUNCE_MS);
+  }, [boardId, userId]);
+
+  // Load persisted state on mount
+  useEffect(() => {
+    let cancelled = false;
+    loadUndoState(boardId, userId).then((state) => {
+      if (cancelled || !state) return;
+      undoStackRef.current = state.undoStack;
+      redoStackRef.current = state.redoStack;
+      updateFlags();
+    });
+    return () => { cancelled = true; };
+  }, [boardId, userId, updateFlags]);
+
+  // Flush pending save on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+        saveUndoState(boardId, userId, undoStackRef.current, redoStackRef.current);
+      }
+    };
+  }, [boardId, userId]);
 
   const pushUndo = useCallback(
     (entry: UndoEntry) => {
@@ -37,8 +73,9 @@ export function useUndoRedo(boardId: string) {
       // New action clears redo stack
       redoStackRef.current = [];
       updateFlags();
+      scheduleSave();
     },
-    [updateFlags]
+    [updateFlags, scheduleSave]
   );
 
   const applyChanges = useCallback(
@@ -76,10 +113,11 @@ export function useUndoRedo(boardId: string) {
       await applyChanges(entry.changes, 'undo');
       redoStackRef.current.push(entry);
       updateFlags();
+      scheduleSave();
     } finally {
       lockRef.current = false;
     }
-  }, [applyChanges, updateFlags]);
+  }, [applyChanges, updateFlags, scheduleSave]);
 
   const redo = useCallback(async () => {
     if (lockRef.current || redoStackRef.current.length === 0) return;
@@ -89,10 +127,11 @@ export function useUndoRedo(boardId: string) {
       await applyChanges(entry.changes, 'redo');
       undoStackRef.current.push(entry);
       updateFlags();
+      scheduleSave();
     } finally {
       lockRef.current = false;
     }
-  }, [applyChanges, updateFlags]);
+  }, [applyChanges, updateFlags, scheduleSave]);
 
   return { pushUndo, undo, redo, canUndo, canRedo, isUndoRedoingRef };
 }

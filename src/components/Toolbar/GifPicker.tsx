@@ -5,6 +5,34 @@ import type { IGif } from '@giphy/js-types';
 const apiKey = import.meta.env.VITE_GIPHY_API_KEY ?? '';
 const gf = apiKey ? new GiphyFetch(apiKey) : null;
 
+// Module-level preload: fires immediately on import, retries until success.
+// By the time a user opens the GIF drawer, results are already cached.
+const DEFAULT_QUERY = 'kittens';
+let preloadedGifs: IGif[] | null = null;
+let preloadPromise: Promise<IGif[]> | null = null;
+
+function preloadDefaultGifs(): Promise<IGif[]> {
+  if (preloadedGifs) return Promise.resolve(preloadedGifs);
+  if (preloadPromise) return preloadPromise;
+  preloadPromise = (async () => {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        const res = await gf!.search(DEFAULT_QUERY, { limit: 18, type: 'stickers' });
+        preloadedGifs = res.data;
+        return res.data;
+      } catch {
+        await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
+      }
+    }
+    preloadPromise = null; // allow retry on next call
+    return [];
+  })();
+  return preloadPromise;
+}
+
+// Kick off preload immediately
+if (gf) preloadDefaultGifs();
+
 function getGifUrl(gif: IGif): string {
   const img = gif.images?.fixed_height ?? gif.images?.fixed_width ?? gif.images?.original;
   return (img && 'url' in img ? img.url : (gif.images?.original as { url?: string })?.url) ?? '';
@@ -22,16 +50,36 @@ interface GifPickerProps {
 
 export function GifPicker({ onSelect, onClose }: GifPickerProps) {
   const [search, setSearch] = useState('');
-  const [gifs, setGifs] = useState<IGif[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [gifs, setGifs] = useState<IGif[]>(() => preloadedGifs ?? []);
+  const [loading, setLoading] = useState(!preloadedGifs);
   const [error, setError] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchGifs = useCallback(async (query: string, retries = 2) => {
     if (!gf) return;
+    const q = query.trim() || DEFAULT_QUERY;
+
+    // If this is the default query and we have preloaded data, use it
+    if (q === DEFAULT_QUERY && preloadedGifs) {
+      setGifs(preloadedGifs);
+      setLoading(false);
+      setError(false);
+      return;
+    }
+
     setLoading(true);
     setError(false);
-    const q = query.trim() || 'kittens';
+
+    // If default query, wait for the in-flight preload
+    if (q === DEFAULT_QUERY && preloadPromise) {
+      const result = await preloadPromise;
+      if (result.length > 0) {
+        setGifs(result);
+        setLoading(false);
+        return;
+      }
+    }
+
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
         const res = await gf.search(q, { limit: 18, type: 'stickers' });
@@ -48,12 +96,47 @@ export function GifPicker({ onSelect, onClose }: GifPickerProps) {
     setLoading(false);
   }, []);
 
-  // Fetch on mount and when search changes (debounced)
+  // On mount: if preload hasn't resolved yet, wait for it
   useEffect(() => {
+    if (preloadedGifs && !search) {
+      setGifs(preloadedGifs);
+      setLoading(false);
+      return;
+    }
+    if (!search && preloadPromise) {
+      let cancelled = false;
+      preloadPromise.then((result) => {
+        if (!cancelled && result.length > 0) {
+          setGifs(result);
+          setLoading(false);
+        } else if (!cancelled) {
+          fetchGifs('');
+        }
+      });
+      return () => { cancelled = true; };
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Fetch when search changes (debounced), skip empty (handled by mount effect)
+  useEffect(() => {
+    if (!search) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => fetchGifs(search), search ? 300 : 0);
+    debounceRef.current = setTimeout(() => fetchGifs(search), 300);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [search, fetchGifs]);
+
+  // When search is cleared, restore default results
+  useEffect(() => {
+    if (search === '' && preloadedGifs) {
+      setGifs(preloadedGifs);
+      setLoading(false);
+      setError(false);
+    } else if (search === '') {
+      fetchGifs('');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
 
   if (!apiKey) {
     return (

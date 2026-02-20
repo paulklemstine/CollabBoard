@@ -145,27 +145,27 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
       });
       tweenRef.current.play();
     } else if (isMouseHovered) {
-      // Mouse hover — warm purple
+      // Mouse hover — use custom frame colors when set
       tweenRef.current = new Konva.Tween({
         node: rect,
         duration: 0.15,
-        stroke: '#c084fc',
-        strokeWidth: 3,
-        fill: 'rgba(250, 245, 255, 0.2)',
-        shadowColor: 'rgba(168, 85, 247, 0.2)',
-        shadowBlur: 10,
-        shadowOpacity: 0.4,
+        stroke: frame.borderless ? 'transparent' : (frame.borderColor || '#c084fc'),
+        strokeWidth: frame.borderless ? 0 : 3,
+        fill: frame.color || (frame.borderless ? 'transparent' : 'rgba(250, 245, 255, 0.2)'),
+        shadowColor: frame.borderless ? 'transparent' : (frame.borderColor || 'rgba(168, 85, 247, 0.2)'),
+        shadowBlur: frame.borderless ? 0 : 10,
+        shadowOpacity: frame.borderless ? 0 : 0.4,
         easing: Konva.Easings.EaseInOut,
       });
       tweenRef.current.play();
     } else {
-      // Default — violet base
+      // Default — use custom frame colors when set
       tweenRef.current = new Konva.Tween({
         node: rect,
         duration: 0.15,
-        stroke: '#a78bfa',
-        strokeWidth: 2.5,
-        fill: 'rgba(250, 245, 255, 0.12)',
+        stroke: frame.borderless ? 'transparent' : (frame.borderColor || '#a78bfa'),
+        strokeWidth: frame.borderless ? 0 : 2.5,
+        fill: frame.color || (frame.borderless ? 'transparent' : 'rgba(250, 245, 255, 0.12)'),
         shadowColor: 'transparent',
         shadowBlur: 0,
         shadowOpacity: 0,
@@ -180,7 +180,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
         tweenRef.current = null;
       }
     };
-  }, [hoverState, isMouseHovered]);
+  }, [hoverState, isMouseHovered, frame.borderless, frame.color, frame.borderColor]);
 
   useEffect(() => {
     if (!isEditing) return;
@@ -312,7 +312,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
             ref={borderRef}
             width={localWidth}
             height={localHeight}
-            fill="transparent"
+            fill={frame.color || "transparent"}
             cornerRadius={16}
           />
           {/* Subtle dashed outline on hover so user can discover the group */}
@@ -320,7 +320,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
             <Rect
               width={localWidth}
               height={localHeight}
-              stroke="#94a3b8"
+              stroke={frame.borderColor || "#94a3b8"}
               strokeWidth={1}
               dash={[6, 4]}
               fill="transparent"

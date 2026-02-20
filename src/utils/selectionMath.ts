@@ -8,7 +8,9 @@ export interface BBox {
 }
 
 /**
- * Compute the axis-aligned bounding box of a set of board objects.
+ * Compute the axis-aligned bounding box of a set of board objects,
+ * accounting for each object's rotation so the box fully encloses
+ * every rotated corner with no overhang.
  * Returns { x, y, width, height } or null if the array is empty.
  */
 export function getBoundingBox(objects: BoardObject[]): BBox | null {
@@ -26,10 +28,44 @@ export function getBoundingBox(objects: BoardObject[]): BBox | null {
       const fontSize = ('fontSize' in obj && (obj as any).fontSize) ? (obj as any).fontSize : 14;
       titleBarH = Math.max(36, fontSize + 20);
     }
-    minX = Math.min(minX, obj.x);
-    minY = Math.min(minY, obj.y - titleBarH);
-    maxX = Math.max(maxX, obj.x + obj.width);
-    maxY = Math.max(maxY, obj.y + obj.height);
+
+    const rotation = obj.rotation || 0;
+
+    if (rotation === 0) {
+      // Fast path — no rotation, simple AABB
+      minX = Math.min(minX, obj.x);
+      minY = Math.min(minY, obj.y - titleBarH);
+      maxX = Math.max(maxX, obj.x + obj.width);
+      maxY = Math.max(maxY, obj.y + obj.height);
+    } else {
+      // Rotation pivot is the center of the object body (matches Konva Group offsetX/Y)
+      const cx = obj.x + obj.width / 2;
+      const cy = obj.y + obj.height / 2;
+      const rad = (rotation * Math.PI) / 180;
+      const cos = Math.cos(rad);
+      const sin = Math.sin(rad);
+
+      // Four corners of the full visual extent (body + title bar) relative to pivot
+      const halfW = obj.width / 2;
+      const topY = -obj.height / 2 - titleBarH;
+      const botY = obj.height / 2;
+
+      const corners = [
+        { dx: -halfW, dy: topY },   // top-left
+        { dx: halfW, dy: topY },    // top-right
+        { dx: halfW, dy: botY },    // bottom-right
+        { dx: -halfW, dy: botY },   // bottom-left
+      ];
+
+      for (const c of corners) {
+        const wx = cx + c.dx * cos - c.dy * sin;
+        const wy = cy + c.dx * sin + c.dy * cos;
+        minX = Math.min(minX, wx);
+        minY = Math.min(minY, wy);
+        maxX = Math.max(maxX, wx);
+        maxY = Math.max(maxY, wy);
+      }
+    }
   }
 
   return {

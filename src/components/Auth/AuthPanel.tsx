@@ -76,7 +76,7 @@ export function AuthPanel({ user, onSignOut, onAuthChange }: AuthPanelProps) {
           </span>
           <button
             onClick={() => (onSignOut ?? signOutUser)()}
-            className="btn-lift ml-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-orange-500 hover:text-white hover:bg-orange-500 transition-all duration-200"
+            className="btn-lift ml-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-orange-500 border border-orange-400 hover:text-white hover:bg-orange-500 transition-all duration-200"
           >
             Sign Out
           </button>

@@ -205,7 +205,7 @@ export function BoardQuickLook({ boardId, boardName, onClose, onOpenBoard }: Boa
       {/* Header */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3">
         <div className="glass-playful rounded-xl px-5 py-2.5 shadow-lg flex items-center gap-4">
-          <h2 className="text-sm font-bold text-gray-800 truncate max-w-[300px]">{boardName}</h2>
+          <h2 className="text-sm font-bold text-orange-500 truncate max-w-[300px]">{boardName}</h2>
           <button
             onClick={() => onOpenBoard(boardId)}
             className="px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all hover:shadow-lg"

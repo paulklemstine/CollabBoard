@@ -988,7 +988,7 @@ function BoardView({
           </button>
           <div className="w-px h-6 bg-gray-300" />
           {boardMetadata && (
-              <span className="flex-1 px-3 text-center text-sm font-bold text-violet-600 truncate">
+              <span className="flex-1 px-3 text-center text-sm font-bold text-orange-500 truncate">
                 {boardMetadata.name}
               </span>
           )}

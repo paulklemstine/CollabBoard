@@ -72,7 +72,7 @@ export function BoardCard({ board, onSelect, onDelete, canDelete, isOwner, onTog
             </svg>
           </button>
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/50 to-transparent px-3.5 pb-2.5 pt-8">
-            <h3 className="text-sm font-bold text-white truncate drop-shadow-sm">{board.name}</h3>
+            <h3 className="text-sm font-bold text-orange-300 truncate drop-shadow-sm">{board.name}</h3>
           </div>
         </div>
 

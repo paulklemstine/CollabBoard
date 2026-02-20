@@ -62,7 +62,7 @@ export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboar
           </div>
           <button
             onClick={onSignOut}
-            className="btn-lift px-4 py-2 rounded-xl text-sm font-semibold text-orange-400 hover:text-white hover:bg-orange-500/20 transition-all duration-200"
+            className="btn-lift px-4 py-2 rounded-xl text-sm font-semibold text-orange-400 border border-orange-400/50 hover:text-white hover:bg-orange-500/20 hover:border-orange-400 transition-all duration-200"
           >
             Sign Out
           </button>

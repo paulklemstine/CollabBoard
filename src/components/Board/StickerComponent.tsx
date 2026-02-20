@@ -15,6 +15,7 @@ interface StickerComponentProps {
   onDragMove: (id: string, x: number, y: number) => void;
   onDragEnd: (id: string, x: number, y: number) => void;
   onDelete?: (id: string) => void;
+  onDuplicate?: (id: string) => void;
   onClick?: (id: string) => void;
   onResize?: (id: string, width: number, height: number) => void;
   onRotate?: (id: string, rotation: number) => void;
@@ -32,6 +33,7 @@ export function StickerComponent({
   onDragMove,
   onDragEnd,
   onDelete,
+  onDuplicate,
   onClick,
   onResize,
   onRotate,
@@ -52,6 +54,7 @@ export function StickerComponent({
   const [isResizeHovered, setIsResizeHovered] = useState(false);
   const [isRotateHovered, setIsRotateHovered] = useState(false);
   const [isDeleteHovered, setIsDeleteHovered] = useState(false);
+  const [isDuplicateHovered, setIsDuplicateHovered] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [localWidth, setLocalWidth] = useState(sticker.width);
   const [localHeight, setLocalHeight] = useState(sticker.height);
@@ -199,6 +202,9 @@ export function StickerComponent({
         if (stage) stage.container().style.cursor = 'default';
       }}
     >
+      {/* Hit expansion — prevents onMouseLeave race when reaching action buttons */}
+      <Rect x={-30} y={-30} width={localWidth + 60} height={localHeight + 60}
+            fill="transparent" listening={true} />
       {/* Transparent background rect for hit detection */}
       <Rect
         width={localWidth}
@@ -237,6 +243,51 @@ export function StickerComponent({
           cornerRadius={16}
           listening={false}
         />
+      )}
+      {/* Duplicate button */}
+      {onDuplicate && isMouseHovered && (
+        <Group
+          x={localWidth - 66}
+          y={-20}
+          onClick={(e) => {
+            e.cancelBubble = true;
+            onDuplicate(sticker.id);
+          }}
+          onTap={(e) => {
+            e.cancelBubble = true;
+            onDuplicate(sticker.id);
+          }}
+          onMouseEnter={(e) => {
+            setIsMouseHovered(true);
+            setIsDuplicateHovered(true);
+            const stage = e.target.getStage();
+            if (stage) stage.container().style.cursor = 'pointer';
+          }}
+          onMouseLeave={(e) => {
+            setIsDuplicateHovered(false);
+            const stage = e.target.getStage();
+            if (stage && isMouseHovered && !isDeleteHovered && !isResizeHovered && !isRotateHovered) {
+              stage.container().style.cursor = 'grab';
+            }
+          }}
+        >
+          <Rect
+            width={40}
+            height={40}
+            fill={isDuplicateHovered ? '#22c55e' : '#94a3b8'}
+            opacity={isDuplicateHovered ? 1 : 0.4}
+            cornerRadius={8}
+          />
+          <Text
+            text={"\uD83D\uDCCB"}
+            fontSize={24}
+            width={40}
+            height={40}
+            align="center"
+            verticalAlign="middle"
+            listening={false}
+          />
+        </Group>
       )}
       {/* Delete button */}
       {onDelete && isMouseHovered && (

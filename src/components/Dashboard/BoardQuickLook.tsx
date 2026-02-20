@@ -19,7 +19,6 @@ interface BoardQuickLookProps {
 
 const MIN_ZOOM = 0.05;
 const MAX_ZOOM = 5;
-const NOOP = () => {};
 const NOOP2 = (_id: string, _x: number, _y: number) => {};
 const NOOP_TITLE = (_id: string, _title: string) => {};
 const NOOP_TEXT = (_id: string, _text: string) => {};

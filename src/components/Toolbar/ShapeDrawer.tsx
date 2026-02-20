@@ -15,8 +15,8 @@ interface ShapeDrawerProps {
 }
 
 export function ShapeDrawer({
-  fillColor, strokeColor, borderColor,
-  onFillColorChange, onStrokeColorChange, onBorderColorChange,
+  fillColor, strokeColor, borderColor: _borderColor,
+  onFillColorChange, onStrokeColorChange, onBorderColorChange: _onBorderColorChange,
   onAddShape, onAddFrame, onAddSticky,
 }: ShapeDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);

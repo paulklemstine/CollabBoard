@@ -16,6 +16,7 @@ interface StickyNoteProps {
   onDragEnd: (id: string, x: number, y: number) => void;
   onTextChange: (id: string, text: string) => void;
   onDelete?: (id: string) => void;
+  onDuplicate?: (id: string) => void;
   onClick?: (id: string) => void;
   onResize?: (id: string, width: number, height: number) => void;
   onRotate?: (id: string, rotation: number) => void;
@@ -31,7 +32,7 @@ interface StickyNoteProps {
   selectionBox?: SelectionBox | null;
 }
 
-export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange, onDelete, onClick, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, parentRotation, dragOffset, isSelected, groupDragOffset, groupTransformPreview, selectionBox }: StickyNoteProps) {
+export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange, onDelete, onDuplicate, onClick, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, parentRotation, dragOffset, isSelected, groupDragOffset, groupTransformPreview, selectionBox }: StickyNoteProps) {
   const textRef = useRef<Konva.Text>(null);
   const [isEditing, setIsEditing] = useState(false);
   const lastDragUpdate = useRef(0);
@@ -40,6 +41,7 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
   const [isResizeHovered, setIsResizeHovered] = useState(false);
   const [isRotateHovered, setIsRotateHovered] = useState(false);
   const [isDeleteHovered, setIsDeleteHovered] = useState(false);
+  const [isDuplicateHovered, setIsDuplicateHovered] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [localWidth, setLocalWidth] = useState(note.width);
   const [localHeight, setLocalHeight] = useState(note.height);
@@ -213,6 +215,9 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
         if (stage) stage.container().style.cursor = 'default';
       }}
     >
+      {/* Hit expansion — prevents onMouseLeave race when reaching action buttons */}
+      <Rect x={-30} y={-30} width={localWidth + 60} height={localHeight + 60}
+            fill="transparent" listening={true} />
       {/* Main note body */}
       <Rect
         width={localWidth}
@@ -265,6 +270,53 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
         shadowOffsetY={1}
         rotation={-1}
       />
+      {/* Duplicate button (top-right, left of delete) */}
+      {onDuplicate && isMouseHovered && (
+        <Group
+          x={localWidth - 66}
+          y={-20}
+          onClick={(e) => {
+            e.cancelBubble = true;
+            onDuplicate(note.id);
+          }}
+          onTap={(e) => {
+            e.cancelBubble = true;
+            onDuplicate(note.id);
+          }}
+          onMouseEnter={(e) => {
+            setIsMouseHovered(true);
+            setIsDuplicateHovered(true);
+            const stage = e.target.getStage();
+            if (stage) stage.container().style.cursor = 'pointer';
+          }}
+          onMouseLeave={(e) => {
+            setIsDuplicateHovered(false);
+            const stage = e.target.getStage();
+            if (stage && isMouseHovered && !isDeleteHovered && !isResizeHovered && !isRotateHovered) {
+              stage.container().style.cursor = 'grab';
+            }
+          }}
+        >
+          <Rect
+            width={40}
+            height={40}
+            fill={isDuplicateHovered ? '#22c55e' : '#94a3b8'}
+            opacity={isDuplicateHovered ? 1 : 0.4}
+            cornerRadius={8}
+          />
+          <Text
+            x={0}
+            y={0}
+            width={40}
+            height={40}
+            text={"\uD83D\uDCCB"}
+            fontSize={24}
+            align="center"
+            verticalAlign="middle"
+            listening={false}
+          />
+        </Group>
+      )}
       {/* Delete button area (top-right corner) */}
       {onDelete && isMouseHovered && (
         <Group

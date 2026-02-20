@@ -41,6 +41,25 @@ export async function deleteObject(boardId: string, objectId: string): Promise<v
 }
 
 /**
+ * Batch add multiple objects atomically using writeBatch.
+ * All clones appear simultaneously — no partial state visible to other users.
+ */
+export async function batchAddObjects(
+  boardId: string,
+  objs: AnyBoardObject[]
+): Promise<void> {
+  if (objs.length === 0) return;
+
+  const batch = writeBatch(db);
+  for (const obj of objs) {
+    if (!obj.id) continue;
+    const docRef = doc(objectsCollection(boardId), obj.id);
+    batch.set(docRef, obj);
+  }
+  await batch.commit();
+}
+
+/**
  * Batch update multiple objects atomically.
  * Useful for updating frame children positions to avoid flickering.
  */

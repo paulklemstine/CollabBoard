@@ -20,6 +20,7 @@ interface SelectionOverlayProps {
   onGroupRotateMove: (deltaAngle: number) => void;
   onGroupRotate: (deltaAngle: number) => void;
   onDeleteSelected: () => void;
+  onDuplicateSelected?: () => void;
 }
 
 export function SelectionOverlay({
@@ -36,11 +37,13 @@ export function SelectionOverlay({
   onGroupRotateMove,
   onGroupRotate,
   onDeleteSelected,
+  onDuplicateSelected,
 }: SelectionOverlayProps) {
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const resizeStartRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
   const rotateStartRef = useRef<{ angle: number } | null>(null);
   const [isDeleteHovered, setIsDeleteHovered] = useState(false);
+  const [isDuplicateHovered, setIsDuplicateHovered] = useState(false);
 
   // Compute display position with drag offset + padding applied
   const box = selectionBox;
@@ -325,6 +328,49 @@ export function SelectionOverlay({
               listening={false}
             />
           </Group>
+
+          {/* Duplicate button (top-right, left of delete) */}
+          {onDuplicateSelected && (
+            <Group
+              x={displayWidth - 66}
+              y={-20}
+              onClick={(e) => {
+                e.cancelBubble = true;
+                onDuplicateSelected();
+              }}
+              onTap={(e) => {
+                e.cancelBubble = true;
+                onDuplicateSelected();
+              }}
+              onMouseEnter={(e) => {
+                setIsDuplicateHovered(true);
+                const stage = e.target.getStage();
+                if (stage) stage.container().style.cursor = 'pointer';
+              }}
+              onMouseLeave={(e) => {
+                setIsDuplicateHovered(false);
+                const stage = e.target.getStage();
+                if (stage) stage.container().style.cursor = 'move';
+              }}
+            >
+              <Rect
+                width={HANDLE_SIZE}
+                height={HANDLE_SIZE}
+                fill={isDuplicateHovered ? '#22c55e' : '#94a3b8'}
+                opacity={isDuplicateHovered ? 1 : 0.4}
+                cornerRadius={8}
+              />
+              <Text
+                text={"\uD83D\uDCCB"}
+                fontSize={24}
+                width={HANDLE_SIZE}
+                height={HANDLE_SIZE}
+                align="center"
+                verticalAlign="middle"
+                listening={false}
+              />
+            </Group>
+          )}
 
           {/* Delete button (top-right) */}
           <Group

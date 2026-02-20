@@ -14,6 +14,7 @@ interface FrameComponentProps {
   onDragMove: (id: string, x: number, y: number) => void;
   onDragEnd: (id: string, x: number, y: number) => void;
   onDelete?: (id: string) => void;
+  onDuplicate?: (id: string) => void;
   onDissolve?: (id: string) => void;
   onTitleChange: (id: string, title: string) => void;
   onClick?: (id: string) => void;
@@ -32,7 +33,7 @@ interface FrameComponentProps {
   selectionBox?: SelectionBox | null;
 }
 
-export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDissolve, onTitleChange, onClick, isHovered, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, dragOffset, parentRotation, isSelected, groupDragOffset, groupTransformPreview, selectionBox }: FrameComponentProps) {
+export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDuplicate, onDissolve, onTitleChange, onClick, isHovered, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, dragOffset, parentRotation, isSelected, groupDragOffset, groupTransformPreview, selectionBox }: FrameComponentProps) {
   const lastDragUpdate = useRef(0);
   const lastResizeUpdate = useRef(0);
   const titleRef = useRef<Konva.Text>(null);
@@ -43,6 +44,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDisso
   const [isResizeHovered, setIsResizeHovered] = useState(false);
   const [isRotateHovered, setIsRotateHovered] = useState(false);
   const [isDeleteHovered, setIsDeleteHovered] = useState(false);
+  const [isDuplicateHovered, setIsDuplicateHovered] = useState(false);
   const [isDissolveHovered, setIsDissolveHovered] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [localWidth, setLocalWidth] = useState(frame.width);
@@ -283,6 +285,9 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDisso
         if (stage) stage.container().style.cursor = 'default';
       }}
     >
+      {/* Hit expansion — prevents onMouseLeave race when reaching action buttons */}
+      <Rect x={-34} y={-40} width={localWidth + 64} height={localHeight + 70}
+            fill="transparent" listening={true} />
       {/* Frame border */}
       {frame.borderless ? (
         <>
@@ -443,6 +448,53 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDisso
             width={40}
             height={40}
             text="📤"
+            fontSize={24}
+            align="center"
+            verticalAlign="middle"
+            listening={false}
+          />
+        </Group>
+      )}
+      {/* Duplicate button */}
+      {onDuplicate && isMouseHovered && (
+        <Group
+          x={localWidth - 66}
+          y={-20}
+          onClick={(e) => {
+            e.cancelBubble = true;
+            onDuplicate(frame.id);
+          }}
+          onTap={(e) => {
+            e.cancelBubble = true;
+            onDuplicate(frame.id);
+          }}
+          onMouseEnter={(e) => {
+            setIsMouseHovered(true);
+            setIsDuplicateHovered(true);
+            const stage = e.target.getStage();
+            if (stage) stage.container().style.cursor = 'pointer';
+          }}
+          onMouseLeave={(e) => {
+            setIsDuplicateHovered(false);
+            const stage = e.target.getStage();
+            if (stage && isMouseHovered && !isDeleteHovered && !isResizeHovered && !isRotateHovered) {
+              stage.container().style.cursor = 'grab';
+            }
+          }}
+        >
+          <Rect
+            width={40}
+            height={40}
+            fill={isDuplicateHovered ? '#22c55e' : '#94a3b8'}
+            opacity={isDuplicateHovered ? 1 : 0.4}
+            cornerRadius={8}
+          />
+          <Text
+            x={0}
+            y={0}
+            width={40}
+            height={40}
+            text={"\uD83D\uDCCB"}
             fontSize={24}
             align="center"
             verticalAlign="middle"

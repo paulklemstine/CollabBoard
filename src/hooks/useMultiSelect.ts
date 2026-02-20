@@ -115,6 +115,14 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string) {
     []
   );
 
+  const selectMultiple = useCallback(
+    (ids: Set<string>) => {
+      setSelectedIds(ids);
+      setGroupDragOffset(null);
+    },
+    []
+  );
+
   const handleStageMouseDown = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
       if (e.target !== e.target.getStage()) return;
@@ -402,6 +410,7 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string) {
     clearSelection,
     isSelected,
     selectObject,
+    selectMultiple,
     handleStageMouseDown,
     handleStageMouseMove,
     handleStageMouseUp,

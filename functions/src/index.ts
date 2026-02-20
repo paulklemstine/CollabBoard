@@ -2,7 +2,6 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { defineSecret } from 'firebase-functions/params';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import * as https from 'https';
 import type { BaseMessage } from '@langchain/core/messages';
 
 initializeApp();
@@ -13,7 +12,6 @@ const langchainApiKey = defineSecret('LANGCHAIN_API_KEY');
 const langfuseSecretKey = defineSecret('LANGFUSE_SECRET_KEY');
 const langfusePublicKey = defineSecret('LANGFUSE_PUBLIC_KEY');
 const langfuseHost = defineSecret('LANGFUSE_HOST');
-const giphyApiKey = defineSecret('GIPHY_API_KEY');
 
 // ---- Tool definitions for Claude ----
 
@@ -97,24 +95,12 @@ const tools = [
     },
   },
   {
-    name: 'searchGifs',
-    description: 'Search GIPHY for animated stickers by keyword. Returns a list of GIF URLs you can use with createGifSticker. Always call this before createGifSticker to get a valid URL.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        query: { type: 'string', description: 'Search keywords (e.g. "celebration", "thumbs up", "mind blown")' },
-        limit: { type: 'number', description: 'Number of results to return (default: 5, max: 10)' },
-      },
-      required: ['query'],
-    },
-  },
-  {
     name: 'createGifSticker',
-    description: 'Create an animated GIF sticker on the whiteboard. IMPORTANT: Always call searchGifs first to get a valid URL — do NOT make up URLs. Returns the created object ID.',
+    description: 'Create an animated GIF sticker on the whiteboard. Provide a search term and the client will find the best matching GIF from GIPHY. Returns the created object ID.',
     input_schema: {
       type: 'object' as const,
       properties: {
-        gifUrl: { type: 'string', description: 'A valid GIF URL returned by searchGifs' },
+        searchTerm: { type: 'string', description: 'Keywords to search for a GIF (e.g. "celebration", "thumbs up", "mind blown", "fish swimming")' },
         x: { type: 'number', description: 'X position on the canvas in ABSOLUTE coordinates (default: 0)' },
         y: { type: 'number', description: 'Y position on the canvas in ABSOLUTE coordinates (default: 0)' },
         size: { type: 'number', description: 'Size in pixels (default: 150)' },
@@ -122,7 +108,7 @@ const tools = [
         aiLabel: { type: 'string', description: 'Short description of what this sticker represents' },
         aiGroupId: { type: 'string', description: 'Shared kebab-case slug for all objects in the same logical operation' },
       },
-      required: ['gifUrl'],
+      required: ['searchTerm'],
     },
   },
   {
@@ -413,7 +399,7 @@ You can create and manipulate objects on the whiteboard using the provided tools
   - color: text color (default: #1e293b)
   - bgColor: optional background color (default: transparent)
 - **Stickers**: Single emoji characters that can be placed and resized. Default size: 150x150px. Use any emoji like 🎉, ❤️, 👍, 🚀, etc.
-- **GIF Stickers**: Animated GIF images from GIPHY. Default size: 150x150px. **IMPORTANT: Always call searchGifs first to find a valid URL, then pass it to createGifSticker. Never make up GIPHY URLs.**
+- **GIF Stickers**: Animated GIF images from GIPHY. Default size: 150x150px. Use createGifSticker with a descriptive search term (e.g. "happy dance", "fish swimming"). The client will search GIPHY and display the best match.
 - **Lines**: Created via createShape with shapeType "line". Use fromX/fromY/toX/toY to specify start and end points — the server automatically computes position, length, and rotation.
   - Example: Horizontal line from (100, 200) to (300, 200): fromX=100, fromY=200, toX=300, toY=200
   - Example: Vertical line from (200, 100) to (200, 300): fromX=200, fromY=100, toX=200, toY=300
@@ -548,9 +534,7 @@ interface ToolInput {
   fontStyle?: string;
   textAlign?: string;
   bgColor?: string;
-  gifUrl?: string;
-  query?: string;
-  limit?: number;
+  searchTerm?: string;
   objectId?: string;
   newText?: string;
   newColor?: string;
@@ -681,46 +665,13 @@ async function executeTool(
       return JSON.stringify({ id: docRef.id, type: 'sticker', emoji: input.emoji });
     }
 
-    case 'searchGifs': {
-      const query = input.query ?? '';
-      const limit = Math.min(input.limit ?? 5, 10);
-      const key = giphyApiKey.value();
-      if (!key) return JSON.stringify({ error: 'GIPHY API key not configured' });
-      const giphyUrl = `https://api.giphy.com/v1/stickers/search?api_key=${encodeURIComponent(key)}&q=${encodeURIComponent(query)}&limit=${limit}&rating=g`;
-      try {
-        const json = await new Promise<{ data: Array<{ id: string; title: string; images: { fixed_height: { url: string } } }> }>((resolve, reject) => {
-          https.get(giphyUrl, (res) => {
-            let body = '';
-            res.on('data', (chunk: string) => { body += chunk; });
-            res.on('end', () => {
-              try { resolve(JSON.parse(body)); } catch (e) { reject(e); }
-            });
-            res.on('error', reject);
-          }).on('error', reject);
-        });
-        if (!json.data || !Array.isArray(json.data)) {
-          console.error('GIPHY unexpected response:', JSON.stringify(json).slice(0, 500));
-          return JSON.stringify({ error: 'GIPHY returned unexpected response', details: (json as any).message ?? 'unknown' });
-        }
-        const results = json.data.map((g) => ({
-          id: g.id,
-          title: g.title,
-          url: g.images.fixed_height.url,
-        }));
-        return JSON.stringify({ results });
-      } catch (err) {
-        console.error('GIPHY search failed:', err);
-        return JSON.stringify({ error: `GIPHY search failed: ${err instanceof Error ? err.message : String(err)}` });
-      }
-    }
-
     case 'createGifSticker': {
       const docRef = objectsRef.doc();
       const size = input.size ?? 150;
       const data: Record<string, unknown> = {
         type: 'sticker',
         emoji: '',
-        gifUrl: input.gifUrl ?? '',
+        gifSearchTerm: input.searchTerm ?? '',
         x: input.x ?? 0,
         y: input.y ?? 0,
         width: size,
@@ -734,7 +685,7 @@ async function executeTool(
       if (input.aiGroupId) data.aiGroupId = input.aiGroupId;
       await docRef.set(data);
       objectsCreated.push(docRef.id);
-      return JSON.stringify({ id: docRef.id, type: 'sticker', gifUrl: input.gifUrl });
+      return JSON.stringify({ id: docRef.id, type: 'sticker', searchTerm: input.searchTerm });
     }
 
     case 'createText': {
@@ -1285,7 +1236,7 @@ async function executeTool(
 export const processAIRequest = onDocumentCreated(
   {
     document: 'boards/{boardId}/aiRequests/{requestId}',
-    secrets: [anthropicApiKey, langchainApiKey, langfuseSecretKey, langfusePublicKey, langfuseHost, giphyApiKey],
+    secrets: [anthropicApiKey, langchainApiKey, langfuseSecretKey, langfusePublicKey, langfuseHost],
     timeoutSeconds: 300,
     memory: '512MiB',
     maxInstances: 10,
@@ -1386,7 +1337,6 @@ export const processAIRequest = onDocumentCreated(
             createShape: 'Creating shape',
             createFrame: 'Creating frame',
             createSticker: 'Creating sticker',
-            searchGifs: 'Searching for GIFs',
             createGifSticker: 'Creating GIF sticker',
             createText: 'Creating text element',
             createConnector: 'Creating connector',
@@ -1472,7 +1422,7 @@ export const processAIRequest = onDocumentCreated(
       });
     } finally {
       // Flush all pending OTEL spans to Langfuse before the Cloud Function terminates
-      await otelSdk.shutdown();
+      try { await otelSdk.shutdown(); } catch (e) { console.warn('OTEL shutdown error (non-fatal):', e); }
     }
   },
 );

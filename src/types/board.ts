@@ -68,6 +68,8 @@ export interface Sticker extends BoardObject {
   emoji: string;
   /** Optional GIF URL (e.g. from GIPHY); when set, sticker renders as animated image */
   gifUrl?: string;
+  /** Search term for GIPHY; client auto-resolves to gifUrl on first render */
+  gifSearchTerm?: string;
 }
 
 export type ConnectorLineType = 'solid' | 'dashed' | 'dotted';

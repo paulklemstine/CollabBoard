@@ -11,6 +11,10 @@ import type { StickyNote, Shape, ShapeType, Frame, Sticker, Connector, TextObjec
 import { findContainingFrame, getChildrenOfFrame, scaleToFitFrame } from '../utils/containment';
 import { screenToWorld } from '../utils/coordinates';
 import type { StageTransform } from '../components/Board/Board';
+import { GiphyFetch } from '@giphy/js-fetch-api';
+
+const giphyApiKey = import.meta.env.VITE_GIPHY_API_KEY ?? '';
+const gf = giphyApiKey ? new GiphyFetch(giphyApiKey) : null;
 
 const STICKY_COLORS = ['#fef9c3', '#fef3c7', '#dcfce7', '#dbeafe', '#f3e8ff', '#ffe4e6', '#fed7aa', '#e0e7ff'];
 
@@ -43,6 +47,32 @@ export function useBoard(boardId: string, userId: string) {
     const unsubscribe = subscribeToBoard(boardId, setObjects);
     return unsubscribe;
   }, [boardId]);
+
+  // Auto-resolve GIF stickers: when a sticker has gifSearchTerm but no gifUrl,
+  // search GIPHY client-side and update the sticker with the first result.
+  const resolvedGifIds = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!gf) return;
+    const stickers = objects.filter(
+      (o): o is Sticker =>
+        o.type === 'sticker' && !!o.gifSearchTerm && !o.gifUrl && !resolvedGifIds.current.has(o.id)
+    );
+    for (const sticker of stickers) {
+      resolvedGifIds.current.add(sticker.id);
+      gf.search(sticker.gifSearchTerm!, { limit: 1, type: 'stickers' })
+        .then((res) => {
+          const gif = res.data[0];
+          if (gif) {
+            const img = gif.images?.fixed_height ?? gif.images?.original;
+            const url = img && 'url' in img ? img.url : '';
+            if (url) {
+              updateObject(boardId, sticker.id, { gifUrl: url } as Partial<Sticker>);
+            }
+          }
+        })
+        .catch((err) => console.warn('GIF auto-resolve failed:', err));
+    }
+  }, [objects, boardId]);
 
   const trackNewObject = useCallback((id: string) => {
     setNewObjectIds(prev => new Set(prev).add(id));

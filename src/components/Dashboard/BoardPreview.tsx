@@ -68,12 +68,16 @@ export function BoardPreview({ boardId, thumbnailUrl }: BoardPreviewProps) {
   // If we have a thumbnail screenshot, render it directly
   if (thumbnailUrl) {
     return (
-      <img
-        src={thumbnailUrl}
-        alt="Board preview"
-        className="w-full object-contain"
+      <div
+        className="w-full relative overflow-hidden"
         style={{ aspectRatio: '1 / 1', background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%)' }}
-      />
+      >
+        <img
+          src={thumbnailUrl}
+          alt="Board preview"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+      </div>
     );
   }
 

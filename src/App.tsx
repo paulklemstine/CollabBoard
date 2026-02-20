@@ -499,7 +499,7 @@ function BoardView({
 
       // Capture to offscreen canvas
       const WIDTH = 600;
-      const HEIGHT = 280;
+      const HEIGHT = 600;
       const offscreen = document.createElement('canvas');
       offscreen.width = WIDTH;
       offscreen.height = HEIGHT;

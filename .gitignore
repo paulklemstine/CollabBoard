@@ -24,6 +24,7 @@ dist-ssr
 *.sw?
 .env
 .claude/settings.local.json
+.claude/tracking/
 .serena/
 .firebase/*
 .playwright-mcp/

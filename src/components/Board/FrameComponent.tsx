@@ -147,11 +147,12 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
       tweenRef.current.play();
     } else if (isMouseHovered) {
       // Mouse hover — use custom frame colors when set
+      const hasBorderlessStroke = frame.borderless && frame.borderColor;
       tweenRef.current = new Konva.Tween({
         node: rect,
         duration: 0.15,
-        stroke: frame.borderless ? 'transparent' : (frame.borderColor || '#c084fc'),
-        strokeWidth: frame.borderless ? 0 : 3,
+        stroke: frame.borderless ? (frame.borderColor || 'transparent') : (frame.borderColor || '#c084fc'),
+        strokeWidth: frame.borderless ? (hasBorderlessStroke ? 2.5 : 0) : 3,
         fill: frame.color || (frame.borderless ? 'transparent' : 'rgba(250, 245, 255, 0.2)'),
         shadowColor: frame.borderless ? 'transparent' : (frame.borderColor || 'rgba(168, 85, 247, 0.2)'),
         shadowBlur: frame.borderless ? 0 : 10,
@@ -164,8 +165,8 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
       tweenRef.current = new Konva.Tween({
         node: rect,
         duration: 0.15,
-        stroke: frame.borderless ? 'transparent' : (frame.borderColor || '#a78bfa'),
-        strokeWidth: frame.borderless ? 0 : 2.5,
+        stroke: frame.borderless ? (frame.borderColor || 'transparent') : (frame.borderColor || '#a78bfa'),
+        strokeWidth: frame.borderless ? (frame.borderColor ? 2 : 0) : 2.5,
         fill: frame.color || (frame.borderless ? 'transparent' : 'rgba(250, 245, 255, 0.12)'),
         shadowColor: 'transparent',
         shadowBlur: 0,
@@ -310,20 +311,23 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
       {/* Frame border */}
       {frame.borderless ? (
         <>
-          {/* Invisible hit area for borderless frames */}
+          {/* Hit area / background for borderless frames */}
           <Rect
             ref={borderRef}
             width={localWidth}
             height={localHeight}
             fill={frame.color || "transparent"}
+            stroke={frame.borderColor || "transparent"}
+            strokeWidth={frame.borderColor ? 2 : 0}
+            dash={frame.borderColor ? [8, 4] : undefined}
             cornerRadius={16}
           />
-          {/* Subtle dashed outline on hover so user can discover the group */}
-          {isMouseHovered && (
+          {/* Subtle dashed outline on hover when no custom border set */}
+          {isMouseHovered && !frame.borderColor && (
             <Rect
               width={localWidth}
               height={localHeight}
-              stroke={frame.borderColor || "#94a3b8"}
+              stroke="#94a3b8"
               strokeWidth={1}
               dash={[6, 4]}
               fill="transparent"

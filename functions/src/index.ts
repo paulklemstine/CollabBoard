@@ -79,7 +79,7 @@ const tools = [
         x: { type: 'number', description: 'X position (default: 0)' },
         y: { type: 'number', description: 'Y position (default: 0)' },
         width: { type: 'number', description: 'Width in pixels (default: 400)' },
-        height: { type: 'number', description: 'Height in pixels (default: 300)' },
+        height: { type: 'number', description: 'Content area height in pixels (title bar renders above y, adding ~36px visually). Default: 300' },
         borderless: { type: 'boolean', description: 'If true, creates a transparent borderless frame — invisible grouping container with no border or title bar. Great for logical groupings without visual clutter. (default: false)' },
         color: { type: 'string', description: 'Background/fill color as hex string (default: none)' },
         borderColor: { type: 'string', description: 'Border stroke color as hex string (default: none)' },
@@ -442,9 +442,10 @@ See tool descriptions for object types, parameters, and defaults. Compact board 
 - Set parentId on child objects to attach them to a frame. Without parentId, objects are independent.
 - **Workflow:** Create frame first → get its ID → create children with that ID as parentId.
 - **All coordinates are ABSOLUTE**, not relative to the parent frame.
-  - Position children inside frame: childX = frameX + margin (e.g. +20), childY = frameY + 60 (36px title bar + margin).
-  - Borderless frames have no title bar, so children start at frameY + 20.
-- Example: createFrame(x:0, y:0, w:400, h:300) → {id:"frame-xyz"} → createStickyNote(x:20, y:60, parentId:"frame-xyz")
+  - The title bar renders ABOVE frame.y (not inside the content area). frame.height is the content area only.
+  - Position children inside frame: childX = frameX + margin (e.g. +20), childY = frameY + margin (e.g. +20).
+  - When creating a frame around existing objects, the frame height only needs to cover the content. The title bar is extra visual space above frame.y.
+- Example: createFrame(x:0, y:0, w:400, h:300) → {id:"frame-xyz"} → createStickyNote(x:20, y:20, parentId:"frame-xyz")
 - **embedInFrame** tool: moves multiple existing objects into a frame in one call, auto-positioning them in a vertical stack. Preferred over calling updateParent + moveObject separately.
 - **updateParent** auto-repositions: when attaching an object to a frame, if the object is outside the frame it will be automatically moved inside and stacked below existing children.
 - **getBoardSummary** shows childCount per frame (e.g. "To Do (abc123, 3 children)") so you can see which frames are populated at a glance.
@@ -1180,10 +1181,10 @@ async function executeTool(
         const frameSnap = await objectsRef.doc(input.newParentId).get();
         const frame = frameSnap.exists ? frameSnap.data() as any : null;
         if (frame && frame.type === 'frame') {
-          const titleBarH = frame.borderless ? 0 : 36;
+          // Title bar renders above frame.y, so content area starts at frame.y
           const margin = 20;
           const interiorX = frame.x + margin;
-          const interiorY = frame.y + titleBarH + margin;
+          const interiorY = frame.y + margin;
           const interiorRight = frame.x + frame.width - margin;
           const interiorBottom = frame.y + frame.height - margin;
 
@@ -1229,10 +1230,10 @@ async function executeTool(
       const frame = frameSnap.data() as any;
       if (frame.type !== 'frame') return JSON.stringify({ error: 'Target is not a frame' });
 
-      const titleBarH = frame.borderless ? 0 : 36;
+      // Title bar renders above frame.y, so content area starts at frame.y
       const margin = 20;
       const interiorX = frame.x + margin;
-      let nextY = frame.y + titleBarH + margin;
+      let nextY = frame.y + margin;
       const interiorRight = frame.x + frame.width - margin;
       const maxW = interiorRight - interiorX;
 
@@ -1493,7 +1494,7 @@ async function executeTool(
               type: 'sticky',
               text: prompts[i],
               x: fx + 20,
-              y: fy + 56,
+              y: fy + 20,
               width: 180,
               height: 180,
               color: colors[i],
@@ -1544,7 +1545,7 @@ async function executeTool(
               type: 'sticky',
               text: kanbanPrompts[i],
               x: fx + 20,
-              y: fy + 56,
+              y: fy + 20,
               width: 180,
               height: 180,
               color: kanbanColors[i],
@@ -1595,7 +1596,7 @@ async function executeTool(
               type: 'sticky',
               text: retroPrompts[i],
               x: fx + 20,
-              y: fy + 56,
+              y: fy + 20,
               width: 180,
               height: 180,
               color: retroColors[i],
@@ -1648,7 +1649,7 @@ async function executeTool(
               type: 'sticky',
               text: eiPrompts[i],
               x: fx + 20,
-              y: fy + 56,
+              y: fy + 20,
               width: 180,
               height: 180,
               color: eiColors[i],

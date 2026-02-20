@@ -26,6 +26,7 @@ dist-ssr
 .claude/*
 .serena/
 .firebase/*
+.playwright-mcp/
 tmp/*
 functions/lib/
 nul

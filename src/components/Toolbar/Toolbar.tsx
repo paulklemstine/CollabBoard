@@ -114,40 +114,55 @@ export function Toolbar({
       // ShapeDrawer (Fill=bg, Stroke=border, Border unused)
       setShapeFill(s.color);
       setShapeStroke(s.borderColor ?? 'transparent');
-      // TextDrawer color = sticky textColor
+      // TextDrawer
       setTextColor(s.textColor ?? '#1e293b');
+      setTextFontSize(s.fontSize ?? 15);
+      setTextFontFamily(s.fontFamily ?? "'Inter', sans-serif");
+      setTextFontWeight(s.fontWeight ?? 'normal');
+      setTextFontStyle(s.fontStyle ?? 'normal');
+      setTextAlign(s.textAlign ?? 'left');
     } else if (editingFrame) {
       const f = selectedObject as import('../../types/board').Frame;
       setShapeFill(f.color ?? 'transparent');
       setShapeStroke(f.borderColor ?? '#a78bfa');
+      // TextDrawer
       setTextColor(f.textColor ?? '#581c87');
+      setTextFontSize(f.fontSize ?? 14);
+      setTextFontFamily(f.fontFamily ?? "'Inter', sans-serif");
+      setTextFontWeight(f.fontWeight ?? 'bold');
+      setTextFontStyle(f.fontStyle ?? 'normal');
     }
   }, [selectedObject?.id, editingText, editingShape, editingSticky, editingFrame]);
 
   // Wrapped onChange handlers that also update the selected object
   const handleTextFontSizeChange = (size: number) => {
     setTextFontSize(size);
-    if (editingText && onUpdateSelectedObject) onUpdateSelectedObject({ fontSize: size } as Partial<AnyBoardObject>);
+    if ((editingText || editingSticky || editingFrame) && onUpdateSelectedObject)
+      onUpdateSelectedObject({ fontSize: size } as Partial<AnyBoardObject>);
   };
 
   const handleTextFontFamilyChange = (family: string) => {
     setTextFontFamily(family);
-    if (editingText && onUpdateSelectedObject) onUpdateSelectedObject({ fontFamily: family } as Partial<AnyBoardObject>);
+    if ((editingText || editingSticky || editingFrame) && onUpdateSelectedObject)
+      onUpdateSelectedObject({ fontFamily: family } as Partial<AnyBoardObject>);
   };
 
   const handleTextFontWeightChange = (weight: 'normal' | 'bold') => {
     setTextFontWeight(weight);
-    if (editingText && onUpdateSelectedObject) onUpdateSelectedObject({ fontWeight: weight } as Partial<AnyBoardObject>);
+    if ((editingText || editingSticky || editingFrame) && onUpdateSelectedObject)
+      onUpdateSelectedObject({ fontWeight: weight } as Partial<AnyBoardObject>);
   };
 
   const handleTextFontStyleChange = (style: 'normal' | 'italic') => {
     setTextFontStyle(style);
-    if (editingText && onUpdateSelectedObject) onUpdateSelectedObject({ fontStyle: style } as Partial<AnyBoardObject>);
+    if ((editingText || editingSticky || editingFrame) && onUpdateSelectedObject)
+      onUpdateSelectedObject({ fontStyle: style } as Partial<AnyBoardObject>);
   };
 
   const handleTextAlignChange = (align: 'left' | 'center' | 'right') => {
     setTextAlign(align);
-    if (editingText && onUpdateSelectedObject) onUpdateSelectedObject({ textAlign: align } as Partial<AnyBoardObject>);
+    if ((editingText || editingSticky) && onUpdateSelectedObject)
+      onUpdateSelectedObject({ textAlign: align } as Partial<AnyBoardObject>);
   };
 
   const handleTextColorChange = (color: string) => {

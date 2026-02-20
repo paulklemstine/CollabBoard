@@ -137,6 +137,14 @@ const rgbToHex = (r: number, g: number, b: number): string => {
  * @param color - Hex color string (with or without #)
  * @returns Complementary color as hex string
  */
+/**
+ * Convert hex color to rgba string with given alpha
+ */
+export const hexToRgba = (hex: string, alpha: number): string => {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
 export const getComplementaryColor = (color: string): string => {
   const { r, g, b } = hexToRgb(color);
   const { h, s, l } = rgbToHsl(r, g, b);

@@ -127,8 +127,11 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
     textarea.style.left = `${stageBox.left + textPosition.x}px`;
     textarea.style.width = `${(localWidth - 20) * scale}px`;
     textarea.style.height = `${(localHeight - 20) * scale}px`;
-    textarea.style.fontSize = `${14 * scale}px`;
-    textarea.style.fontFamily = "'Inter', sans-serif";
+    textarea.style.fontSize = `${(note.fontSize ?? 15) * scale}px`;
+    textarea.style.fontFamily = note.fontFamily || "'Inter', sans-serif";
+    textarea.style.fontWeight = note.fontWeight === 'bold' ? '700' : '400';
+    textarea.style.fontStyle = note.fontStyle === 'italic' ? 'italic' : 'normal';
+    textarea.style.textAlign = note.textAlign || 'left';
     textarea.style.padding = '4px';
     textarea.style.border = 'none';
     textarea.style.outline = 'none';
@@ -368,8 +371,10 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
           width={localWidth - 20}
           height={localHeight - 20}
           text={note.text || 'Double-click to edit'}
-          fontSize={15}
-          fontFamily="'Inter', sans-serif"
+          fontSize={note.fontSize ?? 15}
+          fontFamily={note.fontFamily || "'Inter', sans-serif"}
+          fontStyle={`${note.fontWeight === 'bold' ? 'bold' : 'normal'}${note.fontStyle === 'italic' ? ' italic' : ''}`}
+          align={note.textAlign || 'left'}
           fill={note.textColor || getContrastTextColor(note.color)}
           opacity={note.text ? 1 : 0.5}
           lineHeight={1.4}

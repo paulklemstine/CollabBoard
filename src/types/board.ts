@@ -31,6 +31,11 @@ export interface StickyNote extends BoardObject {
   color: string;
   textColor?: string;
   borderColor?: string;
+  fontSize?: number;
+  fontFamily?: string;
+  fontWeight?: 'normal' | 'bold';
+  fontStyle?: 'normal' | 'italic';
+  textAlign?: 'left' | 'center' | 'right';
 }
 
 export interface TextObject extends BoardObject {
@@ -67,6 +72,10 @@ export interface Frame extends BoardObject {
   borderColor?: string;
   /** Title text color */
   textColor?: string;
+  fontSize?: number;
+  fontFamily?: string;
+  fontWeight?: 'normal' | 'bold';
+  fontStyle?: 'normal' | 'italic';
 }
 
 export interface Sticker extends BoardObject {

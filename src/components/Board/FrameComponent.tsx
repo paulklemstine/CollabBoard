@@ -2,6 +2,7 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { Group, Rect, Text } from 'react-konva';
 import Konva from 'konva';
 import type { Frame } from '../../types/board';
+import { hexToRgba } from '../../utils/colors';
 import { calculateGroupObjectTransform } from '../../utils/groupTransform';
 import type { GroupTransformPreview, SelectionBox } from '../../hooks/useMultiSelect';
 
@@ -207,9 +208,11 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
     input.style.top = `${stageBox.top + textPosition.y}px`;
     input.style.left = `${stageBox.left + textPosition.x}px`;
     input.style.width = `${(localWidth - 40) * scale}px`;
-    input.style.fontSize = `${13 * scale}px`;
-    input.style.fontFamily = "'Inter', sans-serif";
-    input.style.fontWeight = '600';
+    input.style.fontSize = `${(frame.fontSize ?? 14) * scale}px`;
+    input.style.fontFamily = frame.fontFamily || "'Inter', sans-serif";
+    input.style.fontWeight = (frame.fontWeight === 'bold' || !frame.fontWeight) ? '700' : '400';
+    input.style.fontStyle = frame.fontStyle === 'italic' ? 'italic' : 'normal';
+    input.style.color = frame.textColor || '#581c87';
     input.style.padding = '2px 4px';
     input.style.border = '1px solid #3b82f6';
     input.style.outline = 'none';
@@ -399,60 +402,72 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
         />
       )}
       {/* Title bar — hidden for borderless frames */}
-      {!frame.borderless && (
+      {!frame.borderless && (() => {
+        const bc = frame.borderColor || '#a78bfa';
+        const isCustomBorder = !!frame.borderColor;
+        const titleFontSize = frame.fontSize ?? 14;
+        const titleBarH = Math.max(36, titleFontSize + 20);
+        return (
         <>
-          {/* Title background with vibrant rainbow gradient */}
+          {/* Title background — complementary tint from border color */}
           <Rect
             x={0}
-            y={-36}
+            y={-titleBarH}
             width={localWidth}
-            height={36}
+            height={titleBarH}
             fillLinearGradientStartPoint={{ x: 0, y: 0 }}
             fillLinearGradientEndPoint={{ x: localWidth, y: 0 }}
-            fillLinearGradientColorStops={[
-              0, 'rgba(251, 146, 60, 0.18)',
-              0.25, 'rgba(251, 113, 133, 0.16)',
-              0.5, 'rgba(168, 85, 247, 0.16)',
-              0.75, 'rgba(96, 165, 250, 0.14)',
-              1, 'rgba(74, 222, 128, 0.12)'
-            ]}
+            fillLinearGradientColorStops={
+              isCustomBorder
+                ? [0, hexToRgba(bc, 0.22), 0.5, hexToRgba(bc, 0.12), 1, hexToRgba(bc, 0.06)]
+                : [
+                    0, 'rgba(251, 146, 60, 0.18)',
+                    0.25, 'rgba(251, 113, 133, 0.16)',
+                    0.5, 'rgba(168, 85, 247, 0.16)',
+                    0.75, 'rgba(96, 165, 250, 0.14)',
+                    1, 'rgba(74, 222, 128, 0.12)'
+                  ]
+            }
             cornerRadius={[16, 16, 0, 0]}
           />
-          {/* Left accent bar — rainbow */}
+          {/* Left accent bar — derives from border color */}
           <Rect
             x={0}
-            y={-36}
+            y={-titleBarH}
             width={4}
-            height={36}
-            fillLinearGradientStartPoint={{ x: 0, y: 0 }}
-            fillLinearGradientEndPoint={{ x: 0, y: 36 }}
-            fillLinearGradientColorStops={[0, '#f472b6', 0.33, '#a78bfa', 0.66, '#60a5fa', 1, '#34d399']}
+            height={titleBarH}
+            fill={isCustomBorder ? bc : undefined}
+            fillLinearGradientStartPoint={isCustomBorder ? undefined : { x: 0, y: 0 }}
+            fillLinearGradientEndPoint={isCustomBorder ? undefined : { x: 0, y: 36 }}
+            fillLinearGradientColorStops={isCustomBorder ? undefined : [0, '#f472b6', 0.33, '#a78bfa', 0.66, '#60a5fa', 1, '#34d399']}
             cornerRadius={[16, 0, 0, 0]}
           />
           {/* Title text */}
           <Text
             ref={titleRef}
             x={16}
-            y={-28}
+            y={-titleBarH + 8}
+            width={localWidth - 40}
             text={frame.title || 'Double-click to edit'}
-            fontSize={14}
-            fontFamily="'Inter', sans-serif"
-            fontStyle="700"
-            fill={frame.title ? (frame.textColor || '#581c87') : '#a78bfa'}
+            fontSize={titleFontSize}
+            fontFamily={frame.fontFamily || "'Inter', sans-serif"}
+            fontStyle={`${frame.fontWeight ?? 'bold'}${(frame.fontStyle === 'italic') ? ' italic' : ''}`}
+            fill={frame.title ? (frame.textColor || '#581c87') : (isCustomBorder ? hexToRgba(bc, 0.5) : '#a78bfa')}
             listening={false}
           />
           {/* Double-click area for title editing */}
           <Rect
             x={0}
-            y={-36}
+            y={-titleBarH}
             width={localWidth - 30}
-            height={36}
+            height={titleBarH}
             fill="transparent"
             onDblClick={() => setIsEditing(true)}
             onDblTap={() => setIsEditing(true)}
           />
         </>
-      )}
+        );
+      })()}
       {/* Dissolve frame button (top-left) — removes frame, keeps children */}
       {onDissolve && isMouseHovered && (
         <Group

@@ -20,8 +20,14 @@ export function getBoundingBox(objects: BoardObject[]): BBox | null {
   let maxY = -Infinity;
 
   for (const obj of objects) {
+    // For non-borderless frames, the title bar extends above obj.y
+    let titleBarH = 0;
+    if (obj.type === 'frame' && !('borderless' in obj && (obj as any).borderless)) {
+      const fontSize = ('fontSize' in obj && (obj as any).fontSize) ? (obj as any).fontSize : 14;
+      titleBarH = Math.max(36, fontSize + 20);
+    }
     minX = Math.min(minX, obj.x);
-    minY = Math.min(minY, obj.y);
+    minY = Math.min(minY, obj.y - titleBarH);
     maxX = Math.max(maxX, obj.x + obj.width);
     maxY = Math.max(maxY, obj.y + obj.height);
   }

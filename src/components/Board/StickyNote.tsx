@@ -5,6 +5,7 @@ import type { StickyNote as StickyNoteType } from '../../types/board';
 import { getContrastTextColor, getComplementaryColor } from '../../utils/colors';
 import { calculateGroupObjectTransform } from '../../utils/groupTransform';
 import type { GroupTransformPreview, SelectionBox } from '../../hooks/useMultiSelect';
+import { useMarchingAnts } from '../../hooks/useMarchingAnts';
 
 const DRAG_THROTTLE_MS = 50;
 const MIN_WIDTH = 100;
@@ -52,6 +53,8 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
   const groupRef = useRef<Konva.Group>(null);
   const rotateStartRef = useRef<{ angle: number; rotation: number } | null>(null);
   const prevSelectedRef = useRef(false);
+  const selectionRectRef = useRef<Konva.Rect>(null);
+  useMarchingAnts(selectionRectRef, !!isSelected && !selectionBox);
 
   useEffect(() => {
     if (!isResizing) {
@@ -288,6 +291,7 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
       {/* Selection highlight — only for single-select */}
       {isSelected && !selectionBox && (
         <Rect
+          ref={selectionRectRef}
           width={localWidth}
           height={localHeight}
           stroke="#3b82f6"

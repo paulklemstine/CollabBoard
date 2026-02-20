@@ -5,6 +5,7 @@ import type { Shape } from '../../types/board';
 import { calculateGroupObjectTransform } from '../../utils/groupTransform';
 import type { GroupTransformPreview, SelectionBox } from '../../hooks/useMultiSelect';
 import { regularPolygonPoints, starPoints, arrowPoints, crossPoints } from '../../utils/shapePoints';
+import { useMarchingAnts } from '../../hooks/useMarchingAnts';
 
 const DRAG_THROTTLE_MS = 50;
 const MIN_WIDTH = 40;
@@ -61,6 +62,8 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
   const groupRef = useRef<Konva.Group>(null);
   const rotateStartRef = useRef<{ angle: number; rotation: number } | null>(null);
   const prevSelectedRef = useRef(false);
+  const selectionRectRef = useRef<Konva.Rect>(null);
+  useMarchingAnts(selectionRectRef, !!isSelected && !selectionBox);
   // Endpoint drag ref: stores fixed endpoint coords and which end is being dragged
   const endpointDragRef = useRef<{ fixedX: number; fixedY: number; end: 'left' | 'right' } | null>(null);
 
@@ -489,6 +492,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
       {/* Selection highlight — only for single-select */}
       {isSelected && !selectionBox && (
         <Rect
+          ref={selectionRectRef}
           width={localWidth}
           height={localHeight}
           stroke="#3b82f6"

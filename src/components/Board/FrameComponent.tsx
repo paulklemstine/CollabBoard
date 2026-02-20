@@ -5,6 +5,7 @@ import type { Frame } from '../../types/board';
 import { hexToRgba } from '../../utils/colors';
 import { calculateGroupObjectTransform } from '../../utils/groupTransform';
 import type { GroupTransformPreview, SelectionBox } from '../../hooks/useMultiSelect';
+import { useMarchingAnts } from '../../hooks/useMarchingAnts';
 
 const DRAG_THROTTLE_MS = 50;
 const MIN_WIDTH = 200;
@@ -57,6 +58,8 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
   const groupRef = useRef<Konva.Group>(null);
   const rotateStartRef = useRef<{ angle: number; rotation: number } | null>(null);
   const prevSelectedRef = useRef(false);
+  const selectionRectRef = useRef<Konva.Rect>(null);
+  useMarchingAnts(selectionRectRef, !!isSelected && !selectionBox);
 
   useEffect(() => {
     if (!isResizing) {
@@ -373,7 +376,6 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
           height={localHeight + titleBarH}
           stroke={isConnectorHighlighted ? '#818cf8' : (frame.borderColor || '#a78bfa')}
           strokeWidth={isConnectorHighlighted ? 4 : 2.5}
-          dash={[12, 6]}
           fill={frame.color || "rgba(250, 245, 255, 0.12)"}
           cornerRadius={16}
         />
@@ -381,6 +383,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
       {/* Selection highlight — only for single-select */}
       {isSelected && !selectionBox && (
         <Rect
+          ref={selectionRectRef}
           x={-4}
           y={-titleBarH - 4}
           width={localWidth + 8}

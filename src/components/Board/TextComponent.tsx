@@ -4,6 +4,7 @@ import Konva from 'konva';
 import type { TextObject } from '../../types/board';
 import { calculateGroupObjectTransform } from '../../utils/groupTransform';
 import type { GroupTransformPreview, SelectionBox } from '../../hooks/useMultiSelect';
+import { useMarchingAnts } from '../../hooks/useMarchingAnts';
 
 const DRAG_THROTTLE_MS = 50;
 const MIN_WIDTH = 100;
@@ -59,6 +60,8 @@ export function TextComponent({
   const groupRef = useRef<Konva.Group>(null);
   const rotateStartRef = useRef<{ angle: number; rotation: number } | null>(null);
   const prevSelectedRef = useRef(false);
+  const selectionRectRef = useRef<Konva.Rect>(null);
+  useMarchingAnts(selectionRectRef, !!isSelected && !selectionBox);
 
   useEffect(() => {
     if (!isResizing) {
@@ -328,6 +331,7 @@ export function TextComponent({
       {/* Selection highlight — only for single-select */}
       {isSelected && !selectionBox && (
         <Rect
+          ref={selectionRectRef}
           width={localWidth}
           height={localHeight}
           stroke="#3b82f6"

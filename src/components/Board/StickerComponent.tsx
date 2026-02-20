@@ -4,6 +4,7 @@ import Konva from 'konva';
 import type { Sticker } from '../../types/board';
 import { calculateGroupObjectTransform } from '../../utils/groupTransform';
 import type { GroupTransformPreview, SelectionBox } from '../../hooks/useMultiSelect';
+import { useMarchingAnts } from '../../hooks/useMarchingAnts';
 
 const DRAG_THROTTLE_MS = 50;
 const MIN_SIZE = 50;
@@ -55,6 +56,8 @@ export function StickerComponent({
   const flashOverlayRef = useRef<Konva.Rect>(null);
   const rotateStartRef = useRef<{ angle: number; rotation: number } | null>(null);
   const prevSelectedRef = useRef(false);
+  const selectionRectRef = useRef<Konva.Rect>(null);
+  useMarchingAnts(selectionRectRef, !!isSelected && !selectionBox);
   const lastDragUpdate = useRef(0);
   const lastResizeUpdate = useRef(0);
   const [isMouseHovered, setIsMouseHovered] = useState(false);
@@ -248,6 +251,7 @@ export function StickerComponent({
       {/* Selection highlight — only for single-select */}
       {isSelected && !selectionBox && (
         <Rect
+          ref={selectionRectRef}
           width={localWidth}
           height={localHeight}
           stroke="#3b82f6"

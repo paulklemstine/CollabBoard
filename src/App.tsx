@@ -188,6 +188,36 @@ function BoardView({
     batchRemoveObjects,
   } = useBoard(boardId, user.uid, pushUndo, isUndoRedoingRef);
 
+  // Keep a ref to objects so AI undo callback always sees latest state
+  const latestObjectsRef = useRef(objects);
+  latestObjectsRef.current = objects;
+
+  // When AI creates objects, push an undo entry once they appear in state
+  const handleAIObjectsCreated = useCallback((ids: string[]) => {
+    if (ids.length === 0) return;
+    const idSet = new Set(ids);
+    let attempts = 0;
+    const poll = () => {
+      const found = latestObjectsRef.current.filter(o => idSet.has(o.id));
+      if (found.length === ids.length || attempts >= 20) {
+        if (found.length > 0) {
+          pushUndo({
+            changes: found.map(obj => ({
+              objectId: obj.id,
+              before: null,
+              after: structuredClone(obj),
+            })),
+          });
+        }
+        return;
+      }
+      attempts++;
+      setTimeout(poll, 250);
+    };
+    // Small delay to allow Firestore listener to deliver the objects
+    setTimeout(poll, 500);
+  }, [pushUndo]);
+
   const handleContainerRef = useCallback((el: HTMLDivElement | null) => {
     stageContainerRef.current = el;
   }, []);
@@ -914,7 +944,7 @@ function BoardView({
         canUndo={canUndo}
         canRedo={canRedo}
       />
-      <AIChat boardId={boardId} isOpen={aiOpen} onClose={() => setAiOpen(false)} />
+      <AIChat boardId={boardId} isOpen={aiOpen} onClose={() => setAiOpen(false)} onObjectsCreated={handleAIObjectsCreated} />
       {/* Top left: Back/Share buttons and minimap */}
       <div className="absolute top-4 left-4 z-50 flex flex-col gap-3">
         <div className="glass-playful rounded-xl shadow-lg flex items-center">

@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { sendAICommand } from '../services/aiService';
 import type { AIMessage } from '../types/board';
 
-export function useAI(boardId: string) {
+export function useAI(boardId: string, onObjectsCreated?: (ids: string[]) => void) {
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +37,10 @@ export function useAI(boardId: string) {
         };
 
         setMessages((prev) => [...prev, assistantMessage]);
+
+        if (result.objectsCreated.length > 0 && onObjectsCreated) {
+          onObjectsCreated(result.objectsCreated);
+        }
       } catch (err: unknown) {
         const message =
           err instanceof Error ? err.message : 'Something went wrong. Please try again.';

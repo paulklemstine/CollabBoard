@@ -577,10 +577,53 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
           </Group>
         </>
       )}
+      {/* Line centered copy button */}
+      {isLine && onDuplicate && isMouseHovered && (
+        <Group
+          x={localWidth / 2 - 43}
+          y={localHeight / 2 - 20}
+          onClick={(e) => {
+            e.cancelBubble = true;
+            onDuplicate(shape.id);
+          }}
+          onTap={(e) => {
+            e.cancelBubble = true;
+            onDuplicate(shape.id);
+          }}
+          onMouseEnter={(e) => {
+            setIsMouseHovered(true);
+            setIsDuplicateHovered(true);
+            const stage = e.target.getStage();
+            if (stage) stage.container().style.cursor = 'pointer';
+          }}
+          onMouseLeave={(e) => {
+            setIsDuplicateHovered(false);
+            const stage = e.target.getStage();
+            if (stage && isMouseHovered) stage.container().style.cursor = 'grab';
+          }}
+        >
+          <Rect
+            width={40}
+            height={40}
+            fill={isDuplicateHovered ? '#22c55e' : '#94a3b8'}
+            opacity={isDuplicateHovered ? 1 : 0.4}
+            cornerRadius={8}
+          />
+          <Text
+            text={"\uD83D\uDCCB"}
+            fontSize={24}
+            width={40}
+            height={40}
+            align="center"
+            verticalAlign="middle"
+            listening={false}
+          />
+        </Group>
+      )}
       {/* Line centered delete button */}
       {isLine && onDelete && isMouseHovered && (
         <Group
-          x={localWidth / 2 - 20}
+          x={localWidth / 2 + 3}
           y={localHeight / 2 - 20}
           onClick={(e) => {
             e.cancelBubble = true;

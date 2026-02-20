@@ -58,9 +58,11 @@ export function useMultiSelect(
   const [transformPreview, setTransformPreview] = useState<GroupTransformPreview | null>(null);
   const [groupHoveredFrame, setGroupHoveredFrame] = useState<{ id: string; fits: boolean } | null>(null);
   const [selectionHidden, setSelectionHidden] = useState(false);
+  const [boxRotation, setBoxRotation] = useState(0);
 
   // Derive selection box from actual objects — always correct, no manual tracking.
   // When objects update (e.g. after Firestore commit), this recalculates automatically.
+  // boxRotation preserves accumulated rotation so the box doesn't snap back to axis-aligned.
   const selectionBox = useMemo<SelectionBox | null>(() => {
     if (selectedIds.size === 0) return null;
     const selected = objects.filter(
@@ -69,8 +71,8 @@ export function useMultiSelect(
     if (selected.length === 0) return null;
     const bbox = getBoundingBox(selected);
     if (!bbox) return null;
-    return { ...bbox, rotation: 0 };
-  }, [objects, selectedIds]);
+    return { ...bbox, rotation: boxRotation };
+  }, [objects, selectedIds, boxRotation]);
 
   // Ref mirrors for use inside event callbacks (avoids stale closures)
   const objectsRef = useRef(objects);
@@ -125,6 +127,7 @@ export function useMultiSelect(
     setGroupDragOffset(null);
     setTransformPreview(null);
     setGroupHoveredFrame(null);
+    setBoxRotation(0);
   }, []);
 
   const isSelected = useCallback(
@@ -139,6 +142,7 @@ export function useMultiSelect(
 
       setSelectedIds(new Set([id]));
       setGroupDragOffset(null);
+      setBoxRotation(0);
     },
     []
   );
@@ -147,6 +151,7 @@ export function useMultiSelect(
     (ids: Set<string>) => {
       setSelectedIds(ids);
       setGroupDragOffset(null);
+      setBoxRotation(0);
     },
     []
   );
@@ -423,6 +428,9 @@ export function useMultiSelect(
         const changes = buildGroupUndoChanges(selected, updates);
         if (changes.length > 0) pushUndoRef.current({ changes });
       }
+
+      // Accumulate rotation so the selection box stays rotated
+      setBoxRotation((prev) => prev + deltaAngle);
 
       pendingClearRef.current = 'transform';
       setSelectionHidden(true);

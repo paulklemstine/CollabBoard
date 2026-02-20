@@ -18,18 +18,19 @@ const langfuseHost = defineSecret('LANGFUSE_HOST');
 const tools = [
   {
     name: 'createStickyNote',
-    description: 'Create a sticky note on the whiteboard. Returns the created object ID. IMPORTANT: Set parentId to attach it to a frame - without parentId, it will be independent and not move with any frame.',
+    description: 'Create a sticky note. Returns the created object ID.',
     input_schema: {
       type: 'object' as const,
       properties: {
         text: { type: 'string', description: 'The text content of the sticky note' },
-        x: { type: 'number', description: 'X position on the canvas in ABSOLUTE coordinates (default: 0)' },
-        y: { type: 'number', description: 'Y position on the canvas in ABSOLUTE coordinates (default: 0)' },
+        x: { type: 'number', description: 'X position (default: 0)' },
+        y: { type: 'number', description: 'Y position (default: 0)' },
         color: { type: 'string', description: 'Background color as hex string (default: #fef9c3)' },
         textColor: { type: 'string', description: 'Text color as hex string (default: #1e293b). Use for contrast against the background color.' },
-        parentId: { type: 'string', description: 'CRITICAL: ID of a frame to attach this sticky note to. Without this, the note will NOT move with any frame. Get the frame ID from the createFrame response.' },
-        aiLabel: { type: 'string', description: 'Short description of what this object represents (e.g. "main idea", "pro argument")' },
-        aiGroupId: { type: 'string', description: 'Shared kebab-case slug for all objects in the same logical operation (e.g. "swot-strengths")' },
+        parentId: { type: 'string', description: 'Frame ID to attach to' },
+        aiLabel: { type: 'string', description: 'Object description' },
+        aiGroupId: { type: 'number', description: 'Numeric group ID (reuse same number for related objects)' },
+        aiGroupLabel: { type: 'string', description: 'Group name (provide once per aiGroupId)' },
       },
       required: ['text'],
     },
@@ -51,28 +52,30 @@ const tools = [
         fromY: { type: 'number', description: 'Line start Y coordinate.' },
         toX: { type: 'number', description: 'Line end X coordinate.' },
         toY: { type: 'number', description: 'Line end Y coordinate.' },
-        parentId: { type: 'string', description: 'ID of a frame to attach this shape to.' },
-        aiLabel: { type: 'string', description: 'Short description of what this object represents' },
-        aiGroupId: { type: 'string', description: 'Shared kebab-case slug for all objects in the same logical operation' },
+        parentId: { type: 'string', description: 'Frame ID to attach to' },
+        aiLabel: { type: 'string', description: 'Object description' },
+        aiGroupId: { type: 'number', description: 'Numeric group ID (reuse same number for related objects)' },
+        aiGroupLabel: { type: 'string', description: 'Group name (provide once per aiGroupId)' },
       },
       required: ['shapeType'],
     },
   },
   {
     name: 'createFrame',
-    description: 'Create a frame (grouping container) on the whiteboard. Returns the frame ID - save this to use as parentId when creating children. Frames visually group objects and can be nested inside other frames. Set borderless=true for an invisible grouping container with no visible border or title bar.',
+    description: 'Create a frame (grouping container). Returns the frame ID — use as parentId for children. Set borderless=true for invisible grouping.',
     input_schema: {
       type: 'object' as const,
       properties: {
         title: { type: 'string', description: 'Title text displayed on the frame (ignored when borderless)' },
-        x: { type: 'number', description: 'X position in ABSOLUTE coordinates (default: 0)' },
-        y: { type: 'number', description: 'Y position in ABSOLUTE coordinates (default: 0)' },
+        x: { type: 'number', description: 'X position (default: 0)' },
+        y: { type: 'number', description: 'Y position (default: 0)' },
         width: { type: 'number', description: 'Width in pixels (default: 400)' },
         height: { type: 'number', description: 'Height in pixels (default: 300)' },
         borderless: { type: 'boolean', description: 'If true, creates a transparent borderless frame — invisible grouping container with no border or title bar. Great for logical groupings without visual clutter. (default: false)' },
-        parentId: { type: 'string', description: 'ID of a parent frame to nest this frame inside.' },
-        aiLabel: { type: 'string', description: 'Short description of what this frame represents' },
-        aiGroupId: { type: 'string', description: 'Shared kebab-case slug for all objects in the same logical operation' },
+        parentId: { type: 'string', description: 'Parent frame ID for nesting' },
+        aiLabel: { type: 'string', description: 'Object description' },
+        aiGroupId: { type: 'number', description: 'Numeric group ID (reuse same number for related objects)' },
+        aiGroupLabel: { type: 'string', description: 'Group name (provide once per aiGroupId)' },
       },
       required: ['title'],
     },
@@ -84,12 +87,13 @@ const tools = [
       type: 'object' as const,
       properties: {
         emoji: { type: 'string', description: 'A single emoji character (e.g., "🎉", "❤️", "👍")' },
-        x: { type: 'number', description: 'X position on the canvas in ABSOLUTE coordinates (default: 0)' },
-        y: { type: 'number', description: 'Y position on the canvas in ABSOLUTE coordinates (default: 0)' },
+        x: { type: 'number', description: 'X position (default: 0)' },
+        y: { type: 'number', description: 'Y position (default: 0)' },
         size: { type: 'number', description: 'Size in pixels (default: 100)' },
-        parentId: { type: 'string', description: 'ID of a frame to attach this sticker to.' },
-        aiLabel: { type: 'string', description: 'Short description of what this sticker represents' },
-        aiGroupId: { type: 'string', description: 'Shared kebab-case slug for all objects in the same logical operation' },
+        parentId: { type: 'string', description: 'Frame ID to attach to' },
+        aiLabel: { type: 'string', description: 'Object description' },
+        aiGroupId: { type: 'number', description: 'Numeric group ID (reuse same number for related objects)' },
+        aiGroupLabel: { type: 'string', description: 'Group name (provide once per aiGroupId)' },
       },
       required: ['emoji'],
     },
@@ -101,12 +105,13 @@ const tools = [
       type: 'object' as const,
       properties: {
         searchTerm: { type: 'string', description: 'Keywords to search for a GIF (e.g. "celebration", "thumbs up", "mind blown", "fish swimming")' },
-        x: { type: 'number', description: 'X position on the canvas in ABSOLUTE coordinates (default: 0)' },
-        y: { type: 'number', description: 'Y position on the canvas in ABSOLUTE coordinates (default: 0)' },
+        x: { type: 'number', description: 'X position (default: 0)' },
+        y: { type: 'number', description: 'Y position (default: 0)' },
         size: { type: 'number', description: 'Size in pixels (default: 150)' },
-        parentId: { type: 'string', description: 'ID of a frame to attach this sticker to.' },
-        aiLabel: { type: 'string', description: 'Short description of what this sticker represents' },
-        aiGroupId: { type: 'string', description: 'Shared kebab-case slug for all objects in the same logical operation' },
+        parentId: { type: 'string', description: 'Frame ID to attach to' },
+        aiLabel: { type: 'string', description: 'Object description' },
+        aiGroupId: { type: 'number', description: 'Numeric group ID (reuse same number for related objects)' },
+        aiGroupLabel: { type: 'string', description: 'Group name (provide once per aiGroupId)' },
       },
       required: ['searchTerm'],
     },
@@ -128,9 +133,10 @@ const tools = [
         textAlign: { type: 'string', enum: ['left', 'center', 'right'], description: 'Text alignment (default: left)' },
         color: { type: 'string', description: 'Text color as hex string (default: #1e293b)' },
         bgColor: { type: 'string', description: 'Background color (default: transparent)' },
-        parentId: { type: 'string', description: 'ID of a frame to attach this text to.' },
-        aiLabel: { type: 'string', description: 'Short description of what this text represents' },
-        aiGroupId: { type: 'string', description: 'Shared kebab-case slug for all objects in the same logical operation' },
+        parentId: { type: 'string', description: 'Frame ID to attach to' },
+        aiLabel: { type: 'string', description: 'Object description' },
+        aiGroupId: { type: 'number', description: 'Numeric group ID (reuse same number for related objects)' },
+        aiGroupLabel: { type: 'string', description: 'Group name (provide once per aiGroupId)' },
       },
       required: ['text'],
     },
@@ -149,8 +155,9 @@ const tools = [
         endArrow: { type: 'boolean', description: 'Show arrowhead at the end/target end (default: false)' },
         strokeWidth: { type: 'number', description: 'Line thickness in pixels (default: 2)' },
         color: { type: 'string', description: 'Connector color as hex string (default: #6366f1)' },
-        aiLabel: { type: 'string', description: 'Short description of what this connector represents' },
-        aiGroupId: { type: 'string', description: 'Shared kebab-case slug for all objects in the same logical operation' },
+        aiLabel: { type: 'string', description: 'Object description' },
+        aiGroupId: { type: 'number', description: 'Numeric group ID (reuse same number for related objects)' },
+        aiGroupLabel: { type: 'string', description: 'Group name (provide once per aiGroupId)' },
       },
       required: ['fromId', 'toId'],
     },
@@ -379,131 +386,155 @@ const tools = [
 
 // ---- System prompt ----
 
-const SYSTEM_PROMPT = `You are an AI assistant for Flow Space, a collaborative whiteboard application.
+const SYSTEM_PROMPT = `You are an AI assistant for Flow Space, a collaborative whiteboard. You create and manipulate objects using the provided tools.
 
-You can create and manipulate objects on the whiteboard using the provided tools.
-
-## Available Object Types
-- **Sticky Notes**: Text notes with customizable background and text color. Default size: 200x200px.
-  - color: background color (default: #fef9c3)
-  - textColor: text color (default: #1e293b) — use for contrast against background
-- **Shapes**: Many shape types available. Default size: 120x120px.
-  - shapeType options: rect, circle, triangle, diamond, pentagon, hexagon, octagon, star, arrow, cross, line
-  - color: fill color (default: #dbeafe)
-  - strokeColor: border/outline color (default: #4f46e5)
-- **Text Elements**: Standalone text (headings, labels, paragraphs) on the canvas. No background by default. Height auto-grows to fit content. Default width: 300px.
-  - fontSize: 16, 24, 36, or 48 (default: 24)
-  - fontWeight: "normal" or "bold" (default: normal)
-  - fontStyle: "normal" or "italic" (default: normal)
-  - textAlign: "left", "center", or "right" (default: left)
-  - color: text color (default: #1e293b)
-  - bgColor: optional background color (default: transparent)
-- **Stickers**: Single emoji characters that can be placed and resized. Default size: 150x150px. Use any emoji like 🎉, ❤️, 👍, 🚀, etc.
-- **GIF Stickers**: Animated GIF images from GIPHY. Default size: 150x150px. Use createGifSticker with a descriptive search term (e.g. "happy dance", "fish swimming"). The client will search GIPHY and display the best match.
-- **Lines**: Created via createShape with shapeType "line". Use fromX/fromY/toX/toY to specify start and end points — the server automatically computes position, length, and rotation.
-  - Example: Horizontal line from (100, 200) to (300, 200): fromX=100, fromY=200, toX=300, toY=200
-  - Example: Vertical line from (200, 100) to (200, 300): fromX=200, fromY=100, toX=200, toY=300
-  - Example: Diagonal line: fromX=100, fromY=100, toX=300, toY=300
-- **Frames**: Grouping containers with titles. Default size: 400x300px.
-- **Connectors**: Lines connecting two objects with full styling options.
-  - style: "straight" or "curved" (connector path shape)
-  - lineType: "solid", "dashed", or "dotted" (default: solid)
-  - startArrow: true/false — show arrowhead at source end (default: false)
-  - endArrow: true/false — show arrowhead at target end (default: false)
-  - strokeWidth: line thickness in pixels (default: 2)
-  - color: connector color as hex string (default: #6366f1)
+See tool descriptions for object types, parameters, and defaults. Compact board state uses short keys: w=width, h=height, pid=parentId, rot=rotation.
 
 ## Coordinate System
-- The canvas is infinite and scrollable.
-- X increases to the right, Y increases downward.
-- (0, 0) is approximately the top-left of the initial viewport.
-- The visible viewport is roughly 1200x800px centered around the origin.
+- Canvas is infinite. X increases right, Y increases down. (0,0) is top-left of initial viewport (~1200x800px).
 
-## Frame Containment (Parent-Child Relationships)
-- **CRITICAL: Objects MUST have parentId set to attach to frames.**
-  - Without parentId, objects are independent and won't move with the frame!
-  - To make a sticky note or shape a child of a frame, you MUST set the \`parentId\` parameter to the frame's ID.
-- When an object has a parentId, it becomes a child of that frame — it moves with the frame when dragged, and inherits the frame's rotation.
-- **Workflow: ALWAYS create the frame first, get its ID from the tool response, then create children with that ID as parentId.**
-  - Step 1: Call createFrame, receive { "id": "frame-abc123", "type": "frame" }
-  - Step 2: Call createStickyNote with parentId: "frame-abc123"
-  - Step 3: Call createStickyNote again with parentId: "frame-abc123" for more children
-- **CRITICAL: All coordinates are ABSOLUTE canvas positions, NOT relative to the parent frame.**
-  - To position a child inside a frame at (frameX, frameY) with size (frameW, frameH):
-    - Child x must be: frameX + margin (e.g., frameX + 20)
-    - Child y must be: frameY + margin + titleBarHeight (e.g., frameY + 60, accounting for 36px title bar)
-    - Ensure: frameX ≤ childX ≤ frameX + frameW - childWidth
-    - Ensure: frameY + titleBarHeight ≤ childY ≤ frameY + frameH - childHeight
-  - Example: Frame at (100, 100, 400×300) → child at (120, 160, parentId: frameId) places it inside
-  - Example: Frame at (0, 0, 400×300) → children at (20, 60, parentId: frameId), (240, 60, parentId: frameId)
-- Frames can also be nested inside other frames using parentId.
-- **Borderless frames**: Set borderless=true to create an invisible grouping container. Use these when you want to logically group objects that should move together but don't need a visible border or title. Borderless frames have no title bar, so children can start at frameY + 20 instead of frameY + 60.
+## Frame Containment
+- Set parentId on child objects to attach them to a frame. Without parentId, objects are independent.
+- **Workflow:** Create frame first → get its ID → create children with that ID as parentId.
+- **All coordinates are ABSOLUTE**, not relative to the parent frame.
+  - Position children inside frame: childX = frameX + margin (e.g. +20), childY = frameY + 60 (36px title bar + margin).
+  - Borderless frames have no title bar, so children start at frameY + 20.
+- Example: createFrame(x:0, y:0, w:400, h:300) → {id:"frame-xyz"} → createStickyNote(x:20, y:60, parentId:"frame-xyz")
 
-**Example: Creating a frame with children**
-  1. createFrame(title: "Ideas", x: 0, y: 0, width: 400, height: 300) → returns {"id": "frame-xyz"}
-  2. createStickyNote(text: "Idea 1", x: 20, y: 60, parentId: "frame-xyz")
-  3. createStickyNote(text: "Idea 2", x: 240, y: 60, parentId: "frame-xyz")
-  Result: Two sticky notes that move with the "Ideas" frame when dragged.
+## Layout
+- Space objects 20-40px apart. For grids: 220px for sticky notes, 140px for shapes.
+- Templates: create frames first, then populate with children using parentId.
 
-## Layout Guidelines
-- When creating multiple objects, space them with 20-40px gaps.
-- For templates (e.g., SWOT analysis, retrospective boards):
-  - Create frames as quadrants/sections first
-  - Then add sticky notes inside each frame at appropriate positions, using parentId to make them children of the frame
-  - Use consistent spacing and alignment
-- For grids, use consistent row/column spacing (e.g., 220px for sticky notes, 140px for shapes).
-
-## Color Palette (suggested defaults)
-Background colors for sticky notes:
-- Yellow: #fef9c3, Blue: #dbeafe, Green: #dcfce7
-- Pink: #fce7f3, Purple: #f3e8ff, Orange: #ffedd5
-
-Available preset colors (for any color property):
-- Black: #000000, Slate: #475569, White: #ffffff
-- Red: #ef4444, Orange: #f97316, Yellow: #eab308
-- Green: #22c55e, Cyan: #06b6d4, Blue: #3b82f6
-- Purple: #8b5cf6, Pink: #ec4899, Brown: #9a3412
-- Dark green: #166534, Light blue: #93c5fd
-
-Text colors for sticky notes: default #1e293b (dark), use #ffffff for white text on dark backgrounds.
-Shape border colors: default #4f46e5 (indigo).
-Connector colors: default #6366f1 (indigo).
-
-## Multi-Step Planning
-For complex requests (templates, layouts, diagrams), plan your approach before executing:
-1. **Analyze**: Break the request into logical steps (e.g., "create 4 frames, then populate each with sticky notes")
-2. **Execute sequentially**: Create parent objects (frames) first, then children (sticky notes with parentId), then connectors
-3. **Use IDs from prior steps**: When creating children, reference the frame IDs returned from createFrame calls
-4. **Verify if needed**: Call getBoardState() after complex operations to confirm the result
-
-Example multi-step flow for "Create a SWOT analysis":
-  Step 1: Create 4 frames (Strengths, Weaknesses, Opportunities, Threats) in a 2x2 grid
-  Step 2: For each frame, create 2-3 starter sticky notes inside it using the frame's ID as parentId
-  Result: 4 frames with children that move together when dragged
+## Sticky Note Background Colors
+Yellow: #fef9c3, Blue: #dbeafe, Green: #dcfce7, Pink: #fce7f3, Purple: #f3e8ff, Orange: #ffedd5
 
 ## AI Labels & Grouping
-When creating objects, ALWAYS provide:
-- aiLabel: short description of what the object represents (e.g. "main idea", "pro argument", "SWOT strengths frame")
-- aiGroupId: shared kebab-case slug for all objects in the same logical operation (e.g. "swot-analysis", "pros-cons-list")
-
-Objects sharing an aiGroupId are logically related but do NOT need to be wrapped in a frame automatically. Only create a borderless grouping frame if the user explicitly asks to group objects together.
+Always provide aiLabel (short description) and aiGroupId (numeric, reuse same number for related objects).
+Provide aiGroupLabel once per group to name it (e.g. aiGroupId:1, aiGroupLabel:"swot-analysis" on the first object, then just aiGroupId:1 on the rest).
+Only create borderless grouping frames if explicitly requested.
 
 ## Important
-- Always use getBoardState() or getBoardSummary() first if you need to know what's already on the board before manipulating existing objects. Use getBoardSummary() when you only need counts and frame info — it's cheaper than getBoardState().
-- Use searchObjects() to find objects by type, text, or parent frame instead of fetching the entire board state.
-- Use getObject() to get full details of a single object when you already know its ID.
-- When asked to arrange or move existing objects, first call getBoardState() to see current positions and IDs.
-- You can delete objects with deleteObject() for single deletions or deleteObjects() for bulk deletions.
-- Use updateFrameTitle() to rename frames without re-creating them.
+- Use getBoardState(), getBoardSummary(), or searchObjects() to inspect the board before modifying existing objects.
+- Use getObject() for a single object by ID.
+- Delete with deleteObject() or deleteObjects() for bulk.
 
 ## Response Style
-Keep your final text reply SHORT — one or two casual sentences max. Just say what you did (e.g. "Added 3 sticky notes in a pros/cons layout." or "Cleared the board."). Do NOT list object IDs, coordinates, tool calls, or technical details. The user can see the result on the canvas.`;
+Keep replies SHORT — 1-2 casual sentences about what you did. No IDs, coordinates, or technical details.`;
 
 // ---- Helper: read board state ----
 
 async function readBoardState(boardId: string) {
   const snapshot = await db.collection(`boards/${boardId}/objects`).get();
   return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+}
+
+/**
+ * Classify whether a prompt needs existing board context.
+ * Creation-only prompts (e.g. "make a sticky note") don't need board state at all.
+ * Context-needed prompts (e.g. "organize the board") get a compact summary.
+ */
+function requestNeedsContext(prompt: string): 'none' | 'summary' {
+  const lower = prompt.toLowerCase();
+  // Keywords indicating the user wants to interact with existing objects
+  const contextKeywords = [
+    'move', 'delete', 'remove', 'change', 'update', 'edit', 'rename',
+    'organize', 'arrange', 'align', 'sort', 'reorder', 'rearrange',
+    'what', 'how many', 'list', 'show', 'find', 'search', 'where',
+    'existing', 'current', 'the board', 'on the board', 'all ',
+    'clear', 'clean', 'duplicate', 'copy', 'resize', 'rotate',
+    'connect', 'group', 'ungroup', 'color', 'recolor',
+  ];
+  for (const kw of contextKeywords) {
+    if (lower.includes(kw)) return 'summary';
+  }
+  return 'none';
+}
+
+/**
+ * Build a compact board summary string: counts by type + frame list.
+ * Much cheaper than full JSON board state.
+ */
+function buildBoardSummary(boardState: any[]): string {
+  if (boardState.length === 0) return 'Board is empty.';
+  const byType: Record<string, number> = {};
+  const frames: { id: string; title: string }[] = [];
+  for (const obj of boardState) {
+    byType[obj.type] = (byType[obj.type] || 0) + 1;
+    if (obj.type === 'frame') {
+      frames.push({ id: obj.id, title: obj.title ?? 'Untitled' });
+    }
+  }
+  const parts = [`${boardState.length} objects`];
+  for (const [type, count] of Object.entries(byType)) {
+    parts.push(`${count} ${type}${count > 1 ? 's' : ''}`);
+  }
+  let summary = parts.join(', ') + '.';
+  if (frames.length > 0) {
+    summary += ' Frames: ' + frames.map(f => `${f.title} (${f.id})`).join(', ') + '.';
+  }
+  return summary;
+}
+
+/**
+ * Strip unnecessary fields and use short keys to reduce token count.
+ * Drops: updatedAt, createdBy, zIndex (when 0), rotation (when 0), default colors.
+ */
+function compactBoardObject(obj: any): Record<string, unknown> {
+  const compact: Record<string, unknown> = { id: obj.id, type: obj.type };
+  // Position — always include
+  compact.x = obj.x;
+  compact.y = obj.y;
+  // Dimensions — short keys
+  if (obj.width != null) compact.w = obj.width;
+  if (obj.height != null) compact.h = obj.height;
+  // Parent — short key, skip empty
+  if (obj.parentId) compact.pid = obj.parentId;
+  // Text content
+  if (obj.text != null) compact.text = obj.text;
+  if (obj.title != null) compact.title = obj.title;
+  // Shape-specific
+  if (obj.shapeType) compact.shapeType = obj.shapeType;
+  // Emoji/sticker
+  if (obj.emoji) compact.emoji = obj.emoji;
+  if (obj.gifSearchTerm) compact.gif = obj.gifSearchTerm;
+  // Colors — skip defaults
+  const defaultColors: Record<string, string> = {
+    'sticky:color': '#fef9c3',
+    'sticky:textColor': '#1e293b',
+    'shape:color': '#dbeafe',
+    'shape:strokeColor': '#4f46e5',
+    'text:color': '#1e293b',
+    'text:bgColor': 'transparent',
+    'connector:color': '#6366f1',
+  };
+  for (const field of ['color', 'textColor', 'strokeColor', 'bgColor']) {
+    if (obj[field] != null) {
+      const defaultKey = `${obj.type}:${field}`;
+      if (obj[field] !== defaultColors[defaultKey]) {
+        compact[field] = obj[field];
+      }
+    }
+  }
+  // Rotation — skip when 0
+  if (obj.rotation) compact.rot = obj.rotation;
+  // Connector fields
+  if (obj.fromId) compact.fromId = obj.fromId;
+  if (obj.toId) compact.toId = obj.toId;
+  if (obj.style && obj.style !== 'straight') compact.style = obj.style;
+  if (obj.lineType && obj.lineType !== 'solid') compact.lineType = obj.lineType;
+  if (obj.startArrow) compact.startArrow = true;
+  if (obj.endArrow) compact.endArrow = true;
+  // Text styling — skip defaults
+  if (obj.fontSize && obj.fontSize !== 24) compact.fontSize = obj.fontSize;
+  if (obj.fontWeight && obj.fontWeight !== 'normal') compact.fontWeight = obj.fontWeight;
+  if (obj.fontStyle && obj.fontStyle !== 'normal') compact.fontStyle = obj.fontStyle;
+  if (obj.textAlign && obj.textAlign !== 'left') compact.textAlign = obj.textAlign;
+  // Frame borderless
+  if (obj.borderless) compact.borderless = true;
+  // AI metadata
+  if (obj.aiLabel) compact.aiLabel = obj.aiLabel;
+  if (obj.aiGroupId) compact.aiGroupId = obj.aiGroupId;
+  return compact;
 }
 
 // ---- Tool execution ----
@@ -558,7 +589,8 @@ interface ToolInput {
   operation?: string;
   templateType?: string;
   aiLabel?: string;
-  aiGroupId?: string;
+  aiGroupId?: number;
+  aiGroupLabel?: string;
   objectType?: string;
   textContains?: string;
 }
@@ -569,9 +601,16 @@ async function executeTool(
   boardId: string,
   userId: string,
   objectsCreated: string[],
+  groupLabels: Record<number, string>,
 ): Promise<string> {
   const objectsRef = db.collection(`boards/${boardId}/objects`);
   const now = Date.now();
+
+  // Resolve numeric aiGroupId → string label for Firestore storage
+  if (input.aiGroupLabel && input.aiGroupId != null) {
+    groupLabels[input.aiGroupId] = input.aiGroupLabel;
+  }
+  const resolvedGroupId = input.aiGroupId != null ? (groupLabels[input.aiGroupId] ?? `group-${input.aiGroupId}`) : undefined;
 
   switch (toolName) {
     case 'createStickyNote': {
@@ -591,7 +630,7 @@ async function executeTool(
         parentId: input.parentId ?? '',
       };
       if (input.aiLabel) data.aiLabel = input.aiLabel;
-      if (input.aiGroupId) data.aiGroupId = input.aiGroupId;
+      if (resolvedGroupId) data.aiGroupId = resolvedGroupId;
       await docRef.set(data);
       objectsCreated.push(docRef.id);
       return JSON.stringify({ id: docRef.id, type: 'sticky' });
@@ -637,7 +676,7 @@ async function executeTool(
         parentId: input.parentId ?? '',
       };
       if (input.aiLabel) data.aiLabel = input.aiLabel;
-      if (input.aiGroupId) data.aiGroupId = input.aiGroupId;
+      if (resolvedGroupId) data.aiGroupId = resolvedGroupId;
       await docRef.set(data);
       objectsCreated.push(docRef.id);
       return JSON.stringify({ id: docRef.id, type: 'shape', shapeType: input.shapeType });
@@ -659,7 +698,7 @@ async function executeTool(
         parentId: input.parentId ?? '',
       };
       if (input.aiLabel) data.aiLabel = input.aiLabel;
-      if (input.aiGroupId) data.aiGroupId = input.aiGroupId;
+      if (resolvedGroupId) data.aiGroupId = resolvedGroupId;
       await docRef.set(data);
       objectsCreated.push(docRef.id);
       return JSON.stringify({ id: docRef.id, type: 'sticker', emoji: input.emoji });
@@ -682,7 +721,7 @@ async function executeTool(
         parentId: input.parentId ?? '',
       };
       if (input.aiLabel) data.aiLabel = input.aiLabel;
-      if (input.aiGroupId) data.aiGroupId = input.aiGroupId;
+      if (resolvedGroupId) data.aiGroupId = resolvedGroupId;
       await docRef.set(data);
       objectsCreated.push(docRef.id);
       return JSON.stringify({ id: docRef.id, type: 'sticker', searchTerm: input.searchTerm });
@@ -710,7 +749,7 @@ async function executeTool(
         parentId: input.parentId ?? '',
       };
       if (input.aiLabel) data.aiLabel = input.aiLabel;
-      if (input.aiGroupId) data.aiGroupId = input.aiGroupId;
+      if (resolvedGroupId) data.aiGroupId = resolvedGroupId;
       await docRef.set(data);
       objectsCreated.push(docRef.id);
       return JSON.stringify({ id: docRef.id, type: 'text' });
@@ -732,7 +771,7 @@ async function executeTool(
         borderless: input.borderless ?? false,
       };
       if (input.aiLabel) data.aiLabel = input.aiLabel;
-      if (input.aiGroupId) data.aiGroupId = input.aiGroupId;
+      if (resolvedGroupId) data.aiGroupId = resolvedGroupId;
       await docRef.set(data);
       objectsCreated.push(docRef.id);
       return JSON.stringify({ id: docRef.id, type: 'frame' });
@@ -759,7 +798,7 @@ async function executeTool(
         updatedAt: now,
       };
       if (input.aiLabel) data.aiLabel = input.aiLabel;
-      if (input.aiGroupId) data.aiGroupId = input.aiGroupId;
+      if (resolvedGroupId) data.aiGroupId = resolvedGroupId;
       await docRef.set(data);
       objectsCreated.push(docRef.id);
       return JSON.stringify({ id: docRef.id, type: 'connector' });
@@ -1182,16 +1221,7 @@ async function executeTool(
       if (input.parentId !== undefined) {
         filtered = filtered.filter((o: any) => o.parentId === input.parentId);
       }
-      const summaries = filtered.map((o: any) => ({
-        id: o.id,
-        type: o.type,
-        text: o.text ?? o.title ?? undefined,
-        x: o.x,
-        y: o.y,
-        width: o.width,
-        height: o.height,
-        parentId: o.parentId || undefined,
-      }));
+      const summaries = filtered.map(compactBoardObject);
       return JSON.stringify({ results: summaries, count: summaries.length });
     }
 
@@ -1221,7 +1251,7 @@ async function executeTool(
 
     case 'getBoardState': {
       const objects = await readBoardState(boardId);
-      return JSON.stringify({ objects });
+      return JSON.stringify({ objects: objects.map(compactBoardObject) });
     }
 
     default:
@@ -1265,6 +1295,7 @@ export const processAIRequest = onDocumentCreated(
     await requestRef.update({ status: 'processing', progress: 'Planning...' });
 
     const objectsCreated: string[] = [];
+    const groupLabels: Record<number, string> = {};
     let stepCount = 0;
 
     // Set LangSmith tracing env vars
@@ -1299,8 +1330,18 @@ export const processAIRequest = onDocumentCreated(
     });
 
     try {
-      // Read initial board state
-      const boardState = await readBoardState(boardId);
+      // Classify prompt to decide how much board context to include
+      const contextLevel = requestNeedsContext(prompt);
+
+      // Build user message — skip board state for creation-only requests
+      let userMessage: string;
+      if (contextLevel === 'summary') {
+        const boardState = await readBoardState(boardId);
+        const summary = buildBoardSummary(boardState);
+        userMessage = `Board summary: ${summary}\n\nUser request: ${prompt}`;
+      } else {
+        userMessage = prompt;
+      }
 
       // Create LangChain ChatAnthropic model with tools
       const model = new ChatAnthropic({
@@ -1313,9 +1354,7 @@ export const processAIRequest = onDocumentCreated(
       // Build LangChain message array
       const messages: BaseMessage[] = [
         new SystemMessage(SYSTEM_PROMPT),
-        new HumanMessage(
-          `Current board state:\n${JSON.stringify(boardState, null, 2)}\n\nUser request: ${prompt}`,
-        ),
+        new HumanMessage(userMessage),
       ];
 
       // Tool execution loop
@@ -1375,6 +1414,7 @@ export const processAIRequest = onDocumentCreated(
             boardId,
             userId,
             objectsCreated,
+            groupLabels,
           );
 
           messages.push(

@@ -12,10 +12,9 @@
   "dependencies": {
     "@langchain/anthropic": "^0.3.34",
     "@langchain/core": "^0.3.80",
+    "@langfuse/langchain": "^4.6.1",
     "firebase-admin": "^13.0.0",
-    "firebase-functions": "^7.0.5",
-    "langfuse": "^3.38.6",
-    "langfuse-langchain": "^3.38.6"
+    "firebase-functions": "^7.0.5"
   },
   "devDependencies": {
     "typescript": "~5.7.0"

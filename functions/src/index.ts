@@ -1320,17 +1320,21 @@ export const processAIRequest = onDocumentCreated(
     process.env.LANGCHAIN_TRACING_V2 = 'true';
     process.env.LANGCHAIN_API_KEY = langchainApiKey.value();
     process.env.LANGCHAIN_PROJECT = 'FlowSpace';
+    // Ensure Langfuse callbacks complete before Cloud Function terminates (LangChain v0.3+ backgrounds them by default)
+    process.env.LANGCHAIN_CALLBACKS_BACKGROUND = 'false';
 
     // Lazy-load LangChain and Langfuse to avoid deployment timeouts
     const { ChatAnthropic } = await import('@langchain/anthropic');
     const { HumanMessage, SystemMessage, ToolMessage } = await import('@langchain/core/messages');
-    const { CallbackHandler } = await import('langfuse-langchain');
+    const { CallbackHandler } = await import('@langfuse/langchain');
+
+    // Set Langfuse env vars (v4 reads credentials from environment)
+    process.env.LANGFUSE_SECRET_KEY = langfuseSecretKey.value();
+    process.env.LANGFUSE_PUBLIC_KEY = langfusePublicKey.value();
+    process.env.LANGFUSE_BASE_URL = langfuseHost.value();
 
     // Create Langfuse callback handler for observability
     const langfuseHandler = new CallbackHandler({
-      secretKey: langfuseSecretKey.value(),
-      publicKey: langfusePublicKey.value(),
-      baseUrl: langfuseHost.value(),
       sessionId: requestId,
       userId: userId,
     });
@@ -1459,7 +1463,7 @@ export const processAIRequest = onDocumentCreated(
         completedAt: Date.now(),
       });
     } finally {
-      await langfuseHandler.flushAsync();
+      // v4 SDK flushes synchronously when LANGCHAIN_CALLBACKS_BACKGROUND=false
     }
   },
 );

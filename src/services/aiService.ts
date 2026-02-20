@@ -1,10 +1,17 @@
-import { collection, addDoc, onSnapshot, doc } from 'firebase/firestore';
-import { db, auth } from './firebase';
+import { collection, addDoc, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
+import { db, auth, functions } from './firebase';
 
 export interface AICommandOutput {
   response: string;
   objectsCreated: string[];
 }
+
+// Callable function reference (reused across calls)
+const processAICallable = httpsCallable<
+  { boardId: string; requestId: string; prompt: string; selectedIds?: string[] },
+  AICommandOutput
+>(functions, 'processAIRequestCallable', { timeout: 300_000 });
 
 export async function sendAICommand(
   boardId: string,
@@ -17,7 +24,7 @@ export async function sendAICommand(
     throw new Error('You must be signed in to use AI commands.');
   }
 
-  // Write to Firestore to trigger Cloud Function
+  // 1. Create Firestore doc for progress tracking (also serves as fallback trigger)
   const requestsRef = collection(db, `boards/${boardId}/aiRequests`);
   const docRef = await addDoc(requestsRef, {
     prompt,
@@ -27,42 +34,37 @@ export async function sendAICommand(
     ...(selectedIds && selectedIds.length > 0 ? { selectedIds } : {}),
   });
 
-  // Listen for the function to update the document with the response
-  return new Promise<AICommandOutput>((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      unsubscribe();
-      reject(new Error('AI request timed out after 5 minutes'));
-    }, 300000);
-
-    const unsubscribe = onSnapshot(
+  // 2. Set up progress listener on the Firestore doc
+  let unsubscribe: (() => void) | null = null;
+  if (onProgress) {
+    unsubscribe = onSnapshot(
       doc(db, `boards/${boardId}/aiRequests/${docRef.id}`),
       (snapshot) => {
         const data = snapshot.data();
-        if (!data) return;
-
-        // Surface progress updates
-        if (data.status === 'processing' && data.progress && onProgress) {
+        if (data?.status === 'processing' && data.progress) {
           onProgress(data.progress);
         }
-
-        if (data.status === 'completed') {
-          clearTimeout(timeout);
-          unsubscribe();
-          resolve({
-            response: data.response,
-            objectsCreated: data.objectsCreated ?? [],
-          });
-        } else if (data.status === 'error') {
-          clearTimeout(timeout);
-          unsubscribe();
-          reject(new Error(data.error || 'AI request failed'));
-        }
-      },
-      (error) => {
-        clearTimeout(timeout);
-        unsubscribe();
-        reject(error);
       },
     );
-  });
+  }
+
+  // 3. Call the function directly (bypasses Firestore trigger latency)
+  try {
+    // Mark as callable-owned so the trigger skips it
+    await updateDoc(doc(db, `boards/${boardId}/aiRequests/${docRef.id}`), { status: 'callable' });
+
+    const result = await processAICallable({
+      boardId,
+      requestId: docRef.id,
+      prompt,
+      selectedIds,
+    });
+
+    return result.data;
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'AI request failed';
+    throw new Error(message);
+  } finally {
+    unsubscribe?.();
+  }
 }

@@ -160,7 +160,8 @@ function BoardView({
     user.email ?? '',
   );
   const { toasts: presenceToasts } = usePresenceToasts(onlineUsers);
-  const { pushUndo, undo, redo, canUndo, canRedo, isUndoRedoingRef } = useUndoRedo(boardId, user.uid);
+  const latestObjectsRef = useRef<AnyBoardObject[]>([]);
+  const { pushUndo, undo, redo, canUndo, canRedo, isUndoRedoingRef } = useUndoRedo(boardId, user.uid, latestObjectsRef);
   const {
     objects,
     addStickyNote,
@@ -200,8 +201,7 @@ function BoardView({
     batchRemoveObjects,
   } = useBoard(boardId, user.uid, pushUndo, isUndoRedoingRef);
 
-  // Keep a ref to objects so AI undo callback always sees latest state
-  const latestObjectsRef = useRef(objects);
+  // Keep a ref to objects so undo and AI callbacks always see latest state
   latestObjectsRef.current = objects;
 
   // When AI creates objects, push an undo entry once they appear in state
@@ -274,7 +274,7 @@ function BoardView({
     handleGroupRotate,
     selectObject,
     selectMultiple,
-  } = useMultiSelect(objects, boardId, pushUndo);
+  } = useMultiSelect(objects, boardId, pushUndo, user.uid);
 
   // Compute the single selected object (null when 0 or 2+ selected)
   const selectedObject = useMemo<AnyBoardObject | null>(() => {

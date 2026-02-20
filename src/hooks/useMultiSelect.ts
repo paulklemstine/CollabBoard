@@ -49,6 +49,7 @@ export function useMultiSelect(
   objects: AnyBoardObject[],
   boardId: string,
   pushUndo?: (entry: UndoEntry) => void,
+  userId?: string,
 ) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [marquee, setMarquee] = useState<Marquee | null>(null);
@@ -347,7 +348,7 @@ export function useMultiSelect(
       setSelectionHidden(true);
       setGroupHoveredFrame(null);
 
-      await batchUpdateObjects(boardId, updates);
+      await batchUpdateObjects(boardId, updates, userId);
 
       // Safety: if objects didn't change (no-op), clear manually
       if (pendingClearRef.current === 'drag') {
@@ -389,7 +390,7 @@ export function useMultiSelect(
       pendingClearRef.current = 'transform';
       setSelectionHidden(true);
 
-      await batchUpdateObjects(boardId, updates);
+      await batchUpdateObjects(boardId, updates, userId);
 
       // Safety: if objects didn't change (no-op), clear manually
       if (pendingClearRef.current === 'transform') {
@@ -434,7 +435,7 @@ export function useMultiSelect(
       pendingClearRef.current = 'transform';
       setSelectionHidden(true);
 
-      await batchUpdateObjects(boardId, updates);
+      await batchUpdateObjects(boardId, updates, userId);
 
       // Safety: if objects didn't change (no-op), clear manually
       if (pendingClearRef.current === 'transform') {

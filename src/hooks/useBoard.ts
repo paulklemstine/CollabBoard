@@ -99,7 +99,7 @@ export function useBoard(
             const img = gif.images?.fixed_height ?? gif.images?.original;
             const url = img && 'url' in img ? img.url : '';
             if (url) {
-              updateObject(boardId, sticker.id, { gifUrl: url } as Partial<Sticker>);
+              updateObject(boardId, sticker.id, { gifUrl: url } as Partial<Sticker>, userId);
             }
           }
         })
@@ -148,6 +148,7 @@ export function useBoard(
         height: 200,
         rotation: 0,
         createdBy: userId,
+        lastModifiedBy: userId,
         updatedAt: maxUpdatedAt + 1, // Ensure it's on top
         text: '',
         color: color ?? STICKY_COLORS[Math.floor(Math.random() * STICKY_COLORS.length)],
@@ -195,6 +196,7 @@ export function useBoard(
         height: shapeHeight,
         rotation: 0,
         createdBy: userId,
+        lastModifiedBy: userId,
         updatedAt: maxUpdatedAt + 1, // Ensure it's on top
         shapeType,
         color,
@@ -238,6 +240,7 @@ export function useBoard(
         height: 300,
         rotation: 0,
         createdBy: userId,
+        lastModifiedBy: userId,
         updatedAt: maxUpdatedAt + 1, // Ensure it's on top
         title: '',
         ...(borderless ? { borderless: true } : {}),
@@ -279,6 +282,7 @@ export function useBoard(
         height: 150,
         rotation: 0,
         createdBy: userId,
+        lastModifiedBy: userId,
         updatedAt: maxUpdatedAt + 1, // Ensure it's on top
         emoji,
       };
@@ -313,6 +317,7 @@ export function useBoard(
         height: 150,
         rotation: 0,
         createdBy: userId,
+        lastModifiedBy: userId,
         updatedAt: maxUpdatedAt + 1,
         emoji: '',
         gifUrl,
@@ -333,7 +338,7 @@ export function useBoard(
         })
         .then((snapshot) => getDownloadURL(snapshot.ref))
         .then((cachedUrl) => {
-          updateObject(boardId, sticker.id, { gifUrl: cachedUrl } as Partial<Sticker>);
+          updateObject(boardId, sticker.id, { gifUrl: cachedUrl } as Partial<Sticker>, userId);
         })
         .catch((err) => console.warn('GIF caching failed, keeping original URL:', err));
     },
@@ -382,6 +387,7 @@ export function useBoard(
         height: textHeight,
         rotation: 0,
         createdBy: userId,
+        lastModifiedBy: userId,
         updatedAt: maxUpdatedAt + 1,
         text: '',
         fontSize: fontSize ?? 24,
@@ -400,7 +406,7 @@ export function useBoard(
 
   const moveObject = useCallback(
     (objectId: string, x: number, y: number) => {
-      updateObject(boardId, objectId, { x, y });
+      updateObject(boardId, objectId, { x, y }, userId);
     },
     [boardId]
   );
@@ -408,7 +414,7 @@ export function useBoard(
   const resizeObject = useCallback(
     (objectId: string, width: number, height: number) => {
       captureBeforeSnapshot(objectId);
-      updateObject(boardId, objectId, { width, height });
+      updateObject(boardId, objectId, { width, height }, userId);
     },
     [boardId, captureBeforeSnapshot]
   );
@@ -416,7 +422,7 @@ export function useBoard(
   const rotateObject = useCallback(
     (objectId: string, rotation: number) => {
       captureBeforeSnapshot(objectId);
-      updateObject(boardId, objectId, { rotation });
+      updateObject(boardId, objectId, { rotation }, userId);
     },
     [boardId, captureBeforeSnapshot]
   );
@@ -424,7 +430,7 @@ export function useBoard(
   const moveLineEndpoint = useCallback(
     (objectId: string, x: number, y: number, width: number, rotation: number) => {
       captureBeforeSnapshot(objectId);
-      updateObject(boardId, objectId, { x, y, width, rotation });
+      updateObject(boardId, objectId, { x, y, width, rotation }, userId);
     },
     [boardId, captureBeforeSnapshot]
   );
@@ -433,7 +439,7 @@ export function useBoard(
   const finalizeResize = useCallback(
     (objectId: string, width: number, height: number) => {
       const before = dragSnapshotRef.current.get(objectId);
-      updateObject(boardId, objectId, { width, height });
+      updateObject(boardId, objectId, { width, height }, userId);
       if (before) {
         const after = structuredClone({ ...before, width, height, updatedAt: Date.now() });
         maybePushUndo({ changes: [{ objectId, before: structuredClone(before), after }] });
@@ -447,7 +453,7 @@ export function useBoard(
   const finalizeRotate = useCallback(
     (objectId: string, rotation: number) => {
       const before = dragSnapshotRef.current.get(objectId);
-      updateObject(boardId, objectId, { rotation });
+      updateObject(boardId, objectId, { rotation }, userId);
       if (before) {
         const after = structuredClone({ ...before, rotation, updatedAt: Date.now() });
         maybePushUndo({ changes: [{ objectId, before: structuredClone(before), after }] });
@@ -461,7 +467,7 @@ export function useBoard(
   const finalizeLineEndpoint = useCallback(
     (objectId: string, x: number, y: number, width: number, rotation: number) => {
       const before = dragSnapshotRef.current.get(objectId);
-      updateObject(boardId, objectId, { x, y, width, rotation });
+      updateObject(boardId, objectId, { x, y, width, rotation }, userId);
       if (before) {
         const after = structuredClone({ ...before, x, y, width, rotation, updatedAt: Date.now() });
         maybePushUndo({ changes: [{ objectId, before: structuredClone(before), after }] });
@@ -475,7 +481,7 @@ export function useBoard(
   const handleDragMove = useCallback(
     (objectId: string, x: number, y: number) => {
       captureBeforeSnapshot(objectId);
-      updateObject(boardId, objectId, { x, y });
+      updateObject(boardId, objectId, { x, y }, userId);
 
       const obj = objectsRef.current.find((o) => o.id === objectId);
       if (!obj) return;
@@ -497,7 +503,7 @@ export function useBoard(
     (objectId: string, x: number, y: number) => {
       const obj = objectsRef.current.find((o) => o.id === objectId);
       if (!obj) {
-        updateObject(boardId, objectId, { x, y });
+        updateObject(boardId, objectId, { x, y }, userId);
         setHoveredFrame(null);
         setDraggingObjectId(null);
         // Push undo from snapshot even if obj not found in current state
@@ -520,7 +526,7 @@ export function useBoard(
       const fits = containingFrame ? isObjectInsideFrame(draggedObj, containingFrame) : false;
       const newParentId = containingFrame && fits ? containingFrame.id : '';
 
-      updateObject(boardId, objectId, { x, y, parentId: newParentId });
+      updateObject(boardId, objectId, { x, y, parentId: newParentId }, userId);
 
       // Push undo
       const before = dragSnapshotRef.current.get(objectId);
@@ -599,7 +605,7 @@ export function useBoard(
       }
 
       // Update frame and connectors
-      batchUpdateObjects(boardId, batchUpdates);
+      batchUpdateObjects(boardId, batchUpdates, userId);
 
       // Track offset locally — children apply this visually without Firestore round-trip
       setFrameDragOffset({ frameId, dx, dy });
@@ -621,7 +627,7 @@ export function useBoard(
     async (frameId: string, newX: number, newY: number) => {
       const frame = objectsRef.current.find((o) => o.id === frameId);
       if (!frame || frame.type !== 'frame') {
-        updateObject(boardId, frameId, { x: newX, y: newY });
+        updateObject(boardId, frameId, { x: newX, y: newY }, userId);
         frameDragStartRef.current = null;
         connectorDragStartRef.current.clear();
         setHoveredFrame(null);
@@ -706,7 +712,7 @@ export function useBoard(
       pendingFrameClearRef.current = true;
 
       // Update all objects atomically to prevent flickering
-      await batchUpdateObjects(boardId, batchUpdates);
+      await batchUpdateObjects(boardId, batchUpdates, userId);
 
       // Safety: if objects didn't change (no-op), clear manually
       if (pendingFrameClearRef.current) {
@@ -719,14 +725,14 @@ export function useBoard(
 
   const updateText = useCallback(
     (objectId: string, text: string) => {
-      updateObject(boardId, objectId, { text } as Partial<StickyNote>);
+      updateObject(boardId, objectId, { text } as Partial<StickyNote>, userId);
     },
     [boardId]
   );
 
   const updateTitle = useCallback(
     (objectId: string, title: string) => {
-      updateObject(boardId, objectId, { title } as Partial<Frame>);
+      updateObject(boardId, objectId, { title } as Partial<Frame>, userId);
     },
     [boardId]
   );
@@ -840,7 +846,7 @@ export function useBoard(
         (child) => ({ id: child.id, updates: { parentId: '' } })
       );
       if (updates.length > 0) {
-        batchUpdateObjects(boardId, updates);
+        batchUpdateObjects(boardId, updates, userId);
       }
       for (const child of children) {
         changes.push({
@@ -920,6 +926,7 @@ export function useBoard(
           height: 0,
           rotation: 0,
           createdBy: userId,
+          lastModifiedBy: userId,
           updatedAt: maxUpdatedAt + 1,
           fromId: connectingFrom,
           toId: objectId,
@@ -943,7 +950,7 @@ export function useBoard(
   const updateObjectProperties = useCallback(
     (objectId: string, updates: Partial<AnyBoardObject>) => {
       const before = objectsRef.current.find((o) => o.id === objectId);
-      updateObject(boardId, objectId, updates);
+      updateObject(boardId, objectId, updates, userId);
       if (before) {
         const after = structuredClone({ ...before, ...updates, updatedAt: Date.now() }) as AnyBoardObject;
         maybePushUndo({ changes: [{ objectId, before: structuredClone(before), after }] });

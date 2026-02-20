@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { batchAddObjects, batchDeleteObjects, type AnyBoardObject } from '../services/boardService';
 import { loadUndoState, saveUndoState } from '../services/undoHistoryService';
 
@@ -15,7 +15,11 @@ export interface UndoEntry {
 const MAX_UNDO = 50;
 const SAVE_DEBOUNCE_MS = 2000;
 
-export function useUndoRedo(boardId: string, userId: string) {
+export function useUndoRedo(
+  boardId: string,
+  userId: string,
+  objectsRef?: React.RefObject<AnyBoardObject[]>,
+) {
   const undoStackRef = useRef<UndoEntry[]>([]);
   const redoStackRef = useRef<UndoEntry[]>([]);
   const [canUndo, setCanUndo] = useState(false);
@@ -79,17 +83,40 @@ export function useUndoRedo(boardId: string, userId: string) {
   );
 
   const applyChanges = useCallback(
-    async (changes: UndoChange[], direction: 'undo' | 'redo') => {
+    async (changes: UndoChange[], direction: 'undo' | 'redo'): Promise<UndoChange[]> => {
       const toRestore: AnyBoardObject[] = [];
       const toDelete: string[] = [];
+      const appliedChanges: UndoChange[] = [];
+      const currentObjects = objectsRef?.current ?? [];
 
       for (const change of changes) {
         const target = direction === 'undo' ? change.before : change.after;
-        if (target === null) {
-          toDelete.push(change.objectId);
-        } else {
-          toRestore.push(target);
+        const currentObj = currentObjects.find(o => o.id === change.objectId);
+
+        // Skip if a peer has modified this object since our action
+        if (currentObj?.lastModifiedBy && currentObj.lastModifiedBy !== userId) {
+          continue;
         }
+
+        appliedChanges.push(change);
+
+        if (target === null) {
+          // Delete (undo a create, or redo a delete)
+          if (currentObj) {
+            toDelete.push(change.objectId);
+          }
+        } else {
+          // Restore/create — stamp ourselves as modifier
+          toRestore.push({
+            ...target,
+            lastModifiedBy: userId,
+            updatedAt: Date.now(),
+          });
+        }
+      }
+
+      if (toRestore.length === 0 && toDelete.length === 0) {
+        return appliedChanges;
       }
 
       isUndoRedoingRef.current = true;
@@ -101,8 +128,10 @@ export function useUndoRedo(boardId: string, userId: string) {
       } finally {
         isUndoRedoingRef.current = false;
       }
+
+      return appliedChanges;
     },
-    [boardId]
+    [boardId, userId, objectsRef]
   );
 
   const undo = useCallback(async () => {
@@ -110,8 +139,10 @@ export function useUndoRedo(boardId: string, userId: string) {
     lockRef.current = true;
     try {
       const entry = undoStackRef.current.pop()!;
-      await applyChanges(entry.changes, 'undo');
-      redoStackRef.current.push(entry);
+      const applied = await applyChanges(entry.changes, 'undo');
+      if (applied.length > 0) {
+        redoStackRef.current.push({ changes: applied });
+      }
       updateFlags();
       scheduleSave();
     } finally {
@@ -124,8 +155,10 @@ export function useUndoRedo(boardId: string, userId: string) {
     lockRef.current = true;
     try {
       const entry = redoStackRef.current.pop()!;
-      await applyChanges(entry.changes, 'redo');
-      undoStackRef.current.push(entry);
+      const applied = await applyChanges(entry.changes, 'redo');
+      if (applied.length > 0) {
+        undoStackRef.current.push({ changes: applied });
+      }
       updateFlags();
       scheduleSave();
     } finally {

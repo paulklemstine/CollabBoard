@@ -20,6 +20,7 @@ export interface BoardObject {
   rotation: number;
   createdBy: string;
   updatedAt: number;
+  lastModifiedBy?: string;
   parentId?: string;
   aiLabel?: string;
   aiGroupId?: string;

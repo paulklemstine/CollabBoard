@@ -1,4 +1,5 @@
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
+import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
@@ -12,6 +13,50 @@ const langchainApiKey = defineSecret('LANGCHAIN_API_KEY');
 const langfuseSecretKey = defineSecret('LANGFUSE_SECRET_KEY');
 const langfusePublicKey = defineSecret('LANGFUSE_PUBLIC_KEY');
 const langfuseHost = defineSecret('LANGFUSE_HOST');
+
+// ---- Cached module singletons (import once per function instance, reuse across warm invocations) ----
+let _modules: {
+  ChatAnthropic: typeof import('@langchain/anthropic').ChatAnthropic;
+  HumanMessage: typeof import('@langchain/core/messages').HumanMessage;
+  SystemMessage: typeof import('@langchain/core/messages').SystemMessage;
+  AIMessage: typeof import('@langchain/core/messages').AIMessage;
+  ToolMessage: typeof import('@langchain/core/messages').ToolMessage;
+  CallbackHandler: typeof import('@langfuse/langchain').CallbackHandler;
+} | null = null;
+
+async function getModules() {
+  if (!_modules) {
+    const [anthropic, core, langfuse] = await Promise.all([
+      import('@langchain/anthropic'),
+      import('@langchain/core/messages'),
+      import('@langfuse/langchain'),
+    ]);
+    _modules = {
+      ChatAnthropic: anthropic.ChatAnthropic,
+      HumanMessage: core.HumanMessage,
+      SystemMessage: core.SystemMessage,
+      AIMessage: core.AIMessage,
+      ToolMessage: core.ToolMessage,
+      CallbackHandler: langfuse.CallbackHandler,
+    };
+  }
+  return _modules;
+}
+
+// ---- OpenTelemetry singleton (initialized once per function instance) ----
+let _otelInitialized = false;
+
+async function ensureOtel() {
+  if (!_otelInitialized) {
+    const { NodeSDK } = await import('@opentelemetry/sdk-node');
+    const { LangfuseSpanProcessor } = await import('@langfuse/otel');
+    const sdk = new NodeSDK({
+      spanProcessors: [new LangfuseSpanProcessor()],
+    });
+    sdk.start();
+    _otelInitialized = true;
+  }
+}
 
 // ---- Tool definitions (trimmed for token efficiency) ----
 // All create tools share: x,y (position), parentId (frame), aiLabel, aiGroupId, aiGroupLabel
@@ -1640,9 +1685,11 @@ async function executeTool(
         }
       }
 
-      await Promise.all(objectData.map(o =>
-        objectsRef.doc(o.id).update({ x: o.x, y: o.y, updatedAt: now })
-      ));
+      const alignBatch = db.batch();
+      for (const o of objectData) {
+        alignBatch.update(objectsRef.doc(o.id), { x: o.x, y: o.y, updatedAt: now });
+      }
+      await alignBatch.commit();
       return JSON.stringify({ success: true, aligned: ids.length, alignment: input.alignment });
     }
 
@@ -1674,9 +1721,11 @@ async function executeTool(
         default:          return JSON.stringify({ error: `Unknown layout mode: ${input.mode}` });
       }
 
-      await Promise.all(positions.map(p =>
-        objectsRef.doc(p.id).update({ x: p.x, y: p.y, updatedAt: now })
-      ));
+      const layoutBatch = db.batch();
+      for (const p of positions) {
+        layoutBatch.update(objectsRef.doc(p.id), { x: p.x, y: p.y, updatedAt: now });
+      }
+      await layoutBatch.commit();
       return JSON.stringify({ success: true, arranged: ids.length, mode: input.mode });
     }
 
@@ -1748,295 +1797,6 @@ async function executeTool(
         updatedAt: now,
       });
       return JSON.stringify({ success: true, rotation: input.rotation });
-    }
-
-    case 'generateFromTemplate': {
-      const templateType = input.templateType!;
-      const tbarH = 36; // title bar height
-      const startX = input.x ?? 0;
-      const startY = (input.y ?? 0) + tbarH;
-      const created: string[] = [];
-
-      switch (templateType) {
-        case 'swot': {
-          // Create 2x2 grid of frames with starter stickies
-          const frameWidth = 400;
-          const frameHeight = 300;
-          const gap = 30;
-          const titles = ['Strengths', 'Weaknesses', 'Opportunities', 'Threats'];
-          const colors = ['#dcfce7', '#fce7f3', '#dbeafe', '#ffedd5'];
-          const prompts = ['What are we good at?', 'Where can we improve?', 'What trends can we leverage?', 'What risks do we face?'];
-
-          for (let i = 0; i < 4; i++) {
-            const col = i % 2;
-            const row = Math.floor(i / 2);
-            const frameRef = objectsRef.doc();
-            const fx = startX + col * (frameWidth + gap);
-            const fy = startY + row * (frameHeight + tbarH + gap);
-            const frameData = {
-              type: 'frame',
-              title: titles[i],
-              x: fx,
-              y: fy,
-              width: frameWidth,
-              height: frameHeight,
-              rotation: 0,
-              createdBy: userId,
-              updatedAt: now,
-              parentId: '',
-            };
-            await frameRef.set(frameData);
-            objectsCreated.push(frameRef.id);
-            created.push(frameRef.id);
-
-            // Starter sticky inside frame
-            const stickyRef = objectsRef.doc();
-            await stickyRef.set({
-              type: 'sticky',
-              text: prompts[i],
-              x: fx + 20,
-              y: fy + 20,
-              width: 180,
-              height: 180,
-              color: colors[i],
-              textColor: '#1e293b',
-              rotation: 0,
-              createdBy: userId,
-              updatedAt: now,
-              parentId: frameRef.id,
-            });
-            objectsCreated.push(stickyRef.id);
-            created.push(stickyRef.id);
-          }
-          break;
-        }
-
-        case 'kanban': {
-          // Create 3 columns with starter stickies
-          const frameWidth = 350;
-          const frameHeight = 600;
-          const gap = 30;
-          const titles = ['To Do', 'In Progress', 'Done'];
-          const kanbanColors = ['#fef9c3', '#dbeafe', '#dcfce7'];
-          const kanbanPrompts = ['Add tasks here', 'Work in progress', 'Completed tasks'];
-
-          for (let i = 0; i < 3; i++) {
-            const frameRef = objectsRef.doc();
-            const fx = startX + i * (frameWidth + gap);
-            const fy = startY;
-            const frameData = {
-              type: 'frame',
-              title: titles[i],
-              x: fx,
-              y: fy,
-              width: frameWidth,
-              height: frameHeight,
-              rotation: 0,
-              createdBy: userId,
-              updatedAt: now,
-              parentId: '',
-            };
-            await frameRef.set(frameData);
-            objectsCreated.push(frameRef.id);
-            created.push(frameRef.id);
-
-            // Starter sticky inside frame
-            const stickyRef = objectsRef.doc();
-            await stickyRef.set({
-              type: 'sticky',
-              text: kanbanPrompts[i],
-              x: fx + 20,
-              y: fy + 20,
-              width: 180,
-              height: 180,
-              color: kanbanColors[i],
-              textColor: '#1e293b',
-              rotation: 0,
-              createdBy: userId,
-              updatedAt: now,
-              parentId: frameRef.id,
-            });
-            objectsCreated.push(stickyRef.id);
-            created.push(stickyRef.id);
-          }
-          break;
-        }
-
-        case 'retrospective': {
-          // What went well, What didn't, Action items — with starter stickies
-          const retroFrameWidth = 400;
-          const retroFrameHeight = 500;
-          const retroGap = 30;
-          const retroTitles = ['What Went Well \u{1F60A}', 'What Didn\'t Go Well \u{1F61E}', 'Action Items \u{1F3AF}'];
-          const retroColors = ['#dcfce7', '#fce7f3', '#dbeafe'];
-          const retroPrompts = ['Add your wins here', 'What could be better?', 'Next steps to take'];
-
-          for (let i = 0; i < 3; i++) {
-            const frameRef = objectsRef.doc();
-            const fx = startX + i * (retroFrameWidth + retroGap);
-            const fy = startY;
-            const frameData = {
-              type: 'frame',
-              title: retroTitles[i],
-              x: fx,
-              y: fy,
-              width: retroFrameWidth,
-              height: retroFrameHeight,
-              rotation: 0,
-              createdBy: userId,
-              updatedAt: now,
-              parentId: '',
-            };
-            await frameRef.set(frameData);
-            objectsCreated.push(frameRef.id);
-            created.push(frameRef.id);
-
-            // Starter sticky inside frame
-            const stickyRef = objectsRef.doc();
-            await stickyRef.set({
-              type: 'sticky',
-              text: retroPrompts[i],
-              x: fx + 20,
-              y: fy + 20,
-              width: 180,
-              height: 180,
-              color: retroColors[i],
-              textColor: '#1e293b',
-              rotation: 0,
-              createdBy: userId,
-              updatedAt: now,
-              parentId: frameRef.id,
-            });
-            objectsCreated.push(stickyRef.id);
-            created.push(stickyRef.id);
-          }
-          break;
-        }
-
-        case 'eisenhower': {
-          // Urgent/Important matrix with starter stickies
-          const eiFrameWidth = 400;
-          const eiFrameHeight = 300;
-          const eiGap = 30;
-          const eiTitles = ['Urgent & Important', 'Not Urgent & Important', 'Urgent & Not Important', 'Neither'];
-          const eiColors = ['#fce7f3', '#dbeafe', '#ffedd5', '#f3e8ff'];
-          const eiPrompts = ['Do it now', 'Schedule it', 'Delegate it', 'Drop it'];
-
-          for (let i = 0; i < 4; i++) {
-            const col = i % 2;
-            const row = Math.floor(i / 2);
-            const frameRef = objectsRef.doc();
-            const fx = startX + col * (eiFrameWidth + eiGap);
-            const fy = startY + row * (eiFrameHeight + tbarH + eiGap);
-            const frameData = {
-              type: 'frame',
-              title: eiTitles[i],
-              x: fx,
-              y: fy,
-              width: eiFrameWidth,
-              height: eiFrameHeight,
-              rotation: 0,
-              createdBy: userId,
-              updatedAt: now,
-              parentId: '',
-            };
-            await frameRef.set(frameData);
-            objectsCreated.push(frameRef.id);
-            created.push(frameRef.id);
-
-            // Starter sticky inside frame
-            const stickyRef = objectsRef.doc();
-            await stickyRef.set({
-              type: 'sticky',
-              text: eiPrompts[i],
-              x: fx + 20,
-              y: fy + 20,
-              width: 180,
-              height: 180,
-              color: eiColors[i],
-              textColor: '#1e293b',
-              rotation: 0,
-              createdBy: userId,
-              updatedAt: now,
-              parentId: frameRef.id,
-            });
-            objectsCreated.push(stickyRef.id);
-            created.push(stickyRef.id);
-          }
-          break;
-        }
-
-        case 'mind-map': {
-          // Central node + 4 branches
-          const centerRef = objectsRef.doc();
-          const centerData = {
-            type: 'sticky',
-            text: input.title ?? 'Central Idea',
-            x: startX + 400,
-            y: startY + 300,
-            width: 200,
-            height: 200,
-            color: '#fef9c3',
-            rotation: 0,
-            createdBy: userId,
-            updatedAt: now,
-            parentId: '',
-          };
-          await centerRef.set(centerData);
-          objectsCreated.push(centerRef.id);
-          created.push(centerRef.id);
-
-          // Create 4 branches around it
-          const positions = [
-            { x: startX, y: startY + 300 },
-            { x: startX + 800, y: startY + 300 },
-            { x: startX + 400, y: startY },
-            { x: startX + 400, y: startY + 600 },
-          ];
-
-          for (let i = 0; i < 4; i++) {
-            const branchRef = objectsRef.doc();
-            const branchData = {
-              type: 'sticky',
-              text: `Branch ${i + 1}`,
-              x: positions[i].x,
-              y: positions[i].y,
-              width: 200,
-              height: 200,
-              color: '#dbeafe',
-              rotation: 0,
-              createdBy: userId,
-              updatedAt: now,
-              parentId: '',
-            };
-            await branchRef.set(branchData);
-            objectsCreated.push(branchRef.id);
-            created.push(branchRef.id);
-
-            // Create connector
-            const connectorRef = objectsRef.doc();
-            const connectorData = {
-              type: 'connector',
-              fromId: centerRef.id,
-              toId: branchRef.id,
-              style: 'curved',
-              x: 0,
-              y: 0,
-              width: 0,
-              height: 0,
-              rotation: 0,
-              createdBy: userId,
-              updatedAt: now,
-            };
-            await connectorRef.set(connectorData);
-            objectsCreated.push(connectorRef.id);
-            created.push(connectorRef.id);
-          }
-          break;
-        }
-      }
-
-      return JSON.stringify({ success: true, template: templateType, created });
     }
 
     case 'getObject': {
@@ -2133,15 +1893,247 @@ async function executeTool(
   }
 }
 
-// ---- Firestore-triggered Cloud Function (v2) ----
-// Client writes to boards/{boardId}/aiRequests/{requestId}
-// Optimized: single LLM call (no second round), parallel tool execution, trimmed prompt.
-// Full LangChain + Langfuse observability preserved.
+// ---- Shared secrets config for both trigger and callable ----
+const functionSecrets = [anthropicApiKey, langchainApiKey, langfuseSecretKey, langfusePublicKey, langfuseHost];
+
+// Read-only tools that return data but don't modify the board
+const READ_ONLY_TOOLS = new Set([
+  'getBoardState', 'getBoardSummary', 'searchObjects', 'getObject', 'getSelectedObjects',
+]);
+
+// ---- Core AI processing (shared between onDocumentCreated and onCall) ----
+
+interface ProcessAIParams {
+  boardId: string;
+  requestId: string;
+  prompt: string;
+  userId: string;
+  selectedIds?: string[];
+}
+
+async function processAICore(
+  params: ProcessAIParams,
+): Promise<{ response: string; objectsCreated: string[] }> {
+  const { boardId, requestId, prompt, userId, selectedIds } = params;
+  const requestRef = db.doc(`boards/${boardId}/aiRequests/${requestId}`);
+
+  // Mark as processing
+  await requestRef.update({ status: 'processing', progress: 'Planning...' });
+
+  const objectsCreated: string[] = [];
+  const groupLabels: Record<number, string> = {};
+
+  // Template engine: bypass LLM for known patterns
+  const templateMatch = detectTemplate(prompt);
+  if (templateMatch) {
+    try {
+      let responseText: string;
+      if (templateMatch.type === 'flowchart') {
+        responseText = await executeFlowchart(templateMatch.nodes, boardId, userId, objectsCreated);
+      } else {
+        responseText = await executeTemplate(templateMatch.templateType, boardId, userId, objectsCreated);
+      }
+      await requestRef.update({
+        status: 'completed',
+        response: responseText,
+        objectsCreated,
+        completedAt: Date.now(),
+      });
+      return { response: responseText, objectsCreated };
+    } catch (err: unknown) {
+      console.error('Template engine error:', err);
+      // Fall through to LLM as fallback
+    }
+  }
+
+  // Set tracing env vars (idempotent on warm instances)
+  process.env.LANGCHAIN_TRACING_V2 = 'true';
+  process.env.LANGCHAIN_API_KEY = langchainApiKey.value();
+  process.env.LANGCHAIN_PROJECT = 'FlowSpace';
+  process.env.LANGCHAIN_CALLBACKS_BACKGROUND = 'false';
+  process.env.LANGFUSE_SECRET_KEY = langfuseSecretKey.value();
+  process.env.LANGFUSE_PUBLIC_KEY = langfusePublicKey.value();
+  process.env.LANGFUSE_BASE_URL = langfuseHost.value();
+
+  // Cached module singletons + OTel singleton (import once, reuse across warm invocations)
+  const { ChatAnthropic, HumanMessage, SystemMessage, ToolMessage, CallbackHandler } = await getModules();
+  await ensureOtel();
+
+  const langfuseHandler = new CallbackHandler({
+    sessionId: requestId,
+    userId: userId,
+  });
+
+  try {
+    // Build context — single board state read, reused for both context and selection
+    const hasSelection = selectedIds && selectedIds.length > 0;
+    const contextLevel = hasSelection ? 'summary' : requestNeedsContext(prompt);
+
+    let boardState: any[] | null = null;
+    if (contextLevel === 'summary' || hasSelection) {
+      boardState = await readBoardState(boardId);
+    }
+
+    let userMessage: string;
+    if (contextLevel === 'summary' && boardState) {
+      if (boardState.length === 0) {
+        userMessage = `Board is empty.\n\nUser request: ${prompt}`;
+      } else {
+        const compactObjects = boardState.map(compactBoardObject);
+        userMessage = `Board state (${boardState.length} objects):\n${JSON.stringify(compactObjects)}\n\nUser request: ${prompt}`;
+      }
+    } else {
+      userMessage = prompt;
+    }
+
+    if (hasSelection && boardState) {
+      const selectedObjects = boardState.filter(obj => selectedIds!.includes(obj.id));
+      if (selectedObjects.length > 0) {
+        const compactSelected = selectedObjects.map(compactBoardObject);
+        userMessage += `\n\nCurrently selected objects (${selectedIds!.length}):\n${JSON.stringify(compactSelected)}`;
+      } else {
+        userMessage += `\n\nCurrently selected object IDs (${selectedIds!.length}): ${selectedIds!.join(', ')}`;
+      }
+    }
+
+    // LangChain ChatAnthropic with tools
+    const model = new ChatAnthropic({
+      model: 'claude-haiku-4-5-20251001',
+      maxRetries: 2,
+      anthropicApiKey: anthropicApiKey.value(),
+    });
+    const modelWithTools = model.bindTools(tools as never);
+
+    const messages: BaseMessage[] = [
+      new SystemMessage(SYSTEM_PROMPT),
+      new HumanMessage(userMessage),
+    ];
+
+    await requestRef.update({ progress: 'Thinking...' });
+
+    // Tool execution loop — max 3 rounds to keep latency bounded
+    const allToolCalls: { name: string; args: ToolInput }[] = [];
+    let lastResponse: BaseMessage | null = null;
+
+    for (let round = 0; round < 3; round++) {
+      const response = await modelWithTools.invoke(messages, {
+        callbacks: [langfuseHandler],
+      });
+      lastResponse = response;
+
+      const toolCalls = response.tool_calls ?? [];
+      if (toolCalls.length === 0) break;
+
+      await requestRef.update({
+        progress: `Executing ${toolCalls.length} action${toolCalls.length > 1 ? 's' : ''}...`,
+      });
+
+      const allReadOnly = toolCalls.every(tc => READ_ONLY_TOOLS.has(tc.name));
+
+      const results = await Promise.all(
+        toolCalls.map(async (toolCall) => {
+          try {
+            const args = (toolCall.args && typeof toolCall.args === 'object') ? toolCall.args as ToolInput : {} as ToolInput;
+            let result: string;
+            if (toolCall.name === 'executePlan') {
+              const planArgs = toolCall.args as any;
+              result = await executeExecutePlan(
+                planArgs.operations ?? [],
+                boardId,
+                userId,
+                objectsCreated,
+                groupLabels,
+                planArgs.aiGroupId != null ? String(planArgs.aiGroupId) : undefined,
+                planArgs.aiGroupLabel,
+              );
+            } else {
+              result = await executeTool(
+                toolCall.name,
+                args,
+                boardId,
+                userId,
+                objectsCreated,
+                groupLabels,
+                selectedIds,
+              );
+            }
+            return { id: toolCall.id, name: toolCall.name, result };
+          } catch (toolErr: unknown) {
+            const errMsg = toolErr instanceof Error ? toolErr.message : 'Tool execution failed';
+            console.error(`Tool ${toolCall.name} error:`, toolErr);
+            return { id: toolCall.id, name: toolCall.name, result: JSON.stringify({ error: errMsg }) };
+          }
+        }),
+      );
+
+      allToolCalls.push(...toolCalls.map(tc => ({ name: tc.name, args: tc.args as ToolInput })));
+
+      if (allReadOnly && round < 2) {
+        messages.push(response);
+        for (const r of results) {
+          messages.push(new ToolMessage({ content: r.result, tool_call_id: r.id ?? r.name }));
+        }
+        await requestRef.update({ progress: 'Planning actions...' });
+        continue;
+      }
+
+      break;
+    }
+
+    // Build deterministic summary from executed tool names (skip read-only tools)
+    const actionCalls = allToolCalls.filter(tc => !READ_ONLY_TOOLS.has(tc.name));
+    let responseText: string;
+    if (actionCalls.length > 0) {
+      const counts: Record<string, number> = {};
+      for (const tc of actionCalls) {
+        const label = TOOL_LABELS[tc.name] || tc.name;
+        counts[label] = (counts[label] || 0) + 1;
+      }
+      const parts = Object.entries(counts).map(([label, count]) =>
+        count > 1 ? `${label} x${count}` : label,
+      );
+      responseText = `Done! ${parts.join(', ')}.`;
+    } else if (lastResponse) {
+      const content = lastResponse.content;
+      responseText = typeof content === 'string'
+        ? (content || 'Done!')
+        : Array.isArray(content)
+          ? content
+              .filter((b): b is { type: 'text'; text: string } =>
+                typeof b === 'object' && 'type' in b && b.type === 'text')
+              .map((b) => b.text)
+              .join('\n') || 'Done!'
+          : 'Done!';
+    } else {
+      responseText = 'Done!';
+    }
+
+    await requestRef.update({
+      status: 'completed',
+      response: responseText,
+      objectsCreated,
+      completedAt: Date.now(),
+    });
+
+    return { response: responseText, objectsCreated };
+  } catch (err: unknown) {
+    console.error('AI command error:', err);
+    const message = err instanceof Error ? err.message : 'Internal error';
+    await requestRef.update({
+      status: 'error',
+      error: message,
+      completedAt: Date.now(),
+    });
+    throw err;
+  }
+}
+
+// ---- Firestore-triggered Cloud Function (legacy fallback) ----
 
 export const processAIRequest = onDocumentCreated(
   {
     document: 'boards/{boardId}/aiRequests/{requestId}',
-    secrets: [anthropicApiKey, langchainApiKey, langfuseSecretKey, langfusePublicKey, langfuseHost],
+    secrets: functionSecrets,
     timeoutSeconds: 300,
     memory: '512MiB',
     maxInstances: 10,
@@ -2153,12 +2145,11 @@ export const processAIRequest = onDocumentCreated(
     const data = snapshot.data();
     const boardId = event.params.boardId;
     const requestId = event.params.requestId;
-    const requestRef = db.doc(`boards/${boardId}/aiRequests/${requestId}`);
 
     const { prompt, userId, selectedIds } = data as { prompt: string; userId: string; selectedIds?: string[] };
 
     if (!prompt || !userId) {
-      await requestRef.update({
+      await db.doc(`boards/${boardId}/aiRequests/${requestId}`).update({
         status: 'error',
         error: 'Missing prompt or userId',
         completedAt: Date.now(),
@@ -2166,237 +2157,52 @@ export const processAIRequest = onDocumentCreated(
       return;
     }
 
-    // Mark as processing
-    await requestRef.update({ status: 'processing', progress: 'Planning...' });
-
-    const objectsCreated: string[] = [];
-    const groupLabels: Record<number, string> = {};
-
-    // Template engine: bypass LLM for known patterns
-    const templateMatch = detectTemplate(prompt);
-    if (templateMatch) {
-      try {
-        let responseText: string;
-        if (templateMatch.type === 'flowchart') {
-          responseText = await executeFlowchart(templateMatch.nodes, boardId, userId, objectsCreated);
-        } else {
-          responseText = await executeTemplate(templateMatch.templateType, boardId, userId, objectsCreated);
-        }
-        await requestRef.update({
-          status: 'completed',
-          response: responseText,
-          objectsCreated,
-          completedAt: Date.now(),
-        });
-        return; // Skip LLM entirely
-      } catch (err: unknown) {
-        console.error('Template engine error:', err);
-        // Fall through to LLM as fallback
-      }
-    }
-
-    // Set LangSmith tracing env vars
-    process.env.LANGCHAIN_TRACING_V2 = 'true';
-    process.env.LANGCHAIN_API_KEY = langchainApiKey.value();
-    process.env.LANGCHAIN_PROJECT = 'FlowSpace';
-    process.env.LANGCHAIN_CALLBACKS_BACKGROUND = 'false';
-
-    // Set Langfuse env vars BEFORE importing @langfuse packages
-    process.env.LANGFUSE_SECRET_KEY = langfuseSecretKey.value();
-    process.env.LANGFUSE_PUBLIC_KEY = langfusePublicKey.value();
-    process.env.LANGFUSE_BASE_URL = langfuseHost.value();
-
-    // Lazy-load LangChain and Langfuse
-    const { ChatAnthropic } = await import('@langchain/anthropic');
-    const { HumanMessage, SystemMessage } = await import('@langchain/core/messages');
-    const { CallbackHandler } = await import('@langfuse/langchain');
-
-    // Set up OpenTelemetry with Langfuse exporter
-    const { NodeSDK } = await import('@opentelemetry/sdk-node');
-    const { LangfuseSpanProcessor } = await import('@langfuse/otel');
-    const otelSdk = new NodeSDK({
-      spanProcessors: [new LangfuseSpanProcessor()],
-    });
-    otelSdk.start();
-
-    const langfuseHandler = new CallbackHandler({
-      sessionId: requestId,
-      userId: userId,
-    });
+    // Re-read current status — the callable may have claimed this doc between creation and trigger delivery
+    const currentSnap = await db.doc(`boards/${boardId}/aiRequests/${requestId}`).get();
+    const currentStatus = currentSnap.data()?.status;
+    if (currentStatus !== 'pending') return;
 
     try {
-      // Build context — provide full compact board state when the LLM needs to act on existing objects
-      const hasSelection = selectedIds && selectedIds.length > 0;
-      const contextLevel = hasSelection ? 'summary' : requestNeedsContext(prompt);
+      await processAICore({ boardId, requestId, prompt, userId, selectedIds });
+    } catch {
+      // Error already written to Firestore by processAICore
+    }
+  },
+);
 
-      let userMessage: string;
-      if (contextLevel === 'summary') {
-        const boardState = await readBoardState(boardId);
-        if (boardState.length === 0) {
-          userMessage = `Board is empty.\n\nUser request: ${prompt}`;
-        } else {
-          // Provide compact board state with IDs so the LLM can act in a single call
-          const compactObjects = boardState.map(compactBoardObject);
-          userMessage = `Board state (${boardState.length} objects):\n${JSON.stringify(compactObjects)}\n\nUser request: ${prompt}`;
-        }
-      } else {
-        userMessage = prompt;
-      }
+// ---- Callable Cloud Function (preferred — lower latency, no trigger delay) ----
 
-      if (selectedIds && selectedIds.length > 0) {
-        // Also provide selected object details so LLM can act on them directly
-        const boardState = await readBoardState(boardId);
-        const selectedObjects = boardState.filter(obj => selectedIds.includes(obj.id));
-        if (selectedObjects.length > 0) {
-          const compactSelected = selectedObjects.map(compactBoardObject);
-          userMessage += `\n\nCurrently selected objects (${selectedIds.length}):\n${JSON.stringify(compactSelected)}`;
-        } else {
-          userMessage += `\n\nCurrently selected object IDs (${selectedIds.length}): ${selectedIds.join(', ')}`;
-        }
-      }
+export const processAIRequestCallable = onCall(
+  {
+    secrets: functionSecrets,
+    timeoutSeconds: 300,
+    memory: '512MiB',
+    maxInstances: 10,
+  },
+  async (request) => {
+    const userId = request.auth?.uid;
+    if (!userId) {
+      throw new HttpsError('unauthenticated', 'Must be signed in to use AI commands.');
+    }
 
-      // LangChain ChatAnthropic with tools
-      const model = new ChatAnthropic({
-        model: 'claude-haiku-4-5-20251001',
-        maxRetries: 2,
-        anthropicApiKey: anthropicApiKey.value(),
-      });
-      const modelWithTools = model.bindTools(tools as never);
+    const { boardId, requestId, prompt, selectedIds } = request.data as {
+      boardId: string;
+      requestId: string;
+      prompt: string;
+      selectedIds?: string[];
+    };
 
-      const messages: BaseMessage[] = [
-        new SystemMessage(SYSTEM_PROMPT),
-        new HumanMessage(userMessage),
-      ];
+    if (!boardId || !requestId || !prompt) {
+      throw new HttpsError('invalid-argument', 'Missing boardId, requestId, or prompt.');
+    }
 
-      await requestRef.update({ progress: 'Thinking...' });
-
-      // Read-only tools that return data but don't modify the board
-      const READ_ONLY_TOOLS = new Set([
-        'getBoardState', 'getBoardSummary', 'searchObjects', 'getObject', 'getSelectedObjects',
-      ]);
-
-      // Tool execution loop — max 3 rounds to keep latency bounded
-      // Most commands complete in 1 round (context provided upfront).
-      // Commands needing read-then-act get a second round.
-      const allToolCalls: { name: string; args: ToolInput }[] = [];
-      let lastResponse: BaseMessage | null = null;
-
-      for (let round = 0; round < 3; round++) {
-        const response = await modelWithTools.invoke(messages, {
-          callbacks: [langfuseHandler],
-        });
-        lastResponse = response;
-
-        const toolCalls = response.tool_calls ?? [];
-        if (toolCalls.length === 0) break; // No tools requested — done
-
-        await requestRef.update({
-          progress: `Executing ${toolCalls.length} action${toolCalls.length > 1 ? 's' : ''}...`,
-        });
-
-        // Check if this round is all read-only tools
-        const allReadOnly = toolCalls.every(tc => READ_ONLY_TOOLS.has(tc.name));
-
-        // Parallelize tool executions with defensive error handling
-        const results = await Promise.all(
-          toolCalls.map(async (toolCall) => {
-            try {
-              const args = (toolCall.args && typeof toolCall.args === 'object') ? toolCall.args as ToolInput : {} as ToolInput;
-              let result: string;
-              if (toolCall.name === 'executePlan') {
-                const planArgs = toolCall.args as any;
-                result = await executeExecutePlan(
-                  planArgs.operations ?? [],
-                  boardId,
-                  userId,
-                  objectsCreated,
-                  groupLabels,
-                  planArgs.aiGroupId != null ? String(planArgs.aiGroupId) : undefined,
-                  planArgs.aiGroupLabel,
-                );
-              } else {
-                result = await executeTool(
-                  toolCall.name,
-                  args,
-                  boardId,
-                  userId,
-                  objectsCreated,
-                  groupLabels,
-                  selectedIds,
-                );
-              }
-              return { id: toolCall.id, name: toolCall.name, result };
-            } catch (toolErr: unknown) {
-              const errMsg = toolErr instanceof Error ? toolErr.message : 'Tool execution failed';
-              console.error(`Tool ${toolCall.name} error:`, toolErr);
-              return { id: toolCall.id, name: toolCall.name, result: JSON.stringify({ error: errMsg }) };
-            }
-          }),
-        );
-
-        allToolCalls.push(...toolCalls.map(tc => ({ name: tc.name, args: tc.args as ToolInput })));
-
-        // If all tools were read-only, feed results back for another round
-        if (allReadOnly && round < 2) {
-          const { AIMessage, ToolMessage } = await import('@langchain/core/messages');
-          messages.push(response); // AI message with tool_calls
-          for (const r of results) {
-            messages.push(new ToolMessage({ content: r.result, tool_call_id: r.id ?? r.name }));
-          }
-          await requestRef.update({ progress: 'Planning actions...' });
-          continue;
-        }
-
-        break; // Had write tools or max rounds — stop
-      }
-
-      // Build deterministic summary from executed tool names (skip read-only tools)
-      const actionCalls = allToolCalls.filter(tc => !READ_ONLY_TOOLS.has(tc.name));
-      let responseText: string;
-      if (actionCalls.length > 0) {
-        const counts: Record<string, number> = {};
-        for (const tc of actionCalls) {
-          const label = TOOL_LABELS[tc.name] || tc.name;
-          counts[label] = (counts[label] || 0) + 1;
-        }
-        const parts = Object.entries(counts).map(([label, count]) =>
-          count > 1 ? `${label} x${count}` : label,
-        );
-        responseText = `Done! ${parts.join(', ')}.`;
-      } else if (lastResponse) {
-        // No action tools — use the model's text response
-        const content = lastResponse.content;
-        responseText = typeof content === 'string'
-          ? (content || 'Done!')
-          : Array.isArray(content)
-            ? content
-                .filter((b): b is { type: 'text'; text: string } =>
-                  typeof b === 'object' && 'type' in b && b.type === 'text')
-                .map((b) => b.text)
-                .join('\n') || 'Done!'
-            : 'Done!';
-      } else {
-        responseText = 'Done!';
-      }
-
-      // Update request document with response
-      await requestRef.update({
-        status: 'completed',
-        response: responseText,
-        objectsCreated,
-        completedAt: Date.now(),
-      });
+    try {
+      const result = await processAICore({ boardId, requestId, prompt, userId, selectedIds });
+      return result;
     } catch (err: unknown) {
-      console.error('AI command error:', err);
+      // processAICore already wrote the error to Firestore
       const message = err instanceof Error ? err.message : 'Internal error';
-      await requestRef.update({
-        status: 'error',
-        error: message,
-        completedAt: Date.now(),
-      });
-    } finally {
-      // Flush all pending OTEL spans to Langfuse
-      try { await otelSdk.shutdown(); } catch (e) { console.warn('OTEL shutdown error (non-fatal):', e); }
+      throw new HttpsError('internal', message);
     }
   },
 );

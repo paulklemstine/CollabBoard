@@ -27,11 +27,14 @@ export async function addObject(boardId: string, obj: AnyBoardObject): Promise<v
 export async function updateObject(
   boardId: string,
   objectId: string,
-  updates: Partial<AnyBoardObject>
+  updates: Partial<AnyBoardObject>,
+  modifiedBy?: string
 ): Promise<void> {
   if (!objectId) return;
   const docRef = doc(objectsCollection(boardId), objectId);
-  await updateDoc(docRef, { ...updates, updatedAt: Date.now() });
+  const payload: Record<string, unknown> = { ...updates, updatedAt: Date.now() };
+  if (modifiedBy) payload.lastModifiedBy = modifiedBy;
+  await updateDoc(docRef, payload);
 }
 
 export async function deleteObject(boardId: string, objectId: string): Promise<void> {
@@ -65,7 +68,8 @@ export async function batchAddObjects(
  */
 export async function batchUpdateObjects(
   boardId: string,
-  updates: Array<{ id: string; updates: Partial<AnyBoardObject> }>
+  updates: Array<{ id: string; updates: Partial<AnyBoardObject> }>,
+  modifiedBy?: string
 ): Promise<void> {
   const valid = updates.filter(({ id }) => !!id);
   if (valid.length === 0) return;
@@ -75,7 +79,9 @@ export async function batchUpdateObjects(
 
   for (const { id, updates: objUpdates } of valid) {
     const docRef = doc(objectsCollection(boardId), id);
-    batch.update(docRef, { ...objUpdates, updatedAt: now });
+    const payload: Record<string, unknown> = { ...objUpdates, updatedAt: now };
+    if (modifiedBy) payload.lastModifiedBy = modifiedBy;
+    batch.update(docRef, payload);
   }
 
   await batch.commit();

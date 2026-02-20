@@ -194,6 +194,8 @@ export function StickerComponent({
 
   // Scale emoji font size proportionally - make it larger to fill space better
   const fontSize = (localWidth / BASE_SIZE) * BASE_FONT_SIZE;
+  // Visible panel height trimmed to hug the emoji glyph tighter
+  const panelHeight = localHeight - 4;
 
   return (
     <Group
@@ -253,7 +255,7 @@ export function StickerComponent({
         <Rect
           ref={selectionRectRef}
           width={localWidth}
-          height={localHeight}
+          height={panelHeight}
           stroke="#3b82f6"
           strokeWidth={3}
           dash={[8, 4]}
@@ -266,7 +268,7 @@ export function StickerComponent({
       {isSelected && selectionBox && (
         <Rect
           width={localWidth}
-          height={localHeight}
+          height={panelHeight}
           fill="transparent"
           shadowColor="#8b5cf6"
           shadowBlur={24}

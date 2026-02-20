@@ -19,8 +19,8 @@ interface MinimapProps {
   onPanTo?: (worldX: number, worldY: number) => void;
 }
 
-const MINIMAP_WIDTH = 200;
-const MINIMAP_HEIGHT = 150;
+const MINIMAP_WIDTH = 220;
+const MINIMAP_HEIGHT = 165;
 const ZOOM_OUT_FACTOR = 30;
 
 export function Minimap({ transform, objects = [], onPanTo }: MinimapProps) {

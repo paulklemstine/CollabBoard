@@ -149,7 +149,7 @@ function BoardView({
     user.displayName ?? 'Anonymous',
     user.email ?? '',
   );
-  const { pushUndo, undo, redo, canUndo, canRedo, isUndoRedoingRef } = useUndoRedo(boardId);
+  const { pushUndo, undo, redo, canUndo, canRedo, isUndoRedoingRef } = useUndoRedo(boardId, user.uid);
   const {
     objects,
     addStickyNote,
@@ -966,7 +966,7 @@ function BoardView({
       <AIChat boardId={boardId} isOpen={aiOpen} onClose={() => setAiOpen(false)} onObjectsCreated={handleAIObjectsCreated} selectedIds={[...selectedIds]} />
       {/* Top left: Back/Share buttons and minimap */}
       <div className="absolute top-4 left-4 z-50 flex flex-col gap-3">
-        <div className="glass-playful rounded-xl shadow-lg flex items-center py-1">
+        <div className="glass-playful rounded-xl shadow-lg flex items-center py-1 min-w-[220px]">
           <button
             onClick={handleNavigateBack}
             className="px-2.5 py-1 text-gray-700 hover:text-violet-600 transition-colors duration-200 flex items-center rounded-lg hover:bg-violet-50/60"
@@ -976,15 +976,13 @@ function BoardView({
               <polyline points="15 18 9 12 15 6" />
             </svg>
           </button>
+          <div className="w-px h-6 bg-gray-300" />
           {boardMetadata && (
-            <>
-              <div className="w-px h-6 bg-gray-300" />
-              <span className="px-3 text-sm font-bold text-violet-600 truncate max-w-[200px]">
+              <span className="flex-1 px-3 text-center text-sm font-bold text-violet-600 truncate">
                 {boardMetadata.name}
               </span>
-              <div className="w-px h-6 bg-gray-300" />
-            </>
           )}
+          <div className="w-px h-6 bg-gray-300" />
           <button
             onClick={() => {
               const url = `${window.location.origin}/${boardId}`;

@@ -126,7 +126,7 @@ export function ConnectorComponent({ connector, objects, onDelete }: ConnectorCo
   const to = getEdgePoint(toObj, fromCenter, toRotation, toCenter);
 
   // Style props — fallback to legacy defaults
-  const color = connector.color ?? (connector.style === 'curved' ? '#f472b6' : '#818cf8');
+  const color = connector.color ?? '#818cf8';
   const sw = connector.strokeWidth ?? 3.5;
   const lineType = connector.lineType ?? (connector.style === 'curved' ? 'dashed' : 'solid');
   const startArrow = connector.startArrow ?? false;

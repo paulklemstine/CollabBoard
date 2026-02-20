@@ -72,15 +72,14 @@ export function ConnectorDrawer({
           onClick={onToggleConnectMode}
           className={`btn-lift px-3.5 py-2.5 rounded-l-xl text-sm font-bold transition-all duration-200 ${
             connectMode
-              ? 'text-white shadow-lg shadow-pink-500/30'
-              : 'text-pink-800'
+              ? 'text-white'
+              : 'text-gray-700 hover:text-violet-600'
           }`}
           style={connectMode ? {
-            background: 'linear-gradient(135deg, #f472b6 0%, #ec4899 50%, #db2777 100%)',
-            boxShadow: '0 4px 16px rgba(236, 72, 153, 0.4)',
+            background: '#8b5cf6',
+            boxShadow: '0 4px 16px rgba(139, 92, 246, 0.3)',
           } : {
-            background: 'linear-gradient(135deg, #fce7f3 0%, #fbcfe8 50%, #f9a8d4 100%)',
-            boxShadow: '0 2px 10px rgba(236, 72, 153, 0.25)',
+            background: 'rgba(255, 255, 255, 0.6)',
           }}
           title="Connect objects"
         >
@@ -95,15 +94,15 @@ export function ConnectorDrawer({
         </button>
         <button
           onClick={() => setIsOpen((o) => !o)}
-          className={`btn-lift px-1.5 py-2.5 rounded-r-xl text-sm transition-all duration-200 border-l flex items-center justify-center ${
+          className={`btn-lift px-1.5 py-2.5 rounded-r-xl text-sm transition-all duration-200 border-l border-gray-200 flex items-center justify-center ${
             connectMode
-              ? 'text-white/80 border-white/30'
-              : 'text-pink-700 border-pink-300/30'
+              ? 'text-white/80'
+              : 'text-gray-500 hover:text-violet-600'
           }`}
           style={connectMode ? {
-            background: 'linear-gradient(135deg, #ec4899 0%, #db2777 100%)',
+            background: '#7c3aed',
           } : {
-            background: 'linear-gradient(135deg, #fbcfe8 0%, #f9a8d4 100%)',
+            background: 'rgba(255, 255, 255, 0.6)',
           }}
           title="Connector options"
         >
@@ -131,7 +130,7 @@ export function ConnectorDrawer({
                     onClick={() => update({ curveStyle: cs.style })}
                     className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                       curveStyle === cs.style
-                        ? 'bg-indigo-500 text-white shadow-md'
+                        ? 'bg-violet-500 text-white shadow-md'
                         : 'bg-white/40 text-gray-600 hover:bg-white/70'
                     }`}
                   >
@@ -151,7 +150,7 @@ export function ConnectorDrawer({
                     onClick={() => update({ lineType: lt.type })}
                     className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all flex flex-col items-center gap-1 ${
                       connectorStyle.lineType === lt.type
-                        ? 'bg-indigo-500 text-white shadow-md'
+                        ? 'bg-violet-500 text-white shadow-md'
                         : 'bg-white/40 text-gray-600 hover:bg-white/70'
                     }`}
                   >
@@ -215,7 +214,7 @@ export function ConnectorDrawer({
                     onClick={() => update({ strokeWidth: t })}
                     className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center ${
                       connectorStyle.strokeWidth === t
-                        ? 'bg-indigo-500 text-white shadow-md'
+                        ? 'bg-violet-500 text-white shadow-md'
                         : 'bg-white/40 text-gray-600 hover:bg-white/70'
                     }`}
                   >

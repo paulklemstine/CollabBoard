@@ -49,10 +49,9 @@ export function TextDrawer({
       <div className="flex items-stretch">
         <button
           onClick={onAdd}
-          className="btn-lift flex items-center gap-1.5 px-3.5 py-2.5 rounded-l-xl text-sm font-bold text-cyan-900 transition-all duration-200"
+          className="btn-lift flex items-center gap-1.5 px-3.5 py-2.5 rounded-l-xl text-sm font-bold text-gray-700 hover:text-violet-600 transition-all duration-200"
           style={{
-            background: 'linear-gradient(135deg, #a5f3fc 0%, #22d3ee 50%, #06b6d4 100%)',
-            boxShadow: '0 2px 10px rgba(6, 182, 212, 0.3)',
+            background: 'rgba(255, 255, 255, 0.6)',
           }}
           title="Add text"
         >
@@ -65,9 +64,9 @@ export function TextDrawer({
         </button>
         <button
           onClick={() => setIsOpen((o) => !o)}
-          className="btn-lift px-1.5 py-2.5 rounded-r-xl text-sm text-cyan-800 transition-all duration-200 border-l border-cyan-600/20 flex items-center justify-center"
+          className="btn-lift px-1.5 py-2.5 rounded-r-xl text-sm text-gray-500 hover:text-violet-600 transition-all duration-200 border-l border-gray-200 flex items-center justify-center"
           style={{
-            background: 'linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%)',
+            background: 'rgba(255, 255, 255, 0.6)',
           }}
           title="Text options"
         >
@@ -103,7 +102,7 @@ export function TextDrawer({
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Size</div>
-                <div className="text-xs font-semibold text-cyan-600">{fontSize}pt</div>
+                <div className="text-xs font-semibold text-violet-600">{fontSize}pt</div>
               </div>
               <input
                 type="range"
@@ -112,8 +111,8 @@ export function TextDrawer({
                 step={1}
                 value={fontSize}
                 onChange={(e) => onFontSizeChange(Number(e.target.value))}
-                className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-cyan-500"
-                style={{ background: `linear-gradient(to right, #06b6d4 ${((fontSize - 8) / 88) * 100}%, rgba(255,255,255,0.4) ${((fontSize - 8) / 88) * 100}%)` }}
+                className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-violet-500"
+                style={{ background: `linear-gradient(to right, #8b5cf6 ${((fontSize - 8) / 88) * 100}%, #e5e7eb ${((fontSize - 8) / 88) * 100}%)` }}
               />
             </div>
 
@@ -127,7 +126,7 @@ export function TextDrawer({
                     onClick={() => onFontFamilyChange(f.value)}
                     className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                       fontFamily === f.value
-                        ? 'bg-cyan-500 text-white shadow-md'
+                        ? 'bg-violet-500 text-white shadow-md'
                         : 'bg-white/40 text-gray-600 hover:bg-white/70'
                     }`}
                     style={{ fontFamily: f.value }}
@@ -175,7 +174,7 @@ export function TextDrawer({
                     onClick={() => onTextAlignChange(align)}
                     className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center ${
                       textAlign === align
-                        ? 'bg-cyan-500 text-white shadow-md'
+                        ? 'bg-violet-500 text-white shadow-md'
                         : 'bg-white/40 text-gray-600 hover:bg-white/70'
                     }`}
                   >

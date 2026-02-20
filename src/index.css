@@ -19,16 +19,16 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* ---- Animated gradient background for auth screen ---- */
+/* ---- Animated gradient background for auth/dashboard ---- */
 @keyframes gradient-shift {
   0%, 100% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
 }
 
 .bg-gradient-animate {
-  background: linear-gradient(-45deg, #667eea, #764ba2, #f093fb, #4facfe, #00f2fe, #43e97b);
-  background-size: 400% 400%;
-  animation: gradient-shift 12s ease infinite;
+  background: linear-gradient(-45deg, #7c3aed, #6d28d9, #8b5cf6, #6366f1);
+  background-size: 300% 300%;
+  animation: gradient-shift 10s ease infinite;
 }
 
 /* ---- Pulse glow for online dots ---- */
@@ -118,12 +118,12 @@ body {
 
 /* ---- Glassmorphism utility ---- */
 .glass {
-  background: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.5);
   box-shadow:
-    0 8px 32px 0 rgba(31, 38, 135, 0.07),
+    0 8px 32px 0 rgba(0, 0, 0, 0.06),
     inset 0 1px 2px 0 rgba(255, 255, 255, 0.6);
 }
 
@@ -137,21 +137,16 @@ body {
     inset 0 1px 2px 0 rgba(255, 255, 255, 0.05);
 }
 
+/* Clean frosted panel — replaces glass-playful */
 .glass-playful {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.96) 0%,
-    rgba(254, 243, 199, 0.94) 30%,
-    rgba(237, 233, 254, 0.94) 60%,
-    rgba(252, 231, 243, 0.94) 100%
-  );
-  backdrop-filter: blur(24px) saturate(200%);
-  -webkit-backdrop-filter: blur(24px) saturate(200%);
-  border: 1.5px solid rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid #e5e7eb;
   box-shadow:
-    0 12px 40px 0 rgba(139, 92, 246, 0.12),
-    0 4px 16px 0 rgba(236, 72, 153, 0.08),
-    inset 0 1px 3px 0 rgba(255, 255, 255, 0.7);
+    0 12px 40px 0 rgba(0, 0, 0, 0.08),
+    0 4px 16px 0 rgba(0, 0, 0, 0.04),
+    inset 0 1px 2px 0 rgba(255, 255, 255, 0.8);
 }
 
 /* ---- Toolbar button hover lift ---- */
@@ -161,19 +156,17 @@ body {
 }
 
 .btn-lift:hover {
-  transform: translateY(-4px) scale(1.03);
+  transform: translateY(-3px) scale(1.02);
   box-shadow:
-    0 8px 24px rgba(139, 92, 246, 0.18),
-    0 4px 12px rgba(236, 72, 153, 0.12),
-    0 2px 6px rgba(0, 0, 0, 0.08);
-  filter: brightness(1.05) saturate(1.1);
+    0 8px 24px rgba(0, 0, 0, 0.1),
+    0 4px 12px rgba(139, 92, 246, 0.08);
+  filter: brightness(1.03);
 }
 
 .btn-lift:active {
   transform: translateY(-1px) scale(0.98);
   box-shadow:
-    0 2px 8px rgba(139, 92, 246, 0.15),
-    0 1px 4px rgba(0, 0, 0, 0.12);
+    0 2px 8px rgba(0, 0, 0, 0.1);
   transition: all 0.1s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -182,23 +175,12 @@ body {
 .toolbar-scroll::-webkit-scrollbar { display: none; }
 .toolbar-scroll > * { flex-shrink: 0; }
 
-/* ---- Board colorful cross-hatch grid ---- */
+/* ---- Board dot grid — clean single-color ---- */
 .board-dots {
-  background-color: #fef7f0;
+  background-color: #f8f7f6;
   background-image:
-    /* Lavender vertical lines */
-    linear-gradient(90deg, rgba(196, 181, 253, 0.2) 1px, transparent 1px),
-    /* Pink horizontal lines */
-    linear-gradient(0deg, rgba(251, 191, 207, 0.2) 1px, transparent 1px),
-    /* Coral accent dots at intersections */
-    radial-gradient(circle, rgba(251, 146, 60, 0.14) 1.5px, transparent 1.5px),
-    /* Pastel rainbow gradient wash */
-    linear-gradient(135deg, #fef7f0 0%, #fdf2f8 25%, #f0f9ff 50%, #fefce8 75%, #f0fdf4 100%);
-  background-size:
-    32px 32px,
-    32px 32px,
-    32px 32px,
-    100% 100%;
+    radial-gradient(circle, rgba(0, 0, 0, 0.08) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
 /* ---- Smooth focus states ---- */
@@ -212,51 +194,34 @@ button:focus-visible {
 
 /* ---- Smooth scrollbar styling ---- */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.03);
-  border-radius: 10px;
+  background: transparent;
+  border-radius: 8px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(236, 72, 153, 0.3));
-  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.5), rgba(236, 72, 153, 0.5));
+  background: rgba(0, 0, 0, 0.2);
   background-clip: padding-box;
 }
 
-/* ---- Micro-interaction: Gentle hover glow ---- */
-@keyframes glow-pulse {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
-}
-
-.hover-glow:hover::before {
-  content: '';
-  position: absolute;
-  inset: -2px;
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(236, 72, 153, 0.15));
-  border-radius: inherit;
-  z-index: -1;
-  filter: blur(8px);
-  animation: glow-pulse 2s ease-in-out infinite;
-}
-
-/* ---- Selection highlight enhancement ---- */
+/* ---- Selection highlight ---- */
 ::selection {
-  background: rgba(139, 92, 246, 0.25);
+  background: rgba(139, 92, 246, 0.2);
   color: inherit;
 }
 
 ::-moz-selection {
-  background: rgba(139, 92, 246, 0.25);
+  background: rgba(139, 92, 246, 0.2);
   color: inherit;
 }

@@ -66,7 +66,7 @@ export function AuthPanel({ user, onSignOut, onAuthChange }: AuthPanelProps) {
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-md"
             style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%)',
             }}
           >
             {(user.displayName?.[0] || user.email?.[0] || 'U').toUpperCase()}
@@ -76,7 +76,7 @@ export function AuthPanel({ user, onSignOut, onAuthChange }: AuthPanelProps) {
           </span>
           <button
             onClick={() => (onSignOut ?? signOutUser)()}
-            className="btn-lift ml-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:text-white hover:bg-gradient-to-r hover:from-red-400 hover:to-pink-500 transition-all duration-200"
+            className="btn-lift ml-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:text-white hover:bg-red-500 transition-all duration-200"
           >
             Sign Out
           </button>
@@ -92,7 +92,7 @@ export function AuthPanel({ user, onSignOut, onAuthChange }: AuthPanelProps) {
         <div
           className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg"
           style={{
-            background: 'linear-gradient(135deg, #818cf8 0%, #c084fc 50%, #f472b6 100%)',
+            background: 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 50%, #a78bfa 100%)',
           }}
         >
           <svg width="40" height="40" viewBox="0 0 100 100" fill="none">
@@ -102,7 +102,7 @@ export function AuthPanel({ user, onSignOut, onAuthChange }: AuthPanelProps) {
         </div>
 
         <div className="text-center">
-          <h2 className="text-2xl font-extrabold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 bg-clip-text text-transparent">
+          <h2 className="text-2xl font-extrabold text-violet-600">
             Flow Space
           </h2>
           <p className="text-sm text-gray-400 mt-1 font-medium">
@@ -127,7 +127,7 @@ export function AuthPanel({ user, onSignOut, onAuthChange }: AuthPanelProps) {
               placeholder="Name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-white/60 border border-gray-200 text-sm font-medium text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-200"
+              className="w-full px-4 py-3 rounded-xl bg-white/60 border border-gray-200 text-sm font-medium text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition-all duration-200"
             />
           )}
           <input
@@ -135,21 +135,21 @@ export function AuthPanel({ user, onSignOut, onAuthChange }: AuthPanelProps) {
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl bg-white/60 border border-gray-200 text-sm font-medium text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-200"
+            className="w-full px-4 py-3 rounded-xl bg-white/60 border border-gray-200 text-sm font-medium text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition-all duration-200"
           />
           <input
             type="password"
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl bg-white/60 border border-gray-200 text-sm font-medium text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-200"
+            className="w-full px-4 py-3 rounded-xl bg-white/60 border border-gray-200 text-sm font-medium text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition-all duration-200"
           />
 
           <button
             onClick={isSignUp ? handleSignUp : handleSignIn}
             className="btn-lift btn-shimmer w-full px-5 py-3 rounded-xl text-white font-semibold text-sm shadow-lg"
             style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+              background: 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 50%, #a78bfa 100%)',
             }}
           >
             {isSignUp ? 'Sign Up' : 'Sign In'}
@@ -163,7 +163,7 @@ export function AuthPanel({ user, onSignOut, onAuthChange }: AuthPanelProps) {
                 setIsSignUp(!isSignUp);
                 setError(null);
               }}
-              className="font-semibold text-purple-600 hover:text-purple-800 transition-colors duration-200"
+              className="font-semibold text-violet-600 hover:text-violet-800 transition-colors duration-200"
             >
               {isSignUp ? 'Sign In' : 'Sign Up'}
             </button>

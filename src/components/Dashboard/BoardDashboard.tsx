@@ -39,7 +39,7 @@ export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboar
             <div
               className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg"
               style={{
-                background: 'linear-gradient(135deg, #818cf8 0%, #c084fc 50%, #f472b6 100%)',
+                background: 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 50%, #a78bfa 100%)',
               }}
             >
               <svg width="28" height="28" viewBox="0 0 100 100" fill="none">
@@ -48,7 +48,7 @@ export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboar
               </svg>
             </div>
             <div>
-              <h1 className="text-2xl font-extrabold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 bg-clip-text text-transparent">
+              <h1 className="text-2xl font-extrabold text-white">
                 Flow Space
               </h1>
               <p className="text-sm text-white/70 font-medium" key={refreshKey}>

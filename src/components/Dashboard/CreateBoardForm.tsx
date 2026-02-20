@@ -29,14 +29,14 @@ export function CreateBoardForm({ onCreateBoard }: CreateBoardFormProps) {
         placeholder="Name your flow"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        className="flex-1 px-4 py-3 rounded-xl bg-white/60 border border-gray-200 text-sm font-medium text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-200"
+        className="flex-1 px-4 py-3 rounded-xl bg-white/60 border border-gray-200 text-sm font-medium text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition-all duration-200"
       />
       <button
         type="submit"
         disabled={!name.trim() || creating}
         className="btn-lift btn-shimmer px-6 py-3 rounded-xl text-white font-semibold text-sm shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
         style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+          background: 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 50%, #a78bfa 100%)',
         }}
       >
         {creating ? 'Launching...' : 'Launch Flow'}

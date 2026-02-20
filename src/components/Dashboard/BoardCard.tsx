@@ -63,7 +63,7 @@ export function BoardCard({ board, onSelect, onDelete, canDelete, isOwner, onTog
           {/* Quick look button */}
           <button
             onClick={handleQuickLook}
-            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-white/80 backdrop-blur-sm text-gray-500 hover:text-purple-600 hover:bg-white shadow-sm transition-all duration-200"
+            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-white/80 backdrop-blur-sm text-gray-500 hover:text-violet-600 hover:bg-white shadow-sm transition-all duration-200"
             aria-label={`Quick look at ${board.name}`}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -95,7 +95,7 @@ export function BoardCard({ board, onSelect, onDelete, canDelete, isOwner, onTog
                   className="relative w-8 h-[18px] rounded-full transition-colors duration-200"
                   style={{
                     background: isPublic
-                      ? 'linear-gradient(135deg, #818cf8, #c084fc)'
+                      ? 'linear-gradient(135deg, #7c3aed, #8b5cf6)'
                       : '#cbd5e1',
                   }}
                 >
@@ -125,7 +125,7 @@ export function BoardCard({ board, onSelect, onDelete, canDelete, isOwner, onTog
                 <span className="text-[11px] font-semibold text-red-500">Delete?</span>
                 <button
                   onClick={handleDelete}
-                  className="px-2 py-0.5 rounded-md text-[11px] font-bold text-white bg-gradient-to-r from-red-500 to-pink-500 hover:shadow-lg transition-all duration-200"
+                  className="px-2 py-0.5 rounded-md text-[11px] font-bold text-white bg-red-500 hover:shadow-lg transition-all duration-200"
                 >
                   Yes
                 </button>

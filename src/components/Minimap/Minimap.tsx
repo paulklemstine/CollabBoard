@@ -201,7 +201,7 @@ export function Minimap({ transform, objects = [], onPanTo }: MinimapProps) {
                   ? (obj.color || '#06b6d4')
                   : obj.type === 'sticker'
                     ? '#c084fc'
-                    : '#667eea';
+                    : '#8b5cf6';
 
             return (
               <Rect
@@ -224,7 +224,7 @@ export function Minimap({ transform, objects = [], onPanTo }: MinimapProps) {
             y={viewportY}
             width={viewportWidth}
             height={viewportHeight}
-            stroke="#f093fb"
+            stroke="#8b5cf6"
             strokeWidth={2 / minimapScale}
             fill="transparent"
             listening={false}

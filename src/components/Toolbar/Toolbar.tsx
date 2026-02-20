@@ -217,7 +217,7 @@ export function Toolbar({
   };
 
   const divider = (
-    <div className="w-px h-8 mx-0.5" style={{ background: 'linear-gradient(to bottom, rgba(251,146,60,0.2), rgba(168,85,247,0.3), rgba(96,165,250,0.2))' }} />
+    <div className="w-px h-8 mx-0.5 bg-gray-200" />
   );
 
   return (
@@ -241,7 +241,7 @@ export function Toolbar({
       >
         <div
           style={{
-            boxShadow: '0 8px 32px rgba(139, 92, 246, 0.12), 0 4px 16px rgba(236, 72, 153, 0.08), 0 2px 8px rgba(0,0,0,0.06)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)',
           }}
           className="flex gap-1.5 glass-playful rounded-2xl p-2.5 items-center animate-float-up"
         >
@@ -339,12 +339,14 @@ export function Toolbar({
         className={`btn-lift px-3.5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
           aiOpen
             ? 'text-white'
-            : 'text-purple-600 bg-white/50 hover:bg-white/80'
+            : 'text-gray-700 hover:text-violet-600'
         }`}
         style={aiOpen ? {
-          background: 'linear-gradient(135deg, #a855f7 0%, #ec4899 100%)',
-          boxShadow: '0 4px 16px rgba(168, 85, 247, 0.4)',
-        } : undefined}
+          background: '#8b5cf6',
+          boxShadow: '0 4px 16px rgba(139, 92, 246, 0.3)',
+        } : {
+          background: 'rgba(255, 255, 255, 0.6)',
+        }}
         title="Flow AI"
       >
         <div className="flex items-center gap-1.5">

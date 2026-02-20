@@ -106,10 +106,10 @@ export function StickerDrawer({ onAddSticker, onAddGifSticker }: StickerDrawerPr
     >
       {/* Trigger Button */}
       <button
-        className="btn-lift px-3.5 py-2.5 rounded-xl text-sm font-bold text-green-700 transition-all duration-200"
+        onClick={() => setIsOpen((o) => !o)}
+        className="btn-lift px-3.5 py-2.5 rounded-xl text-sm font-bold text-gray-700 hover:text-violet-600 transition-all duration-200"
         style={{
-          background: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 50%, #6ee7b7 100%)',
-          boxShadow: '0 2px 10px rgba(16, 185, 129, 0.25)',
+          background: 'rgba(255, 255, 255, 0.6)',
         }}
         title="Stickers"
       >
@@ -127,26 +127,26 @@ export function StickerDrawer({ onAddSticker, onAddGifSticker }: StickerDrawerPr
         >
           <div className="glass-playful rounded-2xl shadow-2xl p-5">
             {/* Tabs: Emoji | GIFs */}
-            <div className="flex gap-1 mb-3 rounded-xl p-0.5" style={{ background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.25) 100%)' }}>
+            <div className="flex gap-1 mb-3 rounded-xl p-0.5 bg-gray-100">
               <button
                 type="button"
                 onClick={() => switchTab('emoji')}
-                className="flex-1 px-3 py-1.5 rounded-lg text-sm font-bold transition-all"
-                style={{
-                  background: tab === 'emoji' ? 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)' : 'transparent',
-                  color: tab === 'emoji' ? '#065f46' : '#047857',
-                }}
+                className={`flex-1 px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${
+                  tab === 'emoji'
+                    ? 'bg-violet-500 text-white shadow-md'
+                    : 'text-gray-600 hover:bg-white/70'
+                }`}
               >
                 😊 Emoji
               </button>
               <button
                 type="button"
                 onClick={() => switchTab('gif')}
-                className="flex-1 px-3 py-1.5 rounded-lg text-sm font-bold transition-all"
-                style={{
-                  background: tab === 'gif' ? 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)' : 'transparent',
-                  color: tab === 'gif' ? '#065f46' : '#047857',
-                }}
+                className={`flex-1 px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${
+                  tab === 'gif'
+                    ? 'bg-violet-500 text-white shadow-md'
+                    : 'text-gray-600 hover:bg-white/70'
+                }`}
               >
                 ✨ GIFs
               </button>
@@ -167,11 +167,7 @@ export function StickerDrawer({ onAddSticker, onAddGifSticker }: StickerDrawerPr
                   setPage((p) => Math.max(0, p - 1));
                 }}
                 disabled={page === 0}
-                className="flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200 hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(16, 185, 129, 0.3) 100%)',
-                  border: '1.5px solid rgba(16, 185, 129, 0.4)',
-                }}
+                className="flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200 hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed bg-white/40 border border-gray-200"
                 title="Previous page"
               >
                 <span style={{ fontSize: '20px' }}>←</span>
@@ -186,11 +182,7 @@ export function StickerDrawer({ onAddSticker, onAddGifSticker }: StickerDrawerPr
                       onAddSticker(emoji);
                       setIsOpen(false);
                     }}
-                    className="flex items-center justify-center w-14 h-14 rounded-xl transition-all duration-200 hover:scale-110"
-                    style={{
-                      background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.2) 100%)',
-                      border: '1.5px solid rgba(16, 185, 129, 0.3)',
-                    }}
+                    className="flex items-center justify-center w-14 h-14 rounded-xl transition-all duration-200 hover:scale-110 bg-white/40 border border-gray-200 hover:border-violet-300"
                     title={`Add ${emoji}`}
                   >
                     <span style={{ fontSize: '32px' }}>{emoji}</span>
@@ -205,11 +197,7 @@ export function StickerDrawer({ onAddSticker, onAddGifSticker }: StickerDrawerPr
                   setPage((p) => Math.min(totalPages - 1, p + 1));
                 }}
                 disabled={page === totalPages - 1}
-                className="flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200 hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(16, 185, 129, 0.3) 100%)',
-                  border: '1.5px solid rgba(16, 185, 129, 0.4)',
-                }}
+                className="flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200 hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed bg-white/40 border border-gray-200"
                 title="Next page"
               >
                 <span style={{ fontSize: '20px' }}>→</span>

@@ -65,14 +65,14 @@ export function ChatPanel({ messages, currentUserId, onSend, isOpen, onToggle }:
         className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/20 transition-colors"
       >
         <div className="flex items-center gap-2">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-purple-500">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-violet-500">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
           </svg>
           <span className="text-xs font-bold uppercase tracking-wider text-gray-400">
             Chat
           </span>
           {unreadCount > 0 && (
-            <span className="min-w-[18px] h-[18px] rounded-full bg-gradient-to-br from-purple-500 to-pink-500 text-white text-[10px] font-bold flex items-center justify-center px-1">
+            <span className="min-w-[18px] h-[18px] rounded-full bg-violet-500 text-white text-[10px] font-bold flex items-center justify-center px-1">
               {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           )}
@@ -120,8 +120,8 @@ export function ChatPanel({ messages, currentUserId, onSend, isOpen, onToggle }:
                     <div
                       className={`max-w-[85%] rounded-xl px-3 py-1.5 text-sm leading-relaxed break-words ${
                         isSelf
-                          ? 'bg-gradient-to-br from-purple-500 to-pink-500 text-white rounded-br-md'
-                          : 'bg-white/60 text-gray-700 border border-white/40 rounded-bl-md'
+                          ? 'bg-violet-500 text-white rounded-br-md'
+                          : 'bg-gray-100 text-gray-700 border border-gray-200 rounded-bl-md'
                       }`}
                     >
                       {msg.text}
@@ -134,7 +134,7 @@ export function ChatPanel({ messages, currentUserId, onSend, isOpen, onToggle }:
           </div>
 
           {/* Input area */}
-          <div className="px-3 py-2 border-t border-white/30">
+          <div className="px-3 py-2 border-t border-gray-200">
             <div className="flex items-center gap-2">
               <input
                 ref={inputRef}
@@ -143,12 +143,12 @@ export function ChatPanel({ messages, currentUserId, onSend, isOpen, onToggle }:
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Type a message..."
-                className="flex-1 bg-white/50 border border-white/40 rounded-xl px-3 py-1.5 text-sm text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-300 transition-all"
+                className="flex-1 bg-white/50 border border-gray-200 rounded-xl px-3 py-1.5 text-sm text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-300 transition-all"
               />
               <button
                 onClick={handleSubmit}
                 disabled={!input.trim()}
-                className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 text-white flex items-center justify-center flex-shrink-0 hover:shadow-lg disabled:opacity-40 disabled:hover:shadow-none transition-all duration-200"
+                className="w-8 h-8 rounded-xl bg-violet-500 text-white flex items-center justify-center flex-shrink-0 hover:shadow-lg disabled:opacity-40 disabled:hover:shadow-none transition-all duration-200"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="22" y1="2" x2="11" y2="13" />

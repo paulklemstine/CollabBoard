@@ -105,10 +105,9 @@ export function ShapeDrawer({
       <div className="flex items-stretch">
         <button
           onClick={() => { setIsOpen((o) => !o); setTab('shapes'); }}
-          className="btn-lift px-3.5 py-2.5 rounded-l-xl text-sm font-bold text-indigo-700 transition-all duration-200"
+          className="btn-lift px-3.5 py-2.5 rounded-l-xl text-sm font-bold text-gray-700 hover:text-violet-600 transition-all duration-200"
           style={{
-            background: 'linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 50%, #a5b4fc 100%)',
-            boxShadow: '0 2px 10px rgba(99, 102, 241, 0.25)',
+            background: 'rgba(255, 255, 255, 0.6)',
           }}
           title="Shapes"
         >
@@ -123,9 +122,9 @@ export function ShapeDrawer({
         </button>
         <button
           onClick={() => { setIsOpen((o) => !o); setTab('colors'); }}
-          className="btn-lift px-1.5 py-2.5 rounded-r-xl text-sm text-indigo-600 transition-all duration-200 border-l border-indigo-300/30 flex items-center justify-center"
+          className="btn-lift px-1.5 py-2.5 rounded-r-xl text-sm text-gray-500 hover:text-violet-600 transition-all duration-200 border-l border-gray-200 flex items-center justify-center"
           style={{
-            background: 'linear-gradient(135deg, #c7d2fe 0%, #a5b4fc 100%)',
+            background: 'rgba(255, 255, 255, 0.6)',
           }}
           title="Shape colors"
         >

@@ -969,7 +969,7 @@ function BoardView({
         <div className="glass-playful rounded-xl shadow-lg flex items-center">
           <button
             onClick={handleNavigateBack}
-            className="px-3 py-2 text-sm font-semibold text-gray-700 hover:text-purple-600 transition-colors duration-200 flex items-center gap-1.5"
+            className="px-3 py-2 text-sm font-semibold text-gray-700 hover:text-violet-600 transition-colors duration-200 flex items-center gap-1.5"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
@@ -985,7 +985,7 @@ function BoardView({
                 setTimeout(() => setCopied(false), 2000);
               });
             }}
-            className="px-3 py-2 text-sm font-semibold text-gray-700 hover:text-purple-600 transition-colors duration-200 flex items-center gap-1.5"
+            className="px-3 py-2 text-sm font-semibold text-gray-700 hover:text-violet-600 transition-colors duration-200 flex items-center gap-1.5"
           >
             {copied ? (
               <>
@@ -1048,7 +1048,7 @@ function BoardView({
       {/* Top center: Board name */}
       {boardMetadata && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 glass-playful rounded-xl px-5 py-2.5 shadow-lg">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 bg-clip-text text-transparent">
+          <h1 className="text-2xl font-bold text-violet-600">
             {boardMetadata.name}
           </h1>
         </div>

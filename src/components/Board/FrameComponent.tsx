@@ -523,10 +523,10 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
         </>
         );
       })()}
-      {/* Dissolve frame button (top-left) — removes frame, keeps children */}
+      {/* Dissolve frame button (center-top) — removes frame, keeps children */}
       {onDissolve && isMouseHovered && (
         <Group
-          x={-24}
+          x={localWidth / 2 - 20}
           y={-titleBarH - 20}
           onClick={(e) => {
             e.cancelBubble = true;
@@ -570,10 +570,10 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
           />
         </Group>
       )}
-      {/* Duplicate button */}
+      {/* Duplicate button (top-left) */}
       {onDuplicate && isMouseHovered && (
         <Group
-          x={localWidth - 66}
+          x={-20}
           y={-titleBarH - 20}
           onClick={(e) => {
             e.cancelBubble = true;

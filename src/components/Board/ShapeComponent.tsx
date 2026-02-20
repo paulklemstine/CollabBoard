@@ -720,10 +720,10 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
       )}
 
       {/* === NON-LINE HANDLES: duplicate, delete, rotate, resize === */}
-      {/* Duplicate button (non-line) */}
+      {/* Duplicate button (top-left, non-line) */}
       {!isLine && onDuplicate && isMouseHovered && (
         <Group
-          x={localWidth - 66}
+          x={-20}
           y={-20}
           onClick={(e) => {
             e.cancelBubble = true;

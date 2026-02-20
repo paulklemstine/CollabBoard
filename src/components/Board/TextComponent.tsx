@@ -408,10 +408,10 @@ export function TextComponent({
           listening={false}
         />
       )}
-      {/* Duplicate button */}
+      {/* Duplicate button (top-left) */}
       {onDuplicate && isMouseHovered && (
         <Group
-          x={localWidth - 66}
+          x={-20}
           y={-20}
           onClick={(e) => {
             e.cancelBubble = true;

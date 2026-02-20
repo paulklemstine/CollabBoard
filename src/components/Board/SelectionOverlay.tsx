@@ -344,10 +344,10 @@ export function SelectionOverlay({
             />
           </Group>
 
-          {/* Duplicate button (top-right, left of delete) */}
+          {/* Duplicate button (top-left) */}
           {onDuplicateSelected && (
             <Group
-              x={displayWidth - 66}
+              x={-20}
               y={-20}
               onClick={(e) => {
                 e.cancelBubble = true;

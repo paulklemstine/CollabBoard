@@ -24,7 +24,7 @@ export async function sendAICommand(
     throw new Error('You must be signed in to use AI commands.');
   }
 
-  // 1. Create Firestore doc for progress tracking (also serves as fallback trigger)
+  // 1. Create Firestore doc for progress tracking (also serves as trigger fallback)
   const requestsRef = collection(db, `boards/${boardId}/aiRequests`);
   const docRef = await addDoc(requestsRef, {
     prompt,
@@ -34,24 +34,22 @@ export async function sendAICommand(
     ...(selectedIds && selectedIds.length > 0 ? { selectedIds } : {}),
   });
 
+  const requestDocRef = doc(db, `boards/${boardId}/aiRequests/${docRef.id}`);
+
   // 2. Set up progress listener on the Firestore doc
   let unsubscribe: (() => void) | null = null;
   if (onProgress) {
-    unsubscribe = onSnapshot(
-      doc(db, `boards/${boardId}/aiRequests/${docRef.id}`),
-      (snapshot) => {
-        const data = snapshot.data();
-        if (data?.status === 'processing' && data.progress) {
-          onProgress(data.progress);
-        }
-      },
-    );
+    unsubscribe = onSnapshot(requestDocRef, (snapshot) => {
+      const data = snapshot.data();
+      if (data?.status === 'processing' && data.progress) {
+        onProgress(data.progress);
+      }
+    });
   }
 
-  // 3. Call the function directly (bypasses Firestore trigger latency)
+  // 3. Try callable first (lower latency), fall back to Firestore trigger
   try {
-    // Mark as callable-owned so the trigger skips it
-    await updateDoc(doc(db, `boards/${boardId}/aiRequests/${docRef.id}`), { status: 'callable' });
+    await updateDoc(requestDocRef, { status: 'callable' });
 
     const result = await processAICallable({
       boardId,
@@ -61,9 +59,41 @@ export async function sendAICommand(
     });
 
     return result.data;
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'AI request failed';
-    throw new Error(message);
+  } catch {
+    // Callable failed (likely IAM/permissions) — revert to pending so trigger picks it up
+    await updateDoc(requestDocRef, { status: 'pending' });
+
+    return new Promise<AICommandOutput>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        triggerUnsub();
+        unsubscribe?.();
+        reject(new Error('AI request timed out after 5 minutes'));
+      }, 300_000);
+
+      const triggerUnsub = onSnapshot(requestDocRef, (snapshot) => {
+        const data = snapshot.data();
+        if (!data) return;
+
+        if (data.status === 'processing' && data.progress && onProgress) {
+          onProgress(data.progress);
+        }
+
+        if (data.status === 'completed') {
+          clearTimeout(timeout);
+          triggerUnsub();
+          unsubscribe?.();
+          resolve({
+            response: data.response,
+            objectsCreated: data.objectsCreated ?? [],
+          });
+        } else if (data.status === 'error') {
+          clearTimeout(timeout);
+          triggerUnsub();
+          unsubscribe?.();
+          reject(new Error(data.error || 'AI request failed'));
+        }
+      });
+    });
   } finally {
     unsubscribe?.();
   }

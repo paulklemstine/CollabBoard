@@ -238,7 +238,22 @@ export function BoardPreview({ boardId, thumbnailUrl }: BoardPreviewProps) {
               </text>
             );
           }
-          // GIF sticker fallback
+          // GIF sticker — render actual image
+          if (obj.gifUrl) {
+            return (
+              <image
+                key={obj.id}
+                href={obj.gifUrl}
+                x={x}
+                y={y}
+                width={w}
+                height={h}
+                preserveAspectRatio="xMidYMid meet"
+                opacity={0.9}
+              />
+            );
+          }
+          // Fallback for stickers with no emoji and no gif
           return (
             <circle
               key={obj.id}

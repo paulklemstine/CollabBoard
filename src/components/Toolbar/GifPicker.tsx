@@ -27,20 +27,25 @@ export function GifPicker({ onSelect, onClose }: GifPickerProps) {
   const [error, setError] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const fetchGifs = useCallback(async (query: string) => {
+  const fetchGifs = useCallback(async (query: string, retries = 2) => {
     if (!gf) return;
     setLoading(true);
     setError(false);
-    try {
-      const res = query.trim()
-        ? await gf.search(query.trim(), { limit: 18, type: 'stickers' })
-        : await gf.trending({ limit: 18, type: 'stickers' });
-      setGifs(res.data);
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
+    const q = query.trim() || 'kittens';
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const res = await gf.search(q, { limit: 18, type: 'stickers' });
+        setGifs(res.data);
+        setLoading(false);
+        return;
+      } catch {
+        if (attempt < retries) {
+          await new Promise(r => setTimeout(r, 500));
+        }
+      }
     }
+    setError(true);
+    setLoading(false);
   }, []);
 
   // Fetch on mount and when search changes (debounced)

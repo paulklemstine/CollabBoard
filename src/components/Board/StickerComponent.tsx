@@ -248,6 +248,7 @@ export function StickerComponent({
         <Text
           text={sticker.emoji}
           fontSize={fontSize}
+          x={-localWidth * 0.10}
           listening={false}
         />
       )}

@@ -776,14 +776,15 @@ async function executeTemplate(
   const objectsRef = db.collection(`boards/${boardId}/objects`);
   const now = Date.now();
   const batch = db.batch();
+  const titleBarH = 36; // Math.max(36, defaultFontSize(14) + 20)
   const startX = 0;
-  const startY = 0;
+  const startY = titleBarH; // offset so first row's title bars don't clip at top
 
   switch (templateType) {
     case 'swot': {
       const frameWidth = 400;
       const frameHeight = 300;
-      const gap = 20;
+      const gap = 30;
       const titles = ['Strengths', 'Weaknesses', 'Opportunities', 'Threats'];
       const colors = ['#dcfce7', '#fce7f3', '#dbeafe', '#ffedd5'];
       const prompts = ['What are we good at?', 'Where can we improve?', 'What trends can we leverage?', 'What risks do we face?'];
@@ -792,7 +793,7 @@ async function executeTemplate(
         const col = i % 2;
         const row = Math.floor(i / 2);
         const fx = startX + col * (frameWidth + gap);
-        const fy = startY + row * (frameHeight + gap);
+        const fy = startY + row * (frameHeight + titleBarH + gap);
         const frameRef = objectsRef.doc();
         batch.set(frameRef, {
           type: 'frame', title: titles[i], x: fx, y: fy,
@@ -815,7 +816,7 @@ async function executeTemplate(
     case 'kanban': {
       const frameWidth = 350;
       const frameHeight = 600;
-      const gap = 20;
+      const gap = 30;
       const titles = ['To Do', 'In Progress', 'Done'];
       const kanbanColors = ['#fef9c3', '#dbeafe', '#dcfce7'];
       const kanbanPrompts = ['Add tasks here', 'Work in progress', 'Completed tasks'];
@@ -845,7 +846,7 @@ async function executeTemplate(
     case 'retrospective': {
       const retroFrameWidth = 400;
       const retroFrameHeight = 500;
-      const retroGap = 20;
+      const retroGap = 30;
       const retroTitles = ['What Went Well \u{1F60A}', 'What Didn\'t Go Well \u{1F61E}', 'Action Items \u{1F3AF}'];
       const retroColors = ['#dcfce7', '#fce7f3', '#dbeafe'];
       const retroPrompts = ['Add your wins here', 'What could be better?', 'Next steps to take'];
@@ -875,7 +876,7 @@ async function executeTemplate(
     case 'eisenhower': {
       const eiFrameWidth = 400;
       const eiFrameHeight = 300;
-      const eiGap = 20;
+      const eiGap = 30;
       const eiTitles = ['Urgent & Important', 'Not Urgent & Important', 'Urgent & Not Important', 'Neither'];
       const eiColors = ['#fce7f3', '#dbeafe', '#ffedd5', '#f3e8ff'];
       const eiPrompts = ['Do it now', 'Schedule it', 'Delegate it', 'Drop it'];
@@ -884,7 +885,7 @@ async function executeTemplate(
         const col = i % 2;
         const row = Math.floor(i / 2);
         const fx = startX + col * (eiFrameWidth + eiGap);
-        const fy = startY + row * (eiFrameHeight + eiGap);
+        const fy = startY + row * (eiFrameHeight + titleBarH + eiGap);
         const frameRef = objectsRef.doc();
         batch.set(frameRef, {
           type: 'frame', title: eiTitles[i], x: fx, y: fy,
@@ -1751,8 +1752,9 @@ async function executeTool(
 
     case 'generateFromTemplate': {
       const templateType = input.templateType!;
+      const tbarH = 36; // title bar height
       const startX = input.x ?? 0;
-      const startY = input.y ?? 0;
+      const startY = (input.y ?? 0) + tbarH;
       const created: string[] = [];
 
       switch (templateType) {
@@ -1760,7 +1762,7 @@ async function executeTool(
           // Create 2x2 grid of frames with starter stickies
           const frameWidth = 400;
           const frameHeight = 300;
-          const gap = 20;
+          const gap = 30;
           const titles = ['Strengths', 'Weaknesses', 'Opportunities', 'Threats'];
           const colors = ['#dcfce7', '#fce7f3', '#dbeafe', '#ffedd5'];
           const prompts = ['What are we good at?', 'Where can we improve?', 'What trends can we leverage?', 'What risks do we face?'];
@@ -1770,7 +1772,7 @@ async function executeTool(
             const row = Math.floor(i / 2);
             const frameRef = objectsRef.doc();
             const fx = startX + col * (frameWidth + gap);
-            const fy = startY + row * (frameHeight + gap);
+            const fy = startY + row * (frameHeight + tbarH + gap);
             const frameData = {
               type: 'frame',
               title: titles[i],
@@ -1813,7 +1815,7 @@ async function executeTool(
           // Create 3 columns with starter stickies
           const frameWidth = 350;
           const frameHeight = 600;
-          const gap = 20;
+          const gap = 30;
           const titles = ['To Do', 'In Progress', 'Done'];
           const kanbanColors = ['#fef9c3', '#dbeafe', '#dcfce7'];
           const kanbanPrompts = ['Add tasks here', 'Work in progress', 'Completed tasks'];
@@ -1864,7 +1866,7 @@ async function executeTool(
           // What went well, What didn't, Action items — with starter stickies
           const retroFrameWidth = 400;
           const retroFrameHeight = 500;
-          const retroGap = 20;
+          const retroGap = 30;
           const retroTitles = ['What Went Well \u{1F60A}', 'What Didn\'t Go Well \u{1F61E}', 'Action Items \u{1F3AF}'];
           const retroColors = ['#dcfce7', '#fce7f3', '#dbeafe'];
           const retroPrompts = ['Add your wins here', 'What could be better?', 'Next steps to take'];
@@ -1915,7 +1917,7 @@ async function executeTool(
           // Urgent/Important matrix with starter stickies
           const eiFrameWidth = 400;
           const eiFrameHeight = 300;
-          const eiGap = 20;
+          const eiGap = 30;
           const eiTitles = ['Urgent & Important', 'Not Urgent & Important', 'Urgent & Not Important', 'Neither'];
           const eiColors = ['#fce7f3', '#dbeafe', '#ffedd5', '#f3e8ff'];
           const eiPrompts = ['Do it now', 'Schedule it', 'Delegate it', 'Drop it'];
@@ -1925,7 +1927,7 @@ async function executeTool(
             const row = Math.floor(i / 2);
             const frameRef = objectsRef.doc();
             const fx = startX + col * (eiFrameWidth + eiGap);
-            const fy = startY + row * (eiFrameHeight + eiGap);
+            const fy = startY + row * (eiFrameHeight + tbarH + eiGap);
             const frameData = {
               type: 'frame',
               title: eiTitles[i],

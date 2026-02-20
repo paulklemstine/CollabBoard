@@ -155,8 +155,8 @@ function BoardView({
       await uploadBytes(sRef, blob, { contentType: 'image/jpeg' });
       const url = await getDownloadURL(sRef);
       await updateBoardMetadata(boardId, { thumbnailUrl: url });
-    } catch {
-      // Non-critical — silently ignore capture failures
+    } catch (err) {
+      console.error('[capturePreview] failed:', err);
     } finally {
       captureInFlightRef.current = false;
     }

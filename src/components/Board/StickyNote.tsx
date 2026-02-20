@@ -32,9 +32,10 @@ interface StickyNoteProps {
   groupDragOffset?: { dx: number; dy: number } | null;
   groupTransformPreview?: GroupTransformPreview | null;
   selectionBox?: SelectionBox | null;
+  dragTint?: 'accept' | 'reject' | 'none';
 }
 
-export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange, onDelete, onDuplicate, onClick, onResize, onRotate, onResizeEnd, onRotateEnd, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, parentRotation, dragOffset, isSelected, groupDragOffset, groupTransformPreview, selectionBox }: StickyNoteProps) {
+export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange, onDelete, onDuplicate, onClick, onResize, onRotate, onResizeEnd, onRotateEnd, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, parentRotation, dragOffset, isSelected, groupDragOffset, groupTransformPreview, selectionBox, dragTint = 'none' }: StickyNoteProps) {
   const textRef = useRef<Konva.Text>(null);
   const [isEditing, setIsEditing] = useState(false);
   const lastDragUpdate = useRef(0);
@@ -247,6 +248,17 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
           dash={[8, 4]}
           fill="transparent"
           cornerRadius={14}
+          listening={false}
+        />
+      )}
+      {/* Drag tint overlay for containment feedback */}
+      {dragTint !== 'none' && (
+        <Rect
+          width={localWidth}
+          height={localHeight}
+          cornerRadius={8}
+          fill={dragTint === 'accept' ? '#22c55e' : '#ef4444'}
+          opacity={0.18}
           listening={false}
         />
       )}

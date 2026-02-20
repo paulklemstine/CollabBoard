@@ -9,7 +9,7 @@ import {
   type AnyBoardObject,
 } from '../services/boardService';
 import type { StickyNote, Shape, ShapeType, Frame, Sticker, Connector, TextObject } from '../types/board';
-import { findContainingFrame, getChildrenOfFrame, fitsInFrame } from '../utils/containment';
+import { findContainingFrame, getChildrenOfFrame, isObjectInsideFrame } from '../utils/containment';
 import { screenToWorld } from '../utils/coordinates';
 import type { StageTransform } from '../components/Board/Board';
 import { GiphyFetch } from '@giphy/js-fetch-api';
@@ -32,6 +32,7 @@ export function useBoard(
   const [hoveredObjectId, setHoveredObjectId] = useState<string | null>(null);
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
   const [hoveredFrame, setHoveredFrame] = useState<{ id: string; fits: boolean } | null>(null);
+  const [draggingObjectId, setDraggingObjectId] = useState<string | null>(null);
   const [newObjectIds, setNewObjectIds] = useState<Set<string>>(new Set());
   const [frameDragOffset, setFrameDragOffset] = useState<{ frameId: string; dx: number; dy: number } | null>(null);
   const pendingFrameClearRef = useRef(false);
@@ -467,7 +468,8 @@ export function useBoard(
         (o): o is Frame => o.type === 'frame'
       );
       const containingFrame = findContainingFrame(draggedObj, frames, objectsRef.current);
-      setHoveredFrame(containingFrame ? { id: containingFrame.id, fits: fitsInFrame(draggedObj, containingFrame) } : null);
+      setHoveredFrame(containingFrame ? { id: containingFrame.id, fits: isObjectInsideFrame(draggedObj, containingFrame) } : null);
+      setDraggingObjectId(objectId);
     },
     [boardId, captureBeforeSnapshot]
   );
@@ -480,6 +482,7 @@ export function useBoard(
       if (!obj) {
         updateObject(boardId, objectId, { x, y });
         setHoveredFrame(null);
+        setDraggingObjectId(null);
         // Push undo from snapshot even if obj not found in current state
         const before = dragSnapshotRef.current.get(objectId);
         if (before) {
@@ -497,7 +500,7 @@ export function useBoard(
       const containingFrame = findContainingFrame(draggedObj, frames, objectsRef.current);
 
       // Reject oversized objects — only accept if object fits in frame
-      const fits = containingFrame ? fitsInFrame(draggedObj, containingFrame) : false;
+      const fits = containingFrame ? isObjectInsideFrame(draggedObj, containingFrame) : false;
       const newParentId = containingFrame && fits ? containingFrame.id : '';
 
       updateObject(boardId, objectId, { x, y, parentId: newParentId });
@@ -511,6 +514,7 @@ export function useBoard(
       }
 
       setHoveredFrame(null);
+      setDraggingObjectId(null);
     },
     [boardId, maybePushUndo]
   );
@@ -589,7 +593,8 @@ export function useBoard(
         (o): o is Frame => o.type === 'frame' && o.id !== frameId
       );
       const containingFrame = findContainingFrame(draggedFrame, otherFrames, objectsRef.current);
-      setHoveredFrame(containingFrame ? { id: containingFrame.id, fits: fitsInFrame(draggedFrame, containingFrame) } : null);
+      setHoveredFrame(containingFrame ? { id: containingFrame.id, fits: isObjectInsideFrame(draggedFrame, containingFrame) } : null);
+      setDraggingObjectId(frameId);
     },
     [boardId, captureBeforeSnapshot]
   );
@@ -603,6 +608,7 @@ export function useBoard(
         frameDragStartRef.current = null;
         connectorDragStartRef.current.clear();
         setHoveredFrame(null);
+        setDraggingObjectId(null);
         pendingFrameClearRef.current = true;
         dragSnapshotRef.current.clear();
         return;
@@ -616,7 +622,7 @@ export function useBoard(
       const containingFrame = findContainingFrame(draggedFrame, otherFrames, objectsRef.current);
 
       // Reject oversized frames — only accept if frame fits
-      const fits = containingFrame ? fitsInFrame(draggedFrame, containingFrame) : false;
+      const fits = containingFrame ? isObjectInsideFrame(draggedFrame, containingFrame) : false;
       const newParentId = containingFrame && fits ? containingFrame.id : '';
 
       const frameUpdates: Partial<Frame> = { x: newX, y: newY, parentId: newParentId };
@@ -676,6 +682,7 @@ export function useBoard(
       frameDragStartRef.current = null;
       connectorDragStartRef.current.clear();
       setHoveredFrame(null);
+      setDraggingObjectId(null);
       dragSnapshotRef.current.clear();
 
       // Set BEFORE the write so useLayoutEffect can catch the optimistic update
@@ -957,6 +964,7 @@ export function useBoard(
     updateCursorPosition,
     cancelConnecting,
     hoveredFrame,
+    draggingObjectId,
     frameDragOffset,
     handleDragMove,
     handleDragEnd,

@@ -34,9 +34,10 @@ interface FrameComponentProps {
   groupDragOffset?: { dx: number; dy: number } | null;
   groupTransformPreview?: GroupTransformPreview | null;
   selectionBox?: SelectionBox | null;
+  dragTint?: 'accept' | 'reject' | 'none';
 }
 
-export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDuplicate, onDissolve, onTitleChange, onClick, hoverState = 'none', onResize, onRotate, onResizeEnd, onRotateEnd, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, dragOffset, parentRotation, isSelected, groupDragOffset, groupTransformPreview, selectionBox }: FrameComponentProps) {
+export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDuplicate, onDissolve, onTitleChange, onClick, hoverState = 'none', onResize, onRotate, onResizeEnd, onRotateEnd, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, dragOffset, parentRotation, isSelected, groupDragOffset, groupTransformPreview, selectionBox, dragTint = 'none' }: FrameComponentProps) {
   const lastDragUpdate = useRef(0);
   const lastResizeUpdate = useRef(0);
   const titleRef = useRef<Konva.Text>(null);
@@ -361,6 +362,17 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
           dash={[8, 4]}
           fill="transparent"
           cornerRadius={18}
+          listening={false}
+        />
+      )}
+      {/* Drag tint overlay for the dragged frame itself */}
+      {dragTint !== 'none' && (
+        <Rect
+          width={localWidth}
+          height={localHeight}
+          cornerRadius={16}
+          fill={dragTint === 'accept' ? '#22c55e' : '#ef4444'}
+          opacity={0.18}
           listening={false}
         />
       )}

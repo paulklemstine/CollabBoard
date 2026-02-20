@@ -28,6 +28,7 @@ interface StickerComponentProps {
   groupDragOffset?: { dx: number; dy: number } | null;
   groupTransformPreview?: GroupTransformPreview | null;
   selectionBox?: SelectionBox | null;
+  dragTint?: 'accept' | 'reject' | 'none';
 }
 
 export function StickerComponent({
@@ -47,7 +48,8 @@ export function StickerComponent({
   isSelected,
   groupDragOffset,
   groupTransformPreview,
-  selectionBox
+  selectionBox,
+  dragTint = 'none',
 }: StickerComponentProps) {
   const groupRef = useRef<Konva.Group>(null);
   const flashOverlayRef = useRef<Konva.Rect>(null);
@@ -233,6 +235,17 @@ export function StickerComponent({
           dash={[8, 4]}
           fill="transparent"
           cornerRadius={16}
+          listening={false}
+        />
+      )}
+      {/* Drag tint overlay for containment feedback */}
+      {dragTint !== 'none' && (
+        <Rect
+          width={localWidth}
+          height={localHeight}
+          cornerRadius={16}
+          fill={dragTint === 'accept' ? '#22c55e' : '#ef4444'}
+          opacity={0.18}
           listening={false}
         />
       )}

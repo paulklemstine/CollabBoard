@@ -173,6 +173,7 @@ function BoardView({
     handleObjectHover,
     updateCursorPosition,
     hoveredFrame,
+    draggingObjectId,
     newObjectIds,
     frameDragOffset,
     handleDragMove,
@@ -601,6 +602,19 @@ function BoardView({
     frameMap.set(frame.id, frame);
   }
 
+  /** Compute drag tint for an object: 'accept' (green), 'reject' (red), or 'none' */
+  function getDragTint(objectId: string): 'accept' | 'reject' | 'none' {
+    // Single-item drag
+    if (hoveredFrame && draggingObjectId === objectId) {
+      return hoveredFrame.fits ? 'accept' : 'reject';
+    }
+    // Multi-select group drag
+    if (groupHoveredFrame && isObjectSelected(objectId) && selectedIds.size > 0) {
+      return groupHoveredFrame.fits ? 'accept' : 'reject';
+    }
+    return 'none';
+  }
+
   /** Compute the combined offset for a child: drag offset + rotation orbit around parent frame center */
   function getChildOffset(child: { x: number; y: number; width: number; height: number; parentId?: string }): { x: number; y: number } | undefined {
     const parentFrame = child.parentId ? frameMap.get(child.parentId) : null;
@@ -784,6 +798,7 @@ function BoardView({
               groupDragOffset={selectedIds.size > 1 && isObjectSelected(frame.id) ? groupDragOffset : null}
               groupTransformPreview={selectedIds.size > 1 && isObjectSelected(frame.id) ? transformPreview : null}
               selectionBox={selectedIds.size > 1 && isObjectSelected(frame.id) ? selectionBox : null}
+              dragTint={getDragTint(frame.id)}
             />
           ))}
           {shapes.map((shape) => (
@@ -811,6 +826,7 @@ function BoardView({
               groupDragOffset={selectedIds.size > 1 && isObjectSelected(shape.id) ? groupDragOffset : null}
               groupTransformPreview={selectedIds.size > 1 && isObjectSelected(shape.id) ? transformPreview : null}
               selectionBox={selectedIds.size > 1 && isObjectSelected(shape.id) ? selectionBox : null}
+              dragTint={getDragTint(shape.id)}
             />
           ))}
           {textObjects.map((textObj) => (
@@ -837,6 +853,7 @@ function BoardView({
               groupDragOffset={selectedIds.size > 1 && isObjectSelected(textObj.id) ? groupDragOffset : null}
               groupTransformPreview={selectedIds.size > 1 && isObjectSelected(textObj.id) ? transformPreview : null}
               selectionBox={selectedIds.size > 1 && isObjectSelected(textObj.id) ? selectionBox : null}
+              dragTint={getDragTint(textObj.id)}
             />
           ))}
           {stickyNotes.map((note) => (
@@ -863,6 +880,7 @@ function BoardView({
               groupDragOffset={selectedIds.size > 1 && isObjectSelected(note.id) ? groupDragOffset : null}
               groupTransformPreview={selectedIds.size > 1 && isObjectSelected(note.id) ? transformPreview : null}
               selectionBox={selectedIds.size > 1 && isObjectSelected(note.id) ? selectionBox : null}
+              dragTint={getDragTint(note.id)}
             />
           ))}
           {stickers.map((sticker) => (
@@ -885,6 +903,7 @@ function BoardView({
               groupDragOffset={selectedIds.size > 1 && isObjectSelected(sticker.id) ? groupDragOffset : null}
               groupTransformPreview={selectedIds.size > 1 && isObjectSelected(sticker.id) ? transformPreview : null}
               selectionBox={selectedIds.size > 1 && isObjectSelected(sticker.id) ? selectionBox : null}
+              dragTint={getDragTint(sticker.id)}
             />
           ))}
           {showAILabels && objects.filter((o) => o.aiLabel || o.aiGroupId).map((o) => (

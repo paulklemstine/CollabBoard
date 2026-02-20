@@ -15,6 +15,8 @@ import {
 import {
   findContainingFrameForGroup,
   groupFitsInFrame,
+  getGroupBoundingBox,
+  isObjectInsideFrame,
 } from '../utils/containment';
 
 export interface Marquee {
@@ -269,7 +271,14 @@ export function useMultiSelect(
     );
 
     const containingFrame = findContainingFrameForGroup(movedObjects, frames);
-    setGroupHoveredFrame(containingFrame ? { id: containingFrame.id, fits: groupFitsInFrame(movedObjects, containingFrame) } : null);
+    const groupBox = getGroupBoundingBox(movedObjects);
+    const fits = containingFrame && groupBox
+      ? isObjectInsideFrame(
+          { id: '__group__', type: 'sticky', x: groupBox.x, y: groupBox.y, width: groupBox.width, height: groupBox.height, rotation: 0, createdBy: '', updatedAt: 0 },
+          containingFrame
+        )
+      : false;
+    setGroupHoveredFrame(containingFrame ? { id: containingFrame.id, fits } : null);
   }, []);
 
   const handleGroupDragEnd = useCallback(
@@ -295,8 +304,14 @@ export function useMultiSelect(
 
       const containingFrame = findContainingFrameForGroup(movedObjects, frames);
 
-      // Reject oversized groups — only accept if group fits in frame
-      const fits = containingFrame ? groupFitsInFrame(movedObjects, containingFrame) : false;
+      // Reject oversized groups — only accept if entire group fits inside frame
+      const groupBoxEnd = getGroupBoundingBox(movedObjects);
+      const fits = containingFrame && groupBoxEnd
+        ? isObjectInsideFrame(
+            { id: '__group__', type: 'sticky', x: groupBoxEnd.x, y: groupBoxEnd.y, width: groupBoxEnd.width, height: groupBoxEnd.height, rotation: 0, createdBy: '', updatedAt: 0 },
+            containingFrame
+          )
+        : false;
 
       if (containingFrame && fits) {
         // Group fits, set parentId

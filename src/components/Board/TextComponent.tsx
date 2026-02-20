@@ -31,6 +31,7 @@ interface TextComponentProps {
   groupDragOffset?: { dx: number; dy: number } | null;
   groupTransformPreview?: GroupTransformPreview | null;
   selectionBox?: SelectionBox | null;
+  dragTint?: 'accept' | 'reject' | 'none';
 }
 
 export function TextComponent({
@@ -38,6 +39,7 @@ export function TextComponent({
   onResize, onRotate, onResizeEnd, onRotateEnd, onConnectorHoverEnter, onConnectorHoverLeave,
   isConnectorHighlighted, isNew, parentRotation, dragOffset,
   isSelected, groupDragOffset, groupTransformPreview, selectionBox,
+  dragTint = 'none',
 }: TextComponentProps) {
   // Minimum height must fit at least one line of text (fontSize * lineHeight + padding)
   const minHeight = Math.max(BASE_MIN_HEIGHT, Math.ceil(textObj.fontSize * 1.4) + 8);
@@ -306,6 +308,17 @@ export function TextComponent({
         />
       )}
       {/* Flash overlay */}
+      {/* Drag tint overlay for containment feedback */}
+      {dragTint !== 'none' && (
+        <Rect
+          width={localWidth}
+          height={localHeight}
+          cornerRadius={6}
+          fill={dragTint === 'accept' ? '#22c55e' : '#ef4444'}
+          opacity={0.18}
+          listening={false}
+        />
+      )}
       {isNew && (
         <Rect
           ref={flashOverlayRef}

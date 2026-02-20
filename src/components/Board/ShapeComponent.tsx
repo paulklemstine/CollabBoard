@@ -34,9 +34,10 @@ interface ShapeComponentProps {
   groupDragOffset?: { dx: number; dy: number } | null;
   groupTransformPreview?: GroupTransformPreview | null;
   selectionBox?: SelectionBox | null;
+  dragTint?: 'accept' | 'reject' | 'none';
 }
 
-export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDuplicate, onClick, onResize, onRotate, onResizeEnd, onRotateEnd, onLineEndpointMove, onLineEndpointEnd, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, parentRotation, dragOffset, isSelected, groupDragOffset, groupTransformPreview, selectionBox }: ShapeComponentProps) {
+export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDuplicate, onClick, onResize, onRotate, onResizeEnd, onRotateEnd, onLineEndpointMove, onLineEndpointEnd, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, parentRotation, dragOffset, isSelected, groupDragOffset, groupTransformPreview, selectionBox, dragTint = 'none' }: ShapeComponentProps) {
   const lastDragUpdate = useRef(0);
   const lastResizeUpdate = useRef(0);
   const lastEndpointUpdate = useRef(0);
@@ -472,6 +473,17 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
           dash={[8, 4]}
           fill="transparent"
           cornerRadius={shape.shapeType === 'circle' ? localWidth / 2 : 16}
+          listening={false}
+        />
+      )}
+      {/* Drag tint overlay for containment feedback */}
+      {dragTint !== 'none' && (
+        <Rect
+          width={localWidth}
+          height={localHeight}
+          cornerRadius={shape.shapeType === 'circle' ? localWidth / 2 : 16}
+          fill={dragTint === 'accept' ? '#22c55e' : '#ef4444'}
+          opacity={0.18}
           listening={false}
         />
       )}

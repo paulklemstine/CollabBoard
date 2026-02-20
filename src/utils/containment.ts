@@ -78,6 +78,7 @@ export function findContainingFrame(
   frames: Frame[],
   allObjects?: AnyBoardObject[]
 ): Frame | null {
+  const center = getObjectCenter(draggedObj);
   let bestFrame: Frame | null = null;
   let bestArea = Infinity;
 
@@ -92,8 +93,8 @@ export function findContainingFrame(
       }
     }
 
-    // Require the entire object to fit inside the frame (not just center)
-    if (isObjectInsideFrame(draggedObj, frame)) {
+    // Detect hover when center point is inside the frame
+    if (isPointInsideFrame(center, frame)) {
       const area = frame.width * frame.height;
       if (area < bestArea) {
         bestArea = area;
@@ -240,25 +241,16 @@ export function findContainingFrameForGroup(
   const groupBox = getGroupBoundingBox(objects);
   if (!groupBox) return null;
 
-  // Create a virtual object representing the group bounding box
-  const groupObj: BoardObject = {
-    id: '__group__',
-    type: 'sticky',
-    x: groupBox.x,
-    y: groupBox.y,
-    width: groupBox.width,
-    height: groupBox.height,
-    rotation: 0,
-    createdBy: '',
-    updatedAt: 0,
+  const center: Point = {
+    x: groupBox.centerX,
+    y: groupBox.centerY,
   };
 
   let bestFrame: Frame | null = null;
   let bestArea = Infinity;
 
   for (const frame of frames) {
-    // Require the entire group bounding box to fit inside the frame
-    if (isObjectInsideFrame(groupObj, frame)) {
+    if (isPointInsideFrame(center, frame)) {
       const area = frame.width * frame.height;
       if (area < bestArea) {
         bestArea = area;

@@ -8,7 +8,7 @@
  * signaling the caller to fall back to Pro mode.
  */
 import { auth } from './firebase';
-import { addObject, batchAddObjects, batchDeleteObjects } from './boardService';
+import { addObject, batchAddObjects, batchDeleteObjects, batchUpdateObjects, getBoardObjects, updateObject } from './boardService';
 import type { StickyNote, Frame, Shape, TextObject } from '../types/board';
 import type { AnyBoardObject } from './boardService';
 
@@ -245,6 +245,172 @@ function matchDeleteSelected(prompt: string): ParsedCommand | null {
       return {
         response: `Deleted ${selectedIds.length} object${selectedIds.length !== 1 ? 's' : ''}.`,
         objectsCreated: [],
+      };
+    },
+  };
+}
+
+// Clear board / delete all / remove everything
+function matchClearBoard(prompt: string): ParsedCommand | null {
+  const match = prompt.match(
+    /(?:clear|clean|wipe|reset|empty)\s+(?:the\s+)?(?:board|canvas|everything|all)|(?:delete|remove)\s+(?:all|everything)(?:\s+(?:on|from)\s+(?:the\s+)?board)?/i,
+  );
+  if (!match) return null;
+
+  return {
+    async execute(boardId) {
+      const objects = await getBoardObjects(boardId);
+      if (objects.length === 0) {
+        return { response: 'Board is already empty.', objectsCreated: [] };
+      }
+      const ids = objects.map(o => o.id);
+      // Firestore batch limit is 500, chunk if needed
+      for (let i = 0; i < ids.length; i += 500) {
+        await batchDeleteObjects(boardId, ids.slice(i, i + 500));
+      }
+      return {
+        response: `Cleared the board — removed ${ids.length} object${ids.length !== 1 ? 's' : ''}.`,
+        objectsCreated: [],
+      };
+    },
+  };
+}
+
+// Change color of selected objects
+function matchChangeColor(prompt: string): ParsedCommand | null {
+  const COLOR_MAP: Record<string, string> = {
+    red: '#fca5a5', yellow: '#fef9c3', blue: '#dbeafe', green: '#dcfce7',
+    pink: '#fce7f3', purple: '#f3e8ff', orange: '#ffedd5', white: '#ffffff',
+    black: '#1e293b', gray: '#e2e8f0', grey: '#e2e8f0', violet: '#ddd6fe',
+    teal: '#ccfbf1', cyan: '#cffafe', lime: '#ecfccb', rose: '#ffe4e6',
+    indigo: '#e0e7ff', amber: '#fef3c7',
+  };
+
+  const match = prompt.match(
+    /(?:change|set|make)\s+(?:the\s+)?(?:color|colour)\s+(?:of\s+(?:the\s+)?(?:selected|selection|these|this)\s+)?(?:to\s+)?(\w+)/i,
+  ) || prompt.match(
+    /(?:make|turn|color|colour)\s+(?:the\s+)?(?:selected|selection|these|this|them)\s+(\w+)/i,
+  );
+  if (!match) return null;
+
+  const colorName = match[1].toLowerCase();
+  // Accept hex colors directly
+  const hexMatch = prompt.match(/#[0-9a-fA-F]{3,8}/);
+  const color = hexMatch ? hexMatch[0] : COLOR_MAP[colorName];
+  if (!color) return null;
+
+  return {
+    async execute(boardId, selectedIds) {
+      if (!selectedIds || selectedIds.length === 0) {
+        return { response: 'No objects selected to change color.', objectsCreated: [] };
+      }
+      const updates = selectedIds.map(id => ({ id, updates: { color } as Partial<AnyBoardObject> }));
+      await batchUpdateObjects(boardId, updates);
+      return {
+        response: `Changed color of ${selectedIds.length} object${selectedIds.length !== 1 ? 's' : ''} to ${colorName}.`,
+        objectsCreated: [],
+      };
+    },
+  };
+}
+
+// Arrange / organize / layout selected or all objects
+function matchArrange(prompt: string): ParsedCommand | null {
+  const match = prompt.match(
+    /(?:arrange|organize|layout|lay\s+out|tidy|tidy\s+up|sort|align|space|spread|grid|stack|line\s+up)\s*(?:the\s+)?(?:board|items?|objects?|everything|all|stickies|notes?|selected|these|them)?/i,
+  );
+  if (!match) return null;
+
+  // Determine layout mode from the prompt
+  const lower = prompt.toLowerCase();
+  let mode: 'grid' | 'row' | 'column' = 'grid';
+  if (/row|horizontal|left.to.right|side.by.side/i.test(lower)) mode = 'row';
+  if (/column|vertical|top.to.bottom|stack/i.test(lower)) mode = 'column';
+
+  return {
+    async execute(boardId, selectedIds) {
+      const allObjects = await getBoardObjects(boardId);
+      // Use selected objects if available, otherwise all non-frame objects
+      let targets = selectedIds && selectedIds.length > 0
+        ? allObjects.filter(o => selectedIds.includes(o.id))
+        : allObjects.filter(o => o.type !== 'frame');
+
+      if (targets.length === 0) {
+        return { response: 'No objects to arrange.', objectsCreated: [] };
+      }
+
+      const spacing = 20;
+      const updates: { id: string; x: number; y: number }[] = [];
+
+      if (mode === 'row') {
+        let cursorX = 100;
+        for (const obj of targets) {
+          updates.push({ id: obj.id, x: cursorX, y: 100 });
+          cursorX += (obj.width || 200) + spacing;
+        }
+      } else if (mode === 'column') {
+        let cursorY = 100;
+        for (const obj of targets) {
+          updates.push({ id: obj.id, x: 100, y: cursorY });
+          cursorY += (obj.height || 200) + spacing;
+        }
+      } else {
+        // Grid
+        const cols = Math.ceil(Math.sqrt(targets.length));
+        for (let i = 0; i < targets.length; i++) {
+          const col = i % cols;
+          const row = Math.floor(i / cols);
+          const w = targets[i].width || 200;
+          const h = targets[i].height || 200;
+          updates.push({
+            id: targets[i].id,
+            x: 100 + col * (w + spacing),
+            y: 100 + row * (h + spacing),
+          });
+        }
+      }
+
+      await batchUpdateObjects(boardId, updates.map(u => ({ id: u.id, updates: { x: u.x, y: u.y } as Partial<AnyBoardObject> })));
+      return {
+        response: `Arranged ${targets.length} object${targets.length !== 1 ? 's' : ''} in a ${mode}.`,
+        objectsCreated: [],
+      };
+    },
+  };
+}
+
+// Duplicate selected objects
+function matchDuplicate(prompt: string): ParsedCommand | null {
+  const match = prompt.match(
+    /(?:duplicate|copy|clone)\s+(?:the\s+)?(?:selected|selection|these|this|them)/i,
+  );
+  if (!match) return null;
+
+  return {
+    async execute(boardId, selectedIds) {
+      if (!selectedIds || selectedIds.length === 0) {
+        return { response: 'No objects selected to duplicate.', objectsCreated: [] };
+      }
+      const allObjects = await getBoardObjects(boardId);
+      const selectedObjs = allObjects.filter(o => selectedIds.includes(o.id));
+      const newIds: string[] = [];
+      const newObjs: AnyBoardObject[] = [];
+      for (const obj of selectedObjs) {
+        const id = genId();
+        newIds.push(id);
+        newObjs.push({
+          ...obj,
+          id,
+          x: (obj.x || 0) + 30,
+          y: (obj.y || 0) + 30,
+          updatedAt: now(),
+          createdBy: userId(),
+        } as AnyBoardObject);
+      }
+      await batchAddObjects(boardId, newObjs);
+      return {
+        response: `Duplicated ${newIds.length} object${newIds.length !== 1 ? 's' : ''}.`,
+        objectsCreated: newIds,
       };
     },
   };
@@ -501,7 +667,11 @@ export async function executeFastCommand(
 
   // Try each matcher in priority order
   const matchers = [
+    matchClearBoard,
     matchDeleteSelected,
+    matchChangeColor,
+    matchDuplicate,
+    matchArrange,
     matchTemplate,
     matchCreateSticky,
     matchCreateFrame,

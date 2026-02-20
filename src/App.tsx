@@ -105,7 +105,6 @@ function BoardView({
   const [boardMetadata, setBoardMetadata] = useState<BoardMetadata | null>(null);
   const [copied, setCopied] = useState(false);
   const stageContainerRef = useRef<HTMLDivElement | null>(null);
-  const captureInFlightRef = useRef(false);
   const lastCaptureRef = useRef(0);
   const MIN_CAPTURE_INTERVAL = 60_000; // 1 minute between captures
 
@@ -394,19 +393,18 @@ function BoardView({
     setTransform: (transform: StageTransform) => void;
   } | null>(null);
 
-  // Capture board preview on exit: zoom-to-fit all objects, screenshot, upload
-  const capturePreview = useCallback(async () => {
+  // Capture board preview: zoom-to-fit, screenshot to blob (fast, DOM-dependent)
+  const capturePreviewBlob = useCallback(async (): Promise<Blob | null> => {
     const el = stageContainerRef.current;
-    if (!el || captureInFlightRef.current || !zoomControls) return;
-    if (Date.now() - lastCaptureRef.current < MIN_CAPTURE_INTERVAL) return;
-    captureInFlightRef.current = true;
+    if (!el || !zoomControls) return null;
+    if (Date.now() - lastCaptureRef.current < MIN_CAPTURE_INTERVAL) return null;
     try {
       const sourceCanvas = el.querySelector('canvas');
-      if (!sourceCanvas) return;
+      if (!sourceCanvas) return null;
 
       // Compute bounding box of all visible objects
       const visible = objects.filter(o => o.type !== 'connector');
-      if (visible.length === 0) return;
+      if (visible.length === 0) return null;
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       for (const obj of visible) {
         minX = Math.min(minX, obj.x);
@@ -441,7 +439,7 @@ function BoardView({
       offscreen.width = WIDTH;
       offscreen.height = HEIGHT;
       const ctx = offscreen.getContext('2d');
-      if (!ctx) { zoomControls.setTransform(savedTransform); return; }
+      if (!ctx) { zoomControls.setTransform(savedTransform); return null; }
 
       ctx.fillStyle = '#f8fafc';
       ctx.fillRect(0, 0, WIDTH, HEIGHT);
@@ -463,31 +461,37 @@ function BoardView({
         ctx.restore();
       }
 
-      // Restore viewport before upload (slow part)
       zoomControls.setTransform(savedTransform);
 
-      const blob = await new Promise<Blob | null>(resolve =>
+      return await new Promise<Blob | null>(resolve =>
         offscreen.toBlob(resolve, 'image/jpeg', 0.7)
       );
-      if (!blob) return;
-
-      const sRef = storageRef(storage, `boards/${boardId}/preview.jpg`);
-      await uploadBytes(sRef, blob, { contentType: 'image/jpeg' });
-      const url = await getDownloadURL(sRef);
-      await updateBoardMetadata(boardId, { thumbnailUrl: url });
-      lastCaptureRef.current = Date.now();
     } catch {
-      // Non-critical — silently ignore capture failures
-    } finally {
-      captureInFlightRef.current = false;
+      return null;
     }
-  }, [boardId, objects, stageTransform, zoomControls]);
+  }, [objects, stageTransform, zoomControls]);
 
-  // Capture preview on board exit
+  // Upload preview blob to Storage (slow, runs in background after navigation)
+  const uploadPreview = useCallback((blob: Blob) => {
+    const sRef = storageRef(storage, `boards/${boardId}/preview.jpg`);
+    uploadBytes(sRef, blob, { contentType: 'image/jpeg' })
+      .then((snapshot) => getDownloadURL(snapshot.ref))
+      .then((url) => updateBoardMetadata(boardId, { thumbnailUrl: url }))
+      .then(() => { lastCaptureRef.current = Date.now(); })
+      .catch(() => {}); // fire-and-forget
+  }, [boardId]);
+
+  // Capture preview on board exit — fade overlay hides zoom-to-fit flicker
+  const [isCapturing, setIsCapturing] = useState(false);
   const handleNavigateBack = useCallback(async () => {
-    await capturePreview();
+    setIsCapturing(true);
+    // Wait for fade overlay to become opaque
+    await new Promise(r => setTimeout(r, 200));
+    const blob = await capturePreviewBlob();
+    // Navigate immediately — upload continues in background
+    if (blob) uploadPreview(blob);
     onNavigateBack();
-  }, [capturePreview, onNavigateBack]);
+  }, [capturePreviewBlob, uploadPreview, onNavigateBack]);
 
   const handleMouseMove = useCallback(
     (x: number, y: number) => {
@@ -654,6 +658,16 @@ function BoardView({
 
   return (
     <div className="relative w-screen h-screen overflow-hidden board-dots">
+      {/* Fade overlay to hide zoom-to-fit flicker during preview capture */}
+      {isCapturing && (
+        <div
+          className="absolute inset-0 z-[9999] pointer-events-none"
+          style={{
+            background: 'white',
+            animation: 'fadeIn 200ms ease-out forwards',
+          }}
+        />
+      )}
       <div className="absolute inset-0 z-0">
         <Board
           boardId={boardId}

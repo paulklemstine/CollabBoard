@@ -246,9 +246,8 @@ export function StickerComponent({
           text={sticker.emoji}
           fontSize={fontSize}
           width={localWidth}
-          height={localHeight}
           align="center"
-          verticalAlign="middle"
+          y={(localHeight - fontSize) / 2}
           listening={false}
         />
       )}

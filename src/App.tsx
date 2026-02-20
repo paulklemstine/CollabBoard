@@ -30,6 +30,9 @@ import { Toolbar } from './components/Toolbar/Toolbar';
 import { AIChat } from './components/AIChat/AIChat';
 import { Minimap } from './components/Minimap/Minimap';
 import { useChat } from './hooks/useChat';
+import { usePresenceToasts } from './hooks/usePresenceToasts';
+import { PresenceToastContainer } from './components/Effects/PresenceToast';
+import { ConfettiBurst } from './components/Effects/ConfettiBurst';
 import type { StickyNote, Shape, Frame, Sticker, Connector, TextObject, BoardMetadata } from './types/board';
 import { calculateGroupObjectTransform } from './utils/groupTransform';
 import { batchAddObjects, type AnyBoardObject } from './services/boardService';
@@ -105,6 +108,7 @@ function BoardView({
 }) {
   const [boardMetadata, setBoardMetadata] = useState<BoardMetadata | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
   const stageContainerRef = useRef<HTMLDivElement | null>(null);
   const lastCaptureRef = useRef(0);
   const MIN_CAPTURE_INTERVAL = 60_000; // 1 minute between captures
@@ -149,6 +153,7 @@ function BoardView({
     user.displayName ?? 'Anonymous',
     user.email ?? '',
   );
+  const { toasts: presenceToasts } = usePresenceToasts(onlineUsers);
   const { pushUndo, undo, redo, canUndo, canRedo, isUndoRedoingRef } = useUndoRedo(boardId, user.uid);
   const {
     objects,
@@ -196,6 +201,7 @@ function BoardView({
   // When AI creates objects, push an undo entry once they appear in state
   const handleAIObjectsCreated = useCallback((ids: string[]) => {
     if (ids.length === 0) return;
+    setShowConfetti(true);
     const idSet = new Set(ids);
     let attempts = 0;
     const poll = () => {
@@ -723,7 +729,7 @@ function BoardView({
   const objectHoverLeave = connectMode ? () => handleObjectHover(null) : undefined;
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden board-dots">
+    <div className="relative w-screen h-screen overflow-hidden board-dots" style={{ backgroundPosition: `${stageTransform.x * 0.1}px ${stageTransform.y * 0.1}px` }}>
       {/* Fade overlay to hide zoom-to-fit flicker during preview capture */}
       {isCapturing && (
         <div
@@ -964,6 +970,10 @@ function BoardView({
         canRedo={canRedo}
       />
       <AIChat boardId={boardId} isOpen={aiOpen} onClose={() => setAiOpen(false)} onObjectsCreated={handleAIObjectsCreated} selectedIds={[...selectedIds]} />
+      {/* Confetti burst on AI completion — positioned near bottom-right */}
+      <div className="fixed bottom-24 right-10 z-[9998]">
+        <ConfettiBurst trigger={showConfetti} onComplete={() => setShowConfetti(false)} />
+      </div>
       {/* Top left: Back/Share buttons and minimap */}
       <div className="absolute top-4 left-4 z-50 flex flex-col gap-3">
         <div className="glass-playful rounded-xl shadow-lg flex items-center py-1 min-w-[220px]">
@@ -1052,6 +1062,7 @@ function BoardView({
         <AuthPanel user={user as never} onSignOut={onSignOut} />
         <PresencePanel users={onlineUsers} cursors={cursors} onFollowUser={handleFollowUser} />
       </div>
+      <PresenceToastContainer toasts={presenceToasts} />
     </div>
   );
 }

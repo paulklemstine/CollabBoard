@@ -1,6 +1,6 @@
-import { useRef, useCallback, useState } from 'react';
+import { useRef, useCallback, useState, useEffect } from 'react';
 import { Group, Rect, Text } from 'react-konva';
-import type Konva from 'konva';
+import Konva from 'konva';
 import type { Marquee, GroupDragOffset, SelectionBox, GroupTransformPreview } from '../../hooks/useMultiSelect';
 
 const HANDLE_SIZE = 40;
@@ -44,6 +44,19 @@ export function SelectionOverlay({
   const rotateStartRef = useRef<{ angle: number } | null>(null);
   const [isDeleteHovered, setIsDeleteHovered] = useState(false);
   const [isDuplicateHovered, setIsDuplicateHovered] = useState(false);
+  const dashAnimRef = useRef<Konva.Rect>(null);
+
+  // Marching ants animation on selection border
+  useEffect(() => {
+    if (!dashAnimRef.current) return;
+    const anim = new Konva.Animation((frame) => {
+      if (dashAnimRef.current && frame) {
+        dashAnimRef.current.dashOffset(-frame.time * 0.03);
+      }
+    }, dashAnimRef.current.getLayer());
+    anim.start();
+    return () => { anim.stop(); };
+  }, [selectionBox, selectedIds.size]);
 
   // Compute display position with drag offset + padding applied
   const box = selectionBox;
@@ -250,8 +263,9 @@ export function SelectionOverlay({
             if (stage) stage.container().style.cursor = 'default';
           }}
         >
-          {/* Dashed selection border */}
+          {/* Dashed selection border — marching ants */}
           <Rect
+            ref={dashAnimRef}
             width={displayWidth}
             height={displayHeight}
             stroke="#3b82f6"

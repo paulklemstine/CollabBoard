@@ -58,7 +58,9 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
   const [liveLineWidth, setLiveLineWidth] = useState<number | null>(null);
   const [liveLineRotation, setLiveLineRotation] = useState<number | null>(null);
   const flashOverlayRef = useRef<Konva.Rect>(null);
+  const groupRef = useRef<Konva.Group>(null);
   const rotateStartRef = useRef<{ angle: number; rotation: number } | null>(null);
+  const prevSelectedRef = useRef(false);
   // Endpoint drag ref: stores fixed endpoint coords and which end is being dragged
   const endpointDragRef = useRef<{ fixedX: number; fixedY: number; end: 'left' | 'right' } | null>(null);
 
@@ -71,36 +73,56 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
     }
   }, [shape.width, shape.height, isResizing, isEndpointDragging]);
 
+  // Drop bounce + flash pulse for new objects
   useEffect(() => {
-    if (!isNew || !flashOverlayRef.current) return;
-    const node = flashOverlayRef.current;
+    if (!isNew) return;
     let destroyed = false;
 
-    const pulse = (count: number) => {
-      if (count >= 3 || destroyed) return;
-      const tweenIn = new Konva.Tween({
-        node,
-        duration: 0.33,
-        opacity: 0.45,
-        easing: Konva.Easings.EaseInOut,
-        onFinish: () => {
-          if (destroyed) return;
-          const tweenOut = new Konva.Tween({
-            node,
-            duration: 0.33,
-            opacity: 0,
-            easing: Konva.Easings.EaseInOut,
-            onFinish: () => pulse(count + 1),
-          });
-          tweenOut.play();
-        },
-      });
-      tweenIn.play();
-    };
-    pulse(0);
+    if (groupRef.current) {
+      const g = groupRef.current;
+      g.scaleX(0.85);
+      g.scaleY(0.85);
+      new Konva.Tween({
+        node: g, duration: 0.35, scaleX: 1, scaleY: 1,
+        easing: Konva.Easings.ElasticEaseOut,
+      }).play();
+    }
+
+    if (flashOverlayRef.current) {
+      const node = flashOverlayRef.current;
+      const pulse = (count: number) => {
+        if (count >= 3 || destroyed) return;
+        const tweenIn = new Konva.Tween({
+          node, duration: 0.33, opacity: 0.45, easing: Konva.Easings.EaseInOut,
+          onFinish: () => {
+            if (destroyed) return;
+            new Konva.Tween({
+              node, duration: 0.33, opacity: 0, easing: Konva.Easings.EaseInOut,
+              onFinish: () => pulse(count + 1),
+            }).play();
+          },
+        });
+        tweenIn.play();
+      };
+      pulse(0);
+    }
 
     return () => { destroyed = true; };
   }, [isNew]);
+
+  // Selection pop animation
+  useEffect(() => {
+    if (isSelected && !prevSelectedRef.current && groupRef.current) {
+      const g = groupRef.current;
+      new Konva.Tween({
+        node: g, duration: 0.1, scaleX: 1.03, scaleY: 1.03, easing: Konva.Easings.EaseInOut,
+        onFinish: () => {
+          new Konva.Tween({ node: g, duration: 0.1, scaleX: 1, scaleY: 1, easing: Konva.Easings.EaseInOut }).play();
+        },
+      }).play();
+    }
+    prevSelectedRef.current = !!isSelected;
+  }, [isSelected]);
 
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -424,6 +446,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
 
   return (
     <Group
+      ref={groupRef}
       x={effectiveX + (dragOffset?.x ?? 0) + (groupDragOffset?.dx ?? 0) + (liveTransform?.orbitOffset.x ?? 0) + localWidth / 2}
       y={effectiveY + (dragOffset?.y ?? 0) + (groupDragOffset?.dy ?? 0) + (liveTransform?.orbitOffset.y ?? 0) + localHeight / 2}
       offsetX={localWidth / 2}
@@ -463,8 +486,8 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
       <Rect x={-30} y={-30} width={localWidth + 60} height={localHeight + 60}
             fill="transparent" listening={true} />
       {renderShape()}
-      {/* Selection highlight */}
-      {isSelected && (
+      {/* Selection highlight — only for single-select */}
+      {isSelected && !selectionBox && (
         <Rect
           width={localWidth}
           height={localHeight}
@@ -472,6 +495,19 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
           strokeWidth={3}
           dash={[8, 4]}
           fill="transparent"
+          cornerRadius={shape.shapeType === 'circle' ? localWidth / 2 : 16}
+          listening={false}
+        />
+      )}
+      {/* Multi-select violet glow */}
+      {isSelected && selectionBox && (
+        <Rect
+          width={localWidth}
+          height={localHeight}
+          fill="transparent"
+          shadowColor="#8b5cf6"
+          shadowBlur={24}
+          shadowOpacity={0.5}
           cornerRadius={shape.shapeType === 'circle' ? localWidth / 2 : 16}
           listening={false}
         />

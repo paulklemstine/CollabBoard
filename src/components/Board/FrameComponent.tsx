@@ -54,7 +54,9 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
   const [localWidth, setLocalWidth] = useState(frame.width);
   const [localHeight, setLocalHeight] = useState(frame.height);
   const flashOverlayRef = useRef<Konva.Rect>(null);
+  const groupRef = useRef<Konva.Group>(null);
   const rotateStartRef = useRef<{ angle: number; rotation: number } | null>(null);
+  const prevSelectedRef = useRef(false);
 
   useEffect(() => {
     if (!isResizing) {
@@ -63,36 +65,56 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
     }
   }, [frame.width, frame.height, isResizing]);
 
+  // Drop bounce + flash pulse for new objects
   useEffect(() => {
-    if (!isNew || !flashOverlayRef.current) return;
-    const node = flashOverlayRef.current;
+    if (!isNew) return;
     let destroyed = false;
 
-    const pulse = (count: number) => {
-      if (count >= 3 || destroyed) return;
-      const tweenIn = new Konva.Tween({
-        node,
-        duration: 0.33,
-        opacity: 0.45,
-        easing: Konva.Easings.EaseInOut,
-        onFinish: () => {
-          if (destroyed) return;
-          const tweenOut = new Konva.Tween({
-            node,
-            duration: 0.33,
-            opacity: 0,
-            easing: Konva.Easings.EaseInOut,
-            onFinish: () => pulse(count + 1),
-          });
-          tweenOut.play();
-        },
-      });
-      tweenIn.play();
-    };
-    pulse(0);
+    if (groupRef.current) {
+      const g = groupRef.current;
+      g.scaleX(0.85);
+      g.scaleY(0.85);
+      new Konva.Tween({
+        node: g, duration: 0.35, scaleX: 1, scaleY: 1,
+        easing: Konva.Easings.ElasticEaseOut,
+      }).play();
+    }
+
+    if (flashOverlayRef.current) {
+      const node = flashOverlayRef.current;
+      const pulse = (count: number) => {
+        if (count >= 3 || destroyed) return;
+        const tweenIn = new Konva.Tween({
+          node, duration: 0.33, opacity: 0.45, easing: Konva.Easings.EaseInOut,
+          onFinish: () => {
+            if (destroyed) return;
+            new Konva.Tween({
+              node, duration: 0.33, opacity: 0, easing: Konva.Easings.EaseInOut,
+              onFinish: () => pulse(count + 1),
+            }).play();
+          },
+        });
+        tweenIn.play();
+      };
+      pulse(0);
+    }
 
     return () => { destroyed = true; };
   }, [isNew]);
+
+  // Selection pop animation
+  useEffect(() => {
+    if (isSelected && !prevSelectedRef.current && groupRef.current) {
+      const g = groupRef.current;
+      new Konva.Tween({
+        node: g, duration: 0.1, scaleX: 1.03, scaleY: 1.03, easing: Konva.Easings.EaseInOut,
+        onFinish: () => {
+          new Konva.Tween({ node: g, duration: 0.1, scaleX: 1, scaleY: 1, easing: Konva.Easings.EaseInOut }).play();
+        },
+      }).play();
+    }
+    prevSelectedRef.current = !!isSelected;
+  }, [isSelected]);
 
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -272,6 +294,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
 
   return (
     <Group
+      ref={groupRef}
       x={displayX + localWidth / 2}
       y={displayY + localHeight / 2}
       offsetX={localWidth / 2}
@@ -324,7 +347,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
             fill={frame.color || "transparent"}
             stroke={frame.borderColor || "transparent"}
             strokeWidth={frame.borderColor ? 2 : 0}
-            dash={frame.borderColor ? [8, 4] : undefined}
+
             cornerRadius={16}
           />
           {/* Subtle dashed outline on hover when no custom border set */}
@@ -355,8 +378,8 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
           cornerRadius={16}
         />
       )}
-      {/* Selection highlight */}
-      {isSelected && (
+      {/* Selection highlight — only for single-select */}
+      {isSelected && !selectionBox && (
         <Rect
           x={-4}
           y={-titleBarH - 4}
@@ -366,6 +389,21 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
           strokeWidth={3}
           dash={[8, 4]}
           fill="transparent"
+          cornerRadius={18}
+          listening={false}
+        />
+      )}
+      {/* Multi-select violet glow */}
+      {isSelected && selectionBox && (
+        <Rect
+          x={-4}
+          y={-titleBarH - 4}
+          width={localWidth + 8}
+          height={localHeight + titleBarH + 8}
+          fill="transparent"
+          shadowColor="#8b5cf6"
+          shadowBlur={24}
+          shadowOpacity={0.5}
           cornerRadius={18}
           listening={false}
         />
@@ -467,7 +505,6 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
             points={[0, 0, localWidth, 0]}
             stroke={frame.borderColor || '#a78bfa'}
             strokeWidth={2.5}
-            dash={[12, 6]}
             listening={false}
           />
           {/* Double-click area for title editing */}

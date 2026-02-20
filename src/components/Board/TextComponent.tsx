@@ -56,7 +56,9 @@ export function TextComponent({
   const [localWidth, setLocalWidth] = useState(textObj.width);
   const [localHeight, setLocalHeight] = useState(textObj.height);
   const flashOverlayRef = useRef<Konva.Rect>(null);
+  const groupRef = useRef<Konva.Group>(null);
   const rotateStartRef = useRef<{ angle: number; rotation: number } | null>(null);
+  const prevSelectedRef = useRef(false);
 
   useEffect(() => {
     if (!isResizing) {
@@ -81,28 +83,56 @@ export function TextComponent({
     }
   }, [textObj.text, textObj.fontSize, textObj.fontFamily, textObj.fontWeight, textObj.fontStyle, localWidth, localHeight, isEditing, isResizing]);
 
+  // Drop bounce + flash pulse for new objects
   useEffect(() => {
-    if (!isNew || !flashOverlayRef.current) return;
-    const node = flashOverlayRef.current;
+    if (!isNew) return;
     let destroyed = false;
-    const pulse = (count: number) => {
-      if (count >= 3 || destroyed) return;
-      const tweenIn = new Konva.Tween({
-        node, duration: 0.33, opacity: 0.45, easing: Konva.Easings.EaseInOut,
-        onFinish: () => {
-          if (destroyed) return;
-          const tweenOut = new Konva.Tween({
-            node, duration: 0.33, opacity: 0, easing: Konva.Easings.EaseInOut,
-            onFinish: () => pulse(count + 1),
-          });
-          tweenOut.play();
-        },
-      });
-      tweenIn.play();
-    };
-    pulse(0);
+
+    if (groupRef.current) {
+      const g = groupRef.current;
+      g.scaleX(0.85);
+      g.scaleY(0.85);
+      new Konva.Tween({
+        node: g, duration: 0.35, scaleX: 1, scaleY: 1,
+        easing: Konva.Easings.ElasticEaseOut,
+      }).play();
+    }
+
+    if (flashOverlayRef.current) {
+      const node = flashOverlayRef.current;
+      const pulse = (count: number) => {
+        if (count >= 3 || destroyed) return;
+        const tweenIn = new Konva.Tween({
+          node, duration: 0.33, opacity: 0.45, easing: Konva.Easings.EaseInOut,
+          onFinish: () => {
+            if (destroyed) return;
+            new Konva.Tween({
+              node, duration: 0.33, opacity: 0, easing: Konva.Easings.EaseInOut,
+              onFinish: () => pulse(count + 1),
+            }).play();
+          },
+        });
+        tweenIn.play();
+      };
+      pulse(0);
+    }
+
     return () => { destroyed = true; };
   }, [isNew]);
+
+  // Selection pop animation
+  useEffect(() => {
+    if (isSelected && !prevSelectedRef.current && groupRef.current) {
+      const g = groupRef.current;
+      new Konva.Tween({
+        node: g, duration: 0.1, scaleX: 1.03, scaleY: 1.03, easing: Konva.Easings.EaseInOut,
+        onFinish: () => {
+          new Konva.Tween({ node: g, duration: 0.1, scaleX: 1, scaleY: 1, easing: Konva.Easings.EaseInOut }).play();
+        },
+      }).play();
+    }
+    prevSelectedRef.current = !!isSelected;
+  }, [isSelected]);
 
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -212,6 +242,7 @@ export function TextComponent({
 
   return (
     <Group
+      ref={groupRef}
       x={textObj.x + (dragOffset?.x ?? 0) + (groupDragOffset?.dx ?? 0) + (liveTransform?.orbitOffset.x ?? 0) + localWidth / 2}
       y={textObj.y + (dragOffset?.y ?? 0) + (groupDragOffset?.dy ?? 0) + (liveTransform?.orbitOffset.y ?? 0) + localHeight / 2}
       offsetX={localWidth / 2}
@@ -294,8 +325,8 @@ export function TextComponent({
           listening={false}
         />
       )}
-      {/* Selection highlight */}
-      {isSelected && (
+      {/* Selection highlight — only for single-select */}
+      {isSelected && !selectionBox && (
         <Rect
           width={localWidth}
           height={localHeight}
@@ -303,6 +334,19 @@ export function TextComponent({
           strokeWidth={3}
           dash={[8, 4]}
           fill="transparent"
+          cornerRadius={6}
+          listening={false}
+        />
+      )}
+      {/* Multi-select violet glow */}
+      {isSelected && selectionBox && (
+        <Rect
+          width={localWidth}
+          height={localHeight}
+          fill="transparent"
+          shadowColor="#8b5cf6"
+          shadowBlur={24}
+          shadowOpacity={0.5}
           cornerRadius={6}
           listening={false}
         />

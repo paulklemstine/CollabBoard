@@ -49,7 +49,9 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
   const [localWidth, setLocalWidth] = useState(note.width);
   const [localHeight, setLocalHeight] = useState(note.height);
   const flashOverlayRef = useRef<Konva.Rect>(null);
+  const groupRef = useRef<Konva.Group>(null);
   const rotateStartRef = useRef<{ angle: number; rotation: number } | null>(null);
+  const prevSelectedRef = useRef(false);
 
   useEffect(() => {
     if (!isResizing) {
@@ -58,36 +60,80 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
     }
   }, [note.width, note.height, isResizing]);
 
+  // Drop bounce + flash pulse for new objects
   useEffect(() => {
-    if (!isNew || !flashOverlayRef.current) return;
-    const node = flashOverlayRef.current;
+    if (!isNew) return;
     let destroyed = false;
 
-    const pulse = (count: number) => {
-      if (count >= 3 || destroyed) return;
-      const tweenIn = new Konva.Tween({
-        node,
-        duration: 0.33,
-        opacity: 0.45,
-        easing: Konva.Easings.EaseInOut,
-        onFinish: () => {
-          if (destroyed) return;
-          const tweenOut = new Konva.Tween({
-            node,
-            duration: 0.33,
-            opacity: 0,
-            easing: Konva.Easings.EaseInOut,
-            onFinish: () => pulse(count + 1),
-          });
-          tweenOut.play();
-        },
+    // Scale-bounce on the group
+    if (groupRef.current) {
+      const g = groupRef.current;
+      g.scaleX(0.85);
+      g.scaleY(0.85);
+      const bounce = new Konva.Tween({
+        node: g,
+        duration: 0.35,
+        scaleX: 1,
+        scaleY: 1,
+        easing: Konva.Easings.ElasticEaseOut,
       });
-      tweenIn.play();
-    };
-    pulse(0);
+      bounce.play();
+    }
+
+    // Flash pulse
+    if (flashOverlayRef.current) {
+      const node = flashOverlayRef.current;
+      const pulse = (count: number) => {
+        if (count >= 3 || destroyed) return;
+        const tweenIn = new Konva.Tween({
+          node,
+          duration: 0.33,
+          opacity: 0.45,
+          easing: Konva.Easings.EaseInOut,
+          onFinish: () => {
+            if (destroyed) return;
+            const tweenOut = new Konva.Tween({
+              node,
+              duration: 0.33,
+              opacity: 0,
+              easing: Konva.Easings.EaseInOut,
+              onFinish: () => pulse(count + 1),
+            });
+            tweenOut.play();
+          },
+        });
+        tweenIn.play();
+      };
+      pulse(0);
+    }
 
     return () => { destroyed = true; };
   }, [isNew]);
+
+  // Selection pop animation
+  useEffect(() => {
+    if (isSelected && !prevSelectedRef.current && groupRef.current) {
+      const g = groupRef.current;
+      const pop = new Konva.Tween({
+        node: g,
+        duration: 0.1,
+        scaleX: 1.03,
+        scaleY: 1.03,
+        easing: Konva.Easings.EaseInOut,
+        onFinish: () => {
+          new Konva.Tween({
+            node: g,
+            duration: 0.1,
+            scaleX: 1,
+            scaleY: 1,
+            easing: Konva.Easings.EaseInOut,
+          }).play();
+        },
+      });
+      pop.play();
+    }
+    prevSelectedRef.current = !!isSelected;
+  }, [isSelected]);
 
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -184,6 +230,7 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
 
   return (
     <Group
+      ref={groupRef}
       x={note.x + (dragOffset?.x ?? 0) + (groupDragOffset?.dx ?? 0) + (liveTransform?.orbitOffset.x ?? 0) + localWidth / 2}
       y={note.y + (dragOffset?.y ?? 0) + (groupDragOffset?.dy ?? 0) + (liveTransform?.orbitOffset.y ?? 0) + localHeight / 2}
       offsetX={localWidth / 2}
@@ -230,16 +277,16 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
         height={localHeight}
         fill={note.color}
         cornerRadius={14}
-        shadowColor={isConnectorHighlighted ? '#818cf8' : note.color}
-        shadowBlur={(isConnectorHighlighted || isMouseHovered) ? 28 : 18}
+        shadowColor={isSelected && selectionBox ? '#8b5cf6' : (isConnectorHighlighted ? '#818cf8' : note.color)}
+        shadowBlur={isSelected && selectionBox ? 24 : ((isConnectorHighlighted || isMouseHovered) ? 28 : 18)}
         shadowOffsetY={(isConnectorHighlighted || isMouseHovered) ? 10 : 6}
         shadowOffsetX={(isConnectorHighlighted || isMouseHovered) ? 2 : 0}
-        shadowOpacity={(isConnectorHighlighted || isMouseHovered) ? 0.45 : 0.3}
+        shadowOpacity={isSelected && selectionBox ? 0.5 : ((isConnectorHighlighted || isMouseHovered) ? 0.45 : 0.3)}
         stroke={isConnectorHighlighted ? '#818cf8' : (note.borderColor || getComplementaryColor(note.color))}
         strokeWidth={isConnectorHighlighted ? 4 : (note.borderColor ? 2.5 : 3)}
       />
-      {/* Selection highlight */}
-      {isSelected && (
+      {/* Selection highlight — only for single-select */}
+      {isSelected && !selectionBox && (
         <Rect
           width={localWidth}
           height={localHeight}

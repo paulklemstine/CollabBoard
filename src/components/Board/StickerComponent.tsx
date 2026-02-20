@@ -54,6 +54,7 @@ export function StickerComponent({
   const groupRef = useRef<Konva.Group>(null);
   const flashOverlayRef = useRef<Konva.Rect>(null);
   const rotateStartRef = useRef<{ angle: number; rotation: number } | null>(null);
+  const prevSelectedRef = useRef(false);
   const lastDragUpdate = useRef(0);
   const lastResizeUpdate = useRef(0);
   const [isMouseHovered, setIsMouseHovered] = useState(false);
@@ -110,25 +111,44 @@ export function StickerComponent({
     };
   }, [sticker.gifUrl, localWidth, localHeight]);
 
-  // Flash animation for new stickers
+  // Drop bounce + flash for new stickers
   useEffect(() => {
-    if (isNew && flashOverlayRef.current) {
-      const tween = new Konva.Tween({
-        node: flashOverlayRef.current,
-        duration: 0.6,
-        opacity: 0.5,
+    if (!isNew) return;
+
+    if (groupRef.current) {
+      const g = groupRef.current;
+      g.scaleX(0.85);
+      g.scaleY(0.85);
+      new Konva.Tween({
+        node: g, duration: 0.35, scaleX: 1, scaleY: 1,
+        easing: Konva.Easings.ElasticEaseOut,
+      }).play();
+    }
+
+    if (flashOverlayRef.current) {
+      const node = flashOverlayRef.current;
+      new Konva.Tween({
+        node, duration: 0.6, opacity: 0.5,
         onFinish: () => {
-          const fadeOut = new Konva.Tween({
-            node: flashOverlayRef.current!,
-            duration: 0.4,
-            opacity: 0,
-          });
-          fadeOut.play();
+          new Konva.Tween({ node, duration: 0.4, opacity: 0 }).play();
         },
-      });
-      tween.play();
+      }).play();
     }
   }, [isNew]);
+
+  // Selection pop animation
+  useEffect(() => {
+    if (isSelected && !prevSelectedRef.current && groupRef.current) {
+      const g = groupRef.current;
+      new Konva.Tween({
+        node: g, duration: 0.1, scaleX: 1.03, scaleY: 1.03, easing: Konva.Easings.EaseInOut,
+        onFinish: () => {
+          new Konva.Tween({ node: g, duration: 0.1, scaleX: 1, scaleY: 1, easing: Konva.Easings.EaseInOut }).play();
+        },
+      }).play();
+    }
+    prevSelectedRef.current = !!isSelected;
+  }, [isSelected]);
 
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -225,8 +245,8 @@ export function StickerComponent({
           listening={false}
         />
       )}
-      {/* Selection highlight */}
-      {isSelected && (
+      {/* Selection highlight — only for single-select */}
+      {isSelected && !selectionBox && (
         <Rect
           width={localWidth}
           height={localHeight}
@@ -234,6 +254,19 @@ export function StickerComponent({
           strokeWidth={3}
           dash={[8, 4]}
           fill="transparent"
+          cornerRadius={16}
+          listening={false}
+        />
+      )}
+      {/* Multi-select violet glow */}
+      {isSelected && selectionBox && (
+        <Rect
+          width={localWidth}
+          height={localHeight}
+          fill="transparent"
+          shadowColor="#8b5cf6"
+          shadowBlur={24}
+          shadowOpacity={0.5}
           cornerRadius={16}
           listening={false}
         />

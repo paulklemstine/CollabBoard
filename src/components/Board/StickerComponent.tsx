@@ -194,7 +194,8 @@ export function StickerComponent({
 
   // Scale emoji font size proportionally - make it larger to fill space better
   const fontSize = (localWidth / BASE_SIZE) * BASE_FONT_SIZE;
-  // Visible panel height trimmed to hug the emoji glyph tighter
+  // Visible panel trimmed to hug the emoji glyph tighter
+  const panelX = 4;
   const panelHeight = localHeight - 4;
 
   return (
@@ -254,7 +255,8 @@ export function StickerComponent({
       {isSelected && !selectionBox && (
         <Rect
           ref={selectionRectRef}
-          width={localWidth}
+          x={panelX}
+          width={localWidth - panelX}
           height={panelHeight}
           stroke="#3b82f6"
           strokeWidth={3}
@@ -267,7 +269,8 @@ export function StickerComponent({
       {/* Multi-select violet glow */}
       {isSelected && selectionBox && (
         <Rect
-          width={localWidth}
+          x={panelX}
+          width={localWidth - panelX}
           height={panelHeight}
           fill="transparent"
           shadowColor="#8b5cf6"

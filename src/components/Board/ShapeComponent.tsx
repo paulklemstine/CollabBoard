@@ -227,9 +227,9 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
     // Reset handle position (Konva moves the draggable element)
     const end = endpointDragRef.current.end;
     if (end === 'left') {
-      e.target.position({ x: -20, y: localHeight / 2 - 20 });
+      e.target.position({ x: -28, y: localHeight / 2 - 28 });
     } else {
-      e.target.position({ x: result.width - 20, y: localHeight / 2 - 20 });
+      e.target.position({ x: result.width - 28, y: localHeight / 2 - 28 });
     }
 
     // Reset state
@@ -545,8 +545,8 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
         <>
           {/* Left endpoint handle */}
           <Group
-            x={-20}
-            y={localHeight / 2 - 20}
+            x={-28}
+            y={localHeight / 2 - 28}
             draggable
             onMouseEnter={(e) => {
               setIsMouseHovered(true);
@@ -563,34 +563,38 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
               e.cancelBubble = true;
               handleEndpointDragStart('left');
             }}
-            onDragMove={handleEndpointDragMove}
+            onDragMove={(e) => {
+              handleEndpointDragMove(e);
+              // Keep handle pinned at the left endpoint to prevent detachment
+              e.target.position({ x: -28, y: localHeight / 2 - 28 });
+            }}
             onDragEnd={(e) => {
               handleEndpointDragEnd(e);
               // Reset handle to its original local position
-              e.target.position({ x: -20, y: localHeight / 2 - 20 });
+              e.target.position({ x: -28, y: localHeight / 2 - 28 });
             }}
           >
             <Circle
-              x={20}
-              y={20}
-              radius={16}
+              x={28}
+              y={28}
+              radius={24}
               fill={isLeftEndpointHovered ? '#3b82f6' : '#94a3b8'}
               opacity={isLeftEndpointHovered ? 1 : 0.6}
               stroke="white"
-              strokeWidth={2}
+              strokeWidth={2.5}
             />
             <Circle
-              x={20}
-              y={20}
-              radius={5}
+              x={28}
+              y={28}
+              radius={8}
               fill="white"
               listening={false}
             />
           </Group>
           {/* Right endpoint handle */}
           <Group
-            x={localWidth - 20}
-            y={localHeight / 2 - 20}
+            x={localWidth - 28}
+            y={localHeight / 2 - 28}
             draggable
             onMouseEnter={(e) => {
               setIsMouseHovered(true);
@@ -607,25 +611,29 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
               e.cancelBubble = true;
               handleEndpointDragStart('right');
             }}
-            onDragMove={handleEndpointDragMove}
+            onDragMove={(e) => {
+              handleEndpointDragMove(e);
+              // Keep handle pinned at the right endpoint to prevent detachment
+              e.target.position({ x: localWidth - 28, y: localHeight / 2 - 28 });
+            }}
             onDragEnd={(e) => {
               handleEndpointDragEnd(e);
-              e.target.position({ x: localWidth - 20, y: localHeight / 2 - 20 });
+              e.target.position({ x: localWidth - 28, y: localHeight / 2 - 28 });
             }}
           >
             <Circle
-              x={20}
-              y={20}
-              radius={16}
+              x={28}
+              y={28}
+              radius={24}
               fill={isRightEndpointHovered ? '#3b82f6' : '#94a3b8'}
               opacity={isRightEndpointHovered ? 1 : 0.6}
               stroke="white"
-              strokeWidth={2}
+              strokeWidth={2.5}
             />
             <Circle
-              x={20}
-              y={20}
-              radius={5}
+              x={28}
+              y={28}
+              radius={8}
               fill="white"
               listening={false}
             />

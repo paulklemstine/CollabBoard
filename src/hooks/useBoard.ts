@@ -717,35 +717,38 @@ export function useBoard(
     (objectId: string) => {
       const obj = objectsRef.current.find((o) => o.id === objectId);
       const changes: UndoChange[] = [];
+      const deletedIds = new Set<string>([objectId]);
 
       // Capture the object itself for undo
       if (obj) {
         changes.push({ objectId, before: structuredClone(obj), after: null });
       }
 
-      // If deleting a frame, unparent all its children first
+      // If deleting a frame, cascade-delete all its children too
       if (obj?.type === 'frame') {
         const children = getChildrenOfFrame(objectId, objectsRef.current);
         for (const child of children) {
-          changes.push({
-            objectId: child.id,
-            before: structuredClone(child),
-            after: structuredClone({ ...child, parentId: '', updatedAt: Date.now() }),
-          });
-          updateObject(boardId, child.id, { parentId: '' });
+          deletedIds.add(child.id);
+          changes.push({ objectId: child.id, before: structuredClone(child), after: null });
         }
       }
 
-      // Auto-delete connectors that reference the removed object
+      // Auto-delete connectors that reference any deleted object
       const orphanedConnectors = objectsRef.current.filter(
         (o): o is Connector =>
-          o.type === 'connector' && (o.fromId === objectId || o.toId === objectId)
+          o.type === 'connector' &&
+          !deletedIds.has(o.id) &&
+          (deletedIds.has(o.fromId) || deletedIds.has(o.toId))
       );
       for (const connector of orphanedConnectors) {
+        deletedIds.add(connector.id);
         changes.push({ objectId: connector.id, before: structuredClone(connector), after: null });
-        deleteObject(boardId, connector.id);
       }
-      deleteObject(boardId, objectId);
+
+      // Delete all objects
+      for (const id of deletedIds) {
+        deleteObject(boardId, id);
+      }
 
       if (changes.length > 0) maybePushUndo({ changes });
     },
@@ -764,34 +767,32 @@ export function useBoard(
         if (!obj) continue;
 
         // Capture for undo
-        changes.push({ objectId, before: structuredClone(obj), after: null });
+        if (!changes.some(c => c.objectId === objectId)) {
+          changes.push({ objectId, before: structuredClone(obj), after: null });
+        }
 
-        // If frame, unparent children that aren't also being deleted
+        // If frame, cascade-delete all its children too
         if (obj.type === 'frame') {
           const children = getChildrenOfFrame(objectId, objectsRef.current);
           for (const child of children) {
             if (!deletedIds.has(child.id)) {
-              changes.push({
-                objectId: child.id,
-                before: structuredClone(child),
-                after: structuredClone({ ...child, parentId: '', updatedAt: Date.now() }),
-              });
-              updateObject(boardId, child.id, { parentId: '' });
+              deletedIds.add(child.id);
+              changes.push({ objectId: child.id, before: structuredClone(child), after: null });
             }
           }
         }
+      }
 
-        // Auto-delete orphaned connectors
-        const orphanedConnectors = objectsRef.current.filter(
-          (o): o is Connector =>
-            o.type === 'connector' &&
-            (o.fromId === objectId || o.toId === objectId) &&
-            !deletedIds.has(o.id)
-        );
-        for (const connector of orphanedConnectors) {
-          deletedIds.add(connector.id);
-          changes.push({ objectId: connector.id, before: structuredClone(connector), after: null });
-        }
+      // Auto-delete orphaned connectors referencing any deleted object
+      const orphanedConnectors = objectsRef.current.filter(
+        (o): o is Connector =>
+          o.type === 'connector' &&
+          !deletedIds.has(o.id) &&
+          (deletedIds.has(o.fromId) || deletedIds.has(o.toId))
+      );
+      for (const connector of orphanedConnectors) {
+        deletedIds.add(connector.id);
+        changes.push({ objectId: connector.id, before: structuredClone(connector), after: null });
       }
 
       // Delete all objects

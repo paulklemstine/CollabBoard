@@ -37,6 +37,7 @@ import type { StickyNote, Shape, Frame, Sticker, Connector, TextObject, BoardMet
 import { calculateGroupObjectTransform } from './utils/groupTransform';
 import { batchAddObjects, type AnyBoardObject } from './services/boardService';
 import { duplicateObjects } from './utils/duplicate';
+import { ResetPage } from './components/ResetPage';
 
 function App() {
   const { user, loading, refreshUser } = useAuth();
@@ -51,6 +52,11 @@ function App() {
     await signOutUser();
     navigateTo({ page: 'dashboard' });
   }, [user?.uid, navigateTo]);
+
+  // Secret factory reset route — no auth required
+  if (route.page === 'resetPMK') {
+    return <ResetPage />;
+  }
 
   if (loading) {
     return (

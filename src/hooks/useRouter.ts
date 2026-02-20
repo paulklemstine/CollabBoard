@@ -2,9 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 
 export type Route =
   | { page: 'dashboard' }
-  | { page: 'board'; boardId: string };
+  | { page: 'board'; boardId: string }
+  | { page: 'resetPMK' };
 
 function parsePath(pathname: string): Route {
+  if (pathname === '/resetPMK') {
+    return { page: 'resetPMK' };
+  }
   // Support both new path-based (/boardId) and legacy hash-based (#/board/boardId) routes
   const match = pathname.match(/^\/([a-zA-Z0-9_-]+)$/);
   if (match) {

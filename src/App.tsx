@@ -108,11 +108,13 @@ function BoardView({
 
   const capturePreview = useCallback(async () => {
     const el = stageContainerRef.current;
+    console.log('[capturePreview] start, el:', !!el, 'inFlight:', captureInFlightRef.current);
     if (!el || captureInFlightRef.current) return;
     captureInFlightRef.current = true;
     try {
       // Read the Konva canvas directly (html-to-image can't clone canvas content)
       const sourceCanvas = el.querySelector('canvas');
+      console.log('[capturePreview] sourceCanvas:', !!sourceCanvas, sourceCanvas?.width, sourceCanvas?.height);
       if (!sourceCanvas) return;
 
       const WIDTH = 600;
@@ -149,11 +151,13 @@ function BoardView({
       const blob = await new Promise<Blob | null>((resolve) =>
         offscreen.toBlob(resolve, 'image/jpeg', 0.7)
       );
+      console.log('[capturePreview] blob:', blob?.size);
       if (!blob) return;
 
       const sRef = storageRef(storage, `boards/${boardId}/preview.jpg`);
       await uploadBytes(sRef, blob, { contentType: 'image/jpeg' });
       const url = await getDownloadURL(sRef);
+      console.log('[capturePreview] uploaded, url:', url);
       await updateBoardMetadata(boardId, { thumbnailUrl: url });
     } catch (err) {
       console.error('[capturePreview] failed:', err);

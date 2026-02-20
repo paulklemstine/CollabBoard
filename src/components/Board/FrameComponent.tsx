@@ -466,9 +466,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
       {/* Title bar — hidden for borderless frames */}
       {!frame.borderless && (() => {
         const bg = frame.color;
-        const bc = frame.borderColor || '#a78bfa';
         const isCustomBg = !!bg;
-        const isCustomBorder = !!frame.borderColor;
         return (
         <>
           {/* Title background — tint of the frame's background color */}

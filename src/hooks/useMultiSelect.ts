@@ -14,7 +14,6 @@ import {
 } from '../utils/selectionMath';
 import {
   findContainingFrameForGroup,
-  groupFitsInFrame,
   getGroupBoundingBox,
   isObjectInsideFrame,
 } from '../utils/containment';
@@ -95,7 +94,7 @@ export function useMultiSelect(
       for (const { id, updates: upd } of updates) {
         const before = selected.find((o) => o.id === id);
         if (before) {
-          const after = structuredClone({ ...before, ...upd, updatedAt: now });
+          const after = structuredClone({ ...before, ...upd, updatedAt: now }) as AnyBoardObject;
           changes.push({ objectId: id, before: structuredClone(before), after });
         }
       }

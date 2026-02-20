@@ -5,7 +5,6 @@ import {
   deleteObject,
   subscribeToBoard,
   batchUpdateObjects,
-  batchDeleteObjects,
   type AnyBoardObject,
 } from '../services/boardService';
 import type { StickyNote, Shape, ShapeType, Frame, Sticker, Connector, TextObject } from '../types/board';
@@ -672,7 +671,7 @@ export function useBoard(
       for (const { id, updates: upd } of batchUpdates) {
         const before = dragSnapshotRef.current.get(id);
         if (before) {
-          const after = structuredClone({ ...before, ...upd, updatedAt: now });
+          const after = structuredClone({ ...before, ...upd, updatedAt: now }) as AnyBoardObject;
           undoChanges.push({ objectId: id, before: structuredClone(before), after });
         }
       }
@@ -927,7 +926,7 @@ export function useBoard(
       const before = objectsRef.current.find((o) => o.id === objectId);
       updateObject(boardId, objectId, updates);
       if (before) {
-        const after = structuredClone({ ...before, ...updates, updatedAt: Date.now() });
+        const after = structuredClone({ ...before, ...updates, updatedAt: Date.now() }) as AnyBoardObject;
         maybePushUndo({ changes: [{ objectId, before: structuredClone(before), after }] });
       }
     },

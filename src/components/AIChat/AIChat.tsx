@@ -7,6 +7,7 @@ interface AIChatProps {
   isOpen: boolean;
   onClose: () => void;
   onObjectsCreated?: (ids: string[]) => void;
+  selectedIds?: string[];
 }
 
 function SparkleIcon({ size = 20 }: { size?: number }) {
@@ -66,11 +67,11 @@ function LoadingIndicator({ progress }: { progress: string | null }) {
   );
 }
 
-export function AIChat({ boardId, isOpen, onClose, onObjectsCreated }: AIChatProps) {
+export function AIChat({ boardId, isOpen, onClose, onObjectsCreated, selectedIds }: AIChatProps) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { messages, isLoading, error, progress, sendCommand, dismissError } = useAI(boardId, onObjectsCreated);
+  const { messages, isLoading, error, progress, sendCommand, dismissError } = useAI(boardId, onObjectsCreated, selectedIds);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {

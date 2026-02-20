@@ -240,29 +240,34 @@ const tools = [
   },
   {
     name: 'alignObjects',
-    description: 'Align multiple objects along a specified axis. Useful for organizing layouts.',
+    description: 'Align multiple objects along an axis or distribute them evenly. Alignment snaps objects to a shared edge/center. Distribution spaces them evenly. After alignment, overlapping objects are nudged apart automatically.',
     input_schema: {
       type: 'object' as const,
       properties: {
         objectIds: { type: 'array', items: { type: 'string' }, description: 'Array of object IDs to align' },
-        alignment: { type: 'string', enum: ['left', 'right', 'top', 'bottom', 'center-horizontal', 'center-vertical'], description: 'Alignment direction' },
+        alignment: { type: 'string', enum: ['left', 'right', 'top', 'bottom', 'center-horizontal', 'center-vertical', 'distribute-horizontal', 'distribute-vertical'], description: 'Alignment mode. left/right/top/bottom snap edges. center-horizontal/vertical snap centers. distribute-horizontal/vertical space objects evenly.' },
+        spacing: { type: 'number', description: 'Minimum gap between objects in pixels (default: 20). Used for overlap nudging and distribute modes.' },
       },
       required: ['objectIds', 'alignment'],
     },
   },
   {
-    name: 'arrangeInGrid',
-    description: 'Arrange objects in a grid pattern with specified columns and spacing.',
+    name: 'layoutObjects',
+    description: 'Arrange objects in a layout pattern. All modes prevent overlaps with configurable spacing. Use alignObjects for simple edge/center snapping or even distribution.',
     input_schema: {
       type: 'object' as const,
       properties: {
         objectIds: { type: 'array', items: { type: 'string' }, description: 'Array of object IDs to arrange' },
-        columns: { type: 'number', description: 'Number of columns in the grid' },
-        spacing: { type: 'number', description: 'Spacing between objects in pixels (default: 20)' },
-        startX: { type: 'number', description: 'Starting X position (default: 0)' },
-        startY: { type: 'number', description: 'Starting Y position (default: 0)' },
+        mode: { type: 'string', enum: ['row', 'column', 'grid', 'staggered', 'circular', 'pack', 'fan'], description: 'Layout pattern: row (horizontal line), column (vertical stack), grid (N columns wrapping), staggered (brick pattern with offset rows), circular (around a circle), pack (tight bin-packing), fan (arc/semicircle)' },
+        spacing: { type: 'number', description: 'Gap between objects in pixels (default: 20)' },
+        startX: { type: 'number', description: 'X origin for layout (default: auto from current positions)' },
+        startY: { type: 'number', description: 'Y origin for layout (default: auto from current positions)' },
+        columns: { type: 'number', description: 'Number of columns for grid and staggered modes (default: 3)' },
+        radius: { type: 'number', description: 'Radius for circular/fan modes (default: auto-computed from object count and sizes)' },
+        arcDegrees: { type: 'number', description: 'Arc span in degrees for fan mode (default: 180 for semicircle). 360 = full circle.' },
+        alignment: { type: 'string', enum: ['start', 'center', 'end'], description: 'Cross-axis alignment within rows/columns (default: center). start=top/left, center=middle, end=bottom/right.' },
       },
-      required: ['objectIds', 'columns'],
+      required: ['objectIds', 'mode'],
     },
   },
   {
@@ -401,8 +406,11 @@ See tool descriptions for object types, parameters, and defaults. Compact board 
   - Borderless frames have no title bar, so children start at frameY + 20.
 - Example: createFrame(x:0, y:0, w:400, h:300) → {id:"frame-xyz"} → createStickyNote(x:20, y:60, parentId:"frame-xyz")
 
-## Layout
-- Space objects 20-40px apart. For grids: 220px for sticky notes, 140px for shapes.
+## Layout & Arrangement
+- Use layoutObjects to arrange objects: row, column, grid, staggered, circular, pack, fan.
+- Use alignObjects to snap edges/centers or distribute evenly (distribute-horizontal/distribute-vertical).
+- Both tools auto-prevent overlaps. Default spacing is 20px.
+- All layouts auto-compute start position from current object positions if startX/startY not specified.
 - Templates: create frames first, then populate with children using parentId.
 
 ## Sticky Note Background Colors
@@ -412,6 +420,11 @@ Yellow: #fef9c3, Blue: #dbeafe, Green: #dcfce7, Pink: #fce7f3, Purple: #f3e8ff, 
 Always provide aiLabel (short description) and aiGroupId (numeric, reuse same number for related objects).
 Provide aiGroupLabel once per group to name it (e.g. aiGroupId:1, aiGroupLabel:"swot-analysis" on the first object, then just aiGroupId:1 on the rest).
 Use borderless frames (titleless groups) when logical grouping without visual clutter is appropriate, or when explicitly requested.
+
+## Selected Objects
+- When the user has objects selected, their IDs are listed at the end of the request as "Currently selected objects".
+- When the user says "these", "the selected", "this", etc., they mean the currently selected object IDs.
+- Use the selected IDs directly with tools like changeColor, moveObject, alignObjects, layoutObjects, deleteObjects, etc.
 
 ## Important
 - Use getBoardState(), getBoardSummary(), or searchObjects() to inspect the board before modifying existing objects.
@@ -443,6 +456,7 @@ function requestNeedsContext(prompt: string): 'none' | 'summary' {
     'existing', 'current', 'the board', 'on the board', 'all ',
     'clear', 'clean', 'duplicate', 'copy', 'resize', 'rotate',
     'connect', 'group', 'ungroup', 'color', 'recolor',
+    'selected', 'these', 'this',
   ];
   for (const kw of contextKeywords) {
     if (lower.includes(kw)) return 'summary';
@@ -583,6 +597,9 @@ interface ToolInput {
   spacing?: number;
   startX?: number;
   startY?: number;
+  mode?: string;
+  radius?: number;
+  arcDegrees?: number;
   count?: number;
   offsetX?: number;
   offsetY?: number;
@@ -593,6 +610,206 @@ interface ToolInput {
   aiGroupLabel?: string;
   objectType?: string;
   textContains?: string;
+}
+
+// ---- Layout helpers ----
+
+interface LayoutObject {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+interface LayoutPosition {
+  id: string;
+  x: number;
+  y: number;
+}
+
+function computeAutoOrigin(objects: LayoutObject[]) {
+  const minX = Math.min(...objects.map(o => o.x));
+  const minY = Math.min(...objects.map(o => o.y));
+  const maxX = Math.max(...objects.map(o => o.x + o.width));
+  const maxY = Math.max(...objects.map(o => o.y + o.height));
+  return { minX, minY, maxX, maxY, centerX: (minX + maxX) / 2, centerY: (minY + maxY) / 2 };
+}
+
+/** After aligning on one axis, nudge apart on the perpendicular axis to prevent overlaps. */
+function nudgeOverlaps(objects: LayoutObject[], axis: 'x' | 'y', spacing: number): void {
+  if (axis === 'y') {
+    objects.sort((a, b) => a.y - b.y);
+    for (let i = 1; i < objects.length; i++) {
+      const minY = objects[i - 1].y + objects[i - 1].height + spacing;
+      if (objects[i].y < minY) objects[i].y = minY;
+    }
+  } else {
+    objects.sort((a, b) => a.x - b.x);
+    for (let i = 1; i < objects.length; i++) {
+      const minX = objects[i - 1].x + objects[i - 1].width + spacing;
+      if (objects[i].x < minX) objects[i].x = minX;
+    }
+  }
+}
+
+function layoutRow(objects: LayoutObject[], spacing: number, startX: number, startY: number, crossAlign: string): LayoutPosition[] {
+  const sorted = [...objects].sort((a, b) => a.x - b.x);
+  const maxH = Math.max(...sorted.map(o => o.height));
+  let cursorX = startX;
+  return sorted.map(obj => {
+    const y = crossAlign === 'start' ? startY
+      : crossAlign === 'end' ? startY + maxH - obj.height
+      : startY + (maxH - obj.height) / 2;
+    const pos = { id: obj.id, x: cursorX, y };
+    cursorX += obj.width + spacing;
+    return pos;
+  });
+}
+
+function layoutColumn(objects: LayoutObject[], spacing: number, startX: number, startY: number, crossAlign: string): LayoutPosition[] {
+  const sorted = [...objects].sort((a, b) => a.y - b.y);
+  const maxW = Math.max(...sorted.map(o => o.width));
+  let cursorY = startY;
+  return sorted.map(obj => {
+    const x = crossAlign === 'start' ? startX
+      : crossAlign === 'end' ? startX + maxW - obj.width
+      : startX + (maxW - obj.width) / 2;
+    const pos = { id: obj.id, x, y: cursorY };
+    cursorY += obj.height + spacing;
+    return pos;
+  });
+}
+
+function layoutGrid(objects: LayoutObject[], columns: number, spacing: number, startX: number, startY: number): LayoutPosition[] {
+  const rows = Math.ceil(objects.length / columns);
+  const colWidths = new Array(columns).fill(0);
+  const rowHeights = new Array(rows).fill(0);
+
+  for (let i = 0; i < objects.length; i++) {
+    const col = i % columns;
+    const row = Math.floor(i / columns);
+    colWidths[col] = Math.max(colWidths[col], objects[i].width);
+    rowHeights[row] = Math.max(rowHeights[row], objects[i].height);
+  }
+
+  // Prefix sums for offsets
+  const colOffsets = [startX];
+  for (let c = 1; c < columns; c++) colOffsets[c] = colOffsets[c - 1] + colWidths[c - 1] + spacing;
+  const rowOffsets = [startY];
+  for (let r = 1; r < rows; r++) rowOffsets[r] = rowOffsets[r - 1] + rowHeights[r - 1] + spacing;
+
+  return objects.map((obj, i) => {
+    const col = i % columns;
+    const row = Math.floor(i / columns);
+    return {
+      id: obj.id,
+      x: colOffsets[col] + (colWidths[col] - obj.width) / 2,
+      y: rowOffsets[row] + (rowHeights[row] - obj.height) / 2,
+    };
+  });
+}
+
+function layoutStaggered(objects: LayoutObject[], columns: number, spacing: number, startX: number, startY: number): LayoutPosition[] {
+  const rows = Math.ceil(objects.length / columns);
+  const colWidths = new Array(columns).fill(0);
+  const rowHeights = new Array(rows).fill(0);
+
+  for (let i = 0; i < objects.length; i++) {
+    const col = i % columns;
+    const row = Math.floor(i / columns);
+    colWidths[col] = Math.max(colWidths[col], objects[i].width);
+    rowHeights[row] = Math.max(rowHeights[row], objects[i].height);
+  }
+
+  const colOffsets = [startX];
+  for (let c = 1; c < columns; c++) colOffsets[c] = colOffsets[c - 1] + colWidths[c - 1] + spacing;
+  const rowOffsets = [startY];
+  for (let r = 1; r < rows; r++) rowOffsets[r] = rowOffsets[r - 1] + rowHeights[r - 1] + spacing;
+
+  return objects.map((obj, i) => {
+    const col = i % columns;
+    const row = Math.floor(i / columns);
+    const staggerOffset = (row % 2 === 1) ? (colWidths[0] + spacing) / 2 : 0;
+    return {
+      id: obj.id,
+      x: colOffsets[col] + staggerOffset + (colWidths[col] - obj.width) / 2,
+      y: rowOffsets[row] + (rowHeights[row] - obj.height) / 2,
+    };
+  });
+}
+
+function layoutCircular(objects: LayoutObject[], radiusInput: number | undefined, spacing: number, centerX: number, centerY: number): LayoutPosition[] {
+  const n = objects.length;
+  if (n === 1) return [{ id: objects[0].id, x: centerX - objects[0].width / 2, y: centerY - objects[0].height / 2 }];
+
+  const maxDim = Math.max(...objects.map(o => Math.max(o.width, o.height)));
+  const autoRadius = (n * (maxDim + spacing)) / (2 * Math.PI);
+  const radius = radiusInput ?? Math.max(autoRadius, 150);
+  const angleStep = (2 * Math.PI) / n;
+
+  return objects.map((obj, i) => {
+    const angle = i * angleStep - Math.PI / 2; // start from top (12 o'clock)
+    return {
+      id: obj.id,
+      x: centerX + radius * Math.cos(angle) - obj.width / 2,
+      y: centerY + radius * Math.sin(angle) - obj.height / 2,
+    };
+  });
+}
+
+function layoutPack(objects: LayoutObject[], spacing: number, startX: number, startY: number): LayoutPosition[] {
+  // Shelf-based bin packing — sort tall-first for better packing
+  const sorted = [...objects].sort((a, b) => b.height - a.height);
+  const totalArea = sorted.reduce((sum, o) => sum + o.width * o.height, 0);
+  const maxWidth = Math.max(Math.sqrt(totalArea) * 1.3, Math.max(...sorted.map(o => o.width)) + spacing);
+
+  const shelves: { y: number; height: number; cursorX: number }[] = [];
+  const positions: LayoutPosition[] = [];
+
+  for (const obj of sorted) {
+    let placed = false;
+    for (const shelf of shelves) {
+      if (shelf.cursorX + obj.width <= maxWidth) {
+        positions.push({ id: obj.id, x: startX + shelf.cursorX, y: startY + shelf.y });
+        shelf.cursorX += obj.width + spacing;
+        shelf.height = Math.max(shelf.height, obj.height);
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      const newShelfY = shelves.length > 0
+        ? shelves[shelves.length - 1].y + shelves[shelves.length - 1].height + spacing
+        : 0;
+      positions.push({ id: obj.id, x: startX, y: startY + newShelfY });
+      shelves.push({ y: newShelfY, height: obj.height, cursorX: obj.width + spacing });
+    }
+  }
+  return positions;
+}
+
+function layoutFan(objects: LayoutObject[], radiusInput: number | undefined, arcDegrees: number, spacing: number, centerX: number, centerY: number): LayoutPosition[] {
+  const n = objects.length;
+  if (n === 1) return [{ id: objects[0].id, x: centerX - objects[0].width / 2, y: centerY - objects[0].height / 2 }];
+
+  const arcRadians = (arcDegrees * Math.PI) / 180;
+  const maxDim = Math.max(...objects.map(o => Math.max(o.width, o.height)));
+  const autoRadius = (n * (maxDim + spacing)) / arcRadians;
+  const radius = radiusInput ?? Math.max(autoRadius, 150);
+
+  // Center the arc so it opens downward from center
+  const startAngle = -arcRadians / 2 - Math.PI / 2;
+  const angleStep = n > 1 ? arcRadians / (n - 1) : 0;
+
+  return objects.map((obj, i) => {
+    const angle = startAngle + i * angleStep;
+    return {
+      id: obj.id,
+      x: centerX + radius * Math.cos(angle) - obj.width / 2,
+      y: centerY + radius * Math.sin(angle) - obj.height / 2,
+    };
+  });
 }
 
 async function executeTool(
@@ -862,66 +1079,113 @@ async function executeTool(
     case 'alignObjects': {
       const ids = input.objectIds ?? [];
       if (ids.length === 0) return JSON.stringify({ error: 'No objects to align' });
-
-      // Fetch all objects
-      const objects = await Promise.all(ids.map(id => objectsRef.doc(id).get()));
-      const objectData = objects.map((doc, i) => ({ id: ids[i], ...doc.data() as any }));
-
-      // Calculate alignment position
-      let targetValue: number;
-      switch (input.alignment) {
-        case 'left':
-          targetValue = Math.min(...objectData.map(o => o.x));
-          await Promise.all(objectData.map(o => objectsRef.doc(o.id).update({ x: targetValue, updatedAt: now })));
-          break;
-        case 'right':
-          targetValue = Math.max(...objectData.map(o => o.x + (o.width || 0)));
-          await Promise.all(objectData.map(o => objectsRef.doc(o.id).update({ x: targetValue - (o.width || 0), updatedAt: now })));
-          break;
-        case 'top':
-          targetValue = Math.min(...objectData.map(o => o.y));
-          await Promise.all(objectData.map(o => objectsRef.doc(o.id).update({ y: targetValue, updatedAt: now })));
-          break;
-        case 'bottom':
-          targetValue = Math.max(...objectData.map(o => o.y + (o.height || 0)));
-          await Promise.all(objectData.map(o => objectsRef.doc(o.id).update({ y: targetValue - (o.height || 0), updatedAt: now })));
-          break;
-        case 'center-horizontal':
-          const avgX = objectData.reduce((sum, o) => sum + o.x + (o.width || 0) / 2, 0) / objectData.length;
-          await Promise.all(objectData.map(o => objectsRef.doc(o.id).update({ x: avgX - (o.width || 0) / 2, updatedAt: now })));
-          break;
-        case 'center-vertical':
-          const avgY = objectData.reduce((sum, o) => sum + o.y + (o.height || 0) / 2, 0) / objectData.length;
-          await Promise.all(objectData.map(o => objectsRef.doc(o.id).update({ y: avgY - (o.height || 0) / 2, updatedAt: now })));
-          break;
-      }
-      return JSON.stringify({ success: true, aligned: ids.length });
-    }
-
-    case 'arrangeInGrid': {
-      const ids = input.objectIds ?? [];
-      const columns = input.columns ?? 3;
       const spacing = input.spacing ?? 20;
-      const startX = input.startX ?? 0;
-      const startY = input.startY ?? 0;
 
-      if (ids.length === 0) return JSON.stringify({ error: 'No objects to arrange' });
-
-      // Fetch all objects to get their dimensions
-      const objects = await Promise.all(ids.map(id => objectsRef.doc(id).get()));
-      const objectData = objects.map((doc, i) => ({ id: ids[i], ...doc.data() as any }));
-
-      // Arrange in grid
-      const updates = objectData.map((obj, index) => {
-        const col = index % columns;
-        const row = Math.floor(index / columns);
-        const x = startX + col * (spacing + (obj.width || 200));
-        const y = startY + row * (spacing + (obj.height || 200));
-        return objectsRef.doc(obj.id).update({ x, y, updatedAt: now });
+      const docs = await Promise.all(ids.map(id => objectsRef.doc(id).get()));
+      const objectData: LayoutObject[] = docs.map((doc, i) => {
+        const d = doc.data() as any;
+        return { id: ids[i], x: d.x ?? 0, y: d.y ?? 0, width: d.width || 200, height: d.height || 200 };
       });
 
-      await Promise.all(updates);
-      return JSON.stringify({ success: true, arranged: ids.length });
+      switch (input.alignment) {
+        case 'left': {
+          const target = Math.min(...objectData.map(o => o.x));
+          objectData.forEach(o => { o.x = target; });
+          nudgeOverlaps(objectData, 'y', spacing);
+          break;
+        }
+        case 'right': {
+          const target = Math.max(...objectData.map(o => o.x + o.width));
+          objectData.forEach(o => { o.x = target - o.width; });
+          nudgeOverlaps(objectData, 'y', spacing);
+          break;
+        }
+        case 'top': {
+          const target = Math.min(...objectData.map(o => o.y));
+          objectData.forEach(o => { o.y = target; });
+          nudgeOverlaps(objectData, 'x', spacing);
+          break;
+        }
+        case 'bottom': {
+          const target = Math.max(...objectData.map(o => o.y + o.height));
+          objectData.forEach(o => { o.y = target - o.height; });
+          nudgeOverlaps(objectData, 'x', spacing);
+          break;
+        }
+        case 'center-horizontal': {
+          const avg = objectData.reduce((s, o) => s + o.x + o.width / 2, 0) / objectData.length;
+          objectData.forEach(o => { o.x = avg - o.width / 2; });
+          nudgeOverlaps(objectData, 'y', spacing);
+          break;
+        }
+        case 'center-vertical': {
+          const avg = objectData.reduce((s, o) => s + o.y + o.height / 2, 0) / objectData.length;
+          objectData.forEach(o => { o.y = avg - o.height / 2; });
+          nudgeOverlaps(objectData, 'x', spacing);
+          break;
+        }
+        case 'distribute-horizontal': {
+          objectData.sort((a, b) => a.x - b.x);
+          const totalW = objectData.reduce((s, o) => s + o.width, 0);
+          const minX = objectData[0].x;
+          const maxRight = objectData[objectData.length - 1].x + objectData[objectData.length - 1].width;
+          let gap = objectData.length > 1 ? (maxRight - minX - totalW) / (objectData.length - 1) : 0;
+          if (gap < spacing) gap = spacing;
+          let cursor = minX;
+          objectData.forEach(o => { o.x = cursor; cursor += o.width + gap; });
+          break;
+        }
+        case 'distribute-vertical': {
+          objectData.sort((a, b) => a.y - b.y);
+          const totalH = objectData.reduce((s, o) => s + o.height, 0);
+          const minY = objectData[0].y;
+          const maxBottom = objectData[objectData.length - 1].y + objectData[objectData.length - 1].height;
+          let gap = objectData.length > 1 ? (maxBottom - minY - totalH) / (objectData.length - 1) : 0;
+          if (gap < spacing) gap = spacing;
+          let cursor = minY;
+          objectData.forEach(o => { o.y = cursor; cursor += o.height + gap; });
+          break;
+        }
+      }
+
+      await Promise.all(objectData.map(o =>
+        objectsRef.doc(o.id).update({ x: o.x, y: o.y, updatedAt: now })
+      ));
+      return JSON.stringify({ success: true, aligned: ids.length, alignment: input.alignment });
+    }
+
+    case 'layoutObjects': {
+      const ids = input.objectIds ?? [];
+      if (ids.length === 0) return JSON.stringify({ error: 'No objects to arrange' });
+
+      const docs = await Promise.all(ids.map(id => objectsRef.doc(id).get()));
+      const objectData: LayoutObject[] = docs.map((doc, i) => {
+        const d = doc.data() as any;
+        return { id: ids[i], x: d.x ?? 0, y: d.y ?? 0, width: d.width || 200, height: d.height || 200 };
+      });
+
+      const spacing = input.spacing ?? 20;
+      const origin = computeAutoOrigin(objectData);
+      const sx = input.startX ?? origin.minX;
+      const sy = input.startY ?? origin.minY;
+      const crossAlign = (input.alignment as string) ?? 'center';
+
+      let positions: LayoutPosition[];
+      switch (input.mode) {
+        case 'row':       positions = layoutRow(objectData, spacing, sx, sy, crossAlign); break;
+        case 'column':    positions = layoutColumn(objectData, spacing, sx, sy, crossAlign); break;
+        case 'grid':      positions = layoutGrid(objectData, input.columns ?? 3, spacing, sx, sy); break;
+        case 'staggered': positions = layoutStaggered(objectData, input.columns ?? 3, spacing, sx, sy); break;
+        case 'circular':  positions = layoutCircular(objectData, input.radius, spacing, origin.centerX, origin.centerY); break;
+        case 'pack':      positions = layoutPack(objectData, spacing, sx, sy); break;
+        case 'fan':       positions = layoutFan(objectData, input.radius, input.arcDegrees ?? 180, spacing, origin.centerX, origin.centerY); break;
+        default:          return JSON.stringify({ error: `Unknown layout mode: ${input.mode}` });
+      }
+
+      await Promise.all(positions.map(p =>
+        objectsRef.doc(p.id).update({ x: p.x, y: p.y, updatedAt: now })
+      ));
+      return JSON.stringify({ success: true, arranged: ids.length, mode: input.mode });
     }
 
     case 'duplicateObject': {
@@ -1280,7 +1544,7 @@ export const processAIRequest = onDocumentCreated(
     const requestId = event.params.requestId;
     const requestRef = db.doc(`boards/${boardId}/aiRequests/${requestId}`);
 
-    const { prompt, userId } = data as { prompt: string; userId: string };
+    const { prompt, userId, selectedIds } = data as { prompt: string; userId: string; selectedIds?: string[] };
 
     if (!prompt || !userId) {
       await requestRef.update({
@@ -1331,7 +1595,9 @@ export const processAIRequest = onDocumentCreated(
 
     try {
       // Classify prompt to decide how much board context to include
-      const contextLevel = requestNeedsContext(prompt);
+      // Always include context when objects are selected (user likely wants to act on them)
+      const hasSelection = selectedIds && selectedIds.length > 0;
+      const contextLevel = hasSelection ? 'summary' : requestNeedsContext(prompt);
 
       // Build user message — skip board state for creation-only requests
       let userMessage: string;
@@ -1341,6 +1607,11 @@ export const processAIRequest = onDocumentCreated(
         userMessage = `Board summary: ${summary}\n\nUser request: ${prompt}`;
       } else {
         userMessage = prompt;
+      }
+
+      // Append selected object IDs so the AI knows which objects the user is referring to
+      if (selectedIds && selectedIds.length > 0) {
+        userMessage += `\n\nCurrently selected objects (${selectedIds.length}): ${selectedIds.join(', ')}`;
       }
 
       // Create LangChain ChatAnthropic model with tools
@@ -1386,7 +1657,7 @@ export const processAIRequest = onDocumentCreated(
             deleteObject: 'Deleting object',
             updateParent: 'Changing parent relationship',
             alignObjects: 'Aligning objects',
-            arrangeInGrid: 'Arranging in grid',
+            layoutObjects: 'Arranging layout',
             duplicateObject: 'Duplicating object',
             setZIndex: 'Changing layer order',
             rotateObject: 'Rotating object',

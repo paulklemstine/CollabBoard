@@ -10,6 +10,7 @@ export async function sendAICommand(
   boardId: string,
   prompt: string,
   onProgress?: (progress: string) => void,
+  selectedIds?: string[],
 ): Promise<AICommandOutput> {
   const user = auth.currentUser;
   if (!user) {
@@ -23,6 +24,7 @@ export async function sendAICommand(
     userId: user.uid,
     status: 'pending',
     createdAt: Date.now(),
+    ...(selectedIds && selectedIds.length > 0 ? { selectedIds } : {}),
   });
 
   // Listen for the function to update the document with the response

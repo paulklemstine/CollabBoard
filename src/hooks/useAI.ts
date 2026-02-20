@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { sendAICommand } from '../services/aiService';
 import type { AIMessage } from '../types/board';
 
-export function useAI(boardId: string, onObjectsCreated?: (ids: string[]) => void) {
+export function useAI(boardId: string, onObjectsCreated?: (ids: string[]) => void, selectedIds?: string[]) {
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +26,7 @@ export function useAI(boardId: string, onObjectsCreated?: (ids: string[]) => voi
       setError(null);
 
       try {
-        const result = await sendAICommand(boardId, trimmed, (p) => setProgress(p));
+        const result = await sendAICommand(boardId, trimmed, (p) => setProgress(p), selectedIds);
 
         const assistantMessage: AIMessage = {
           id: `assistant-${Date.now()}`,

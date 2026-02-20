@@ -74,10 +74,17 @@ describe('isPointInsideFrame', () => {
 });
 
 describe('findContainingFrame', () => {
-  it('returns the frame when object center is inside it', () => {
+  it('returns the frame when object fits completely inside it', () => {
     const frame = makeFrame({ id: 'f1', x: 100, y: 100, width: 400, height: 300 });
     const sticky = makeSticky({ x: 200, y: 200, width: 100, height: 100 }); // center: (250, 250)
     expect(findContainingFrame(sticky, [frame])).toEqual(frame);
+  });
+
+  it('returns null when object center is inside but edges extend beyond frame', () => {
+    const frame = makeFrame({ id: 'f1', x: 100, y: 100, width: 400, height: 300 });
+    // Object center (250, 250) is inside frame, but left edge (50) extends beyond frame left (100)
+    const sticky = makeSticky({ x: 50, y: 200, width: 400, height: 100 });
+    expect(findContainingFrame(sticky, [frame])).toBeNull();
   });
 
   it('returns null when object is outside all frames', () => {

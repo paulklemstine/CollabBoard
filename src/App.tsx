@@ -944,7 +944,7 @@ function BoardView({
         canUndo={canUndo}
         canRedo={canRedo}
       />
-      <AIChat boardId={boardId} isOpen={aiOpen} onClose={() => setAiOpen(false)} onObjectsCreated={handleAIObjectsCreated} />
+      <AIChat boardId={boardId} isOpen={aiOpen} onClose={() => setAiOpen(false)} onObjectsCreated={handleAIObjectsCreated} selectedIds={[...selectedIds]} />
       {/* Top left: Back/Share buttons and minimap */}
       <div className="absolute top-4 left-4 z-50 flex flex-col gap-3">
         <div className="glass-playful rounded-xl shadow-lg flex items-center">

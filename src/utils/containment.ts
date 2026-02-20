@@ -22,6 +22,16 @@ export function isPointInsideFrame(point: Point, frame: Frame): boolean {
   );
 }
 
+/** Check if the entire object (all four corners) is inside the frame */
+export function isObjectInsideFrame(obj: BoardObject, frame: Frame): boolean {
+  return (
+    obj.x >= frame.x &&
+    obj.y >= frame.y &&
+    obj.x + obj.width <= frame.x + frame.width &&
+    obj.y + obj.height <= frame.y + frame.height
+  );
+}
+
 /**
  * Check if making frameId a child of potentialParentId would create a circular dependency
  * e.g., if Frame A is already a parent of Frame B, then Frame B cannot become a parent of Frame A
@@ -68,7 +78,6 @@ export function findContainingFrame(
   frames: Frame[],
   allObjects?: AnyBoardObject[]
 ): Frame | null {
-  const center = getObjectCenter(draggedObj);
   let bestFrame: Frame | null = null;
   let bestArea = Infinity;
 
@@ -83,7 +92,8 @@ export function findContainingFrame(
       }
     }
 
-    if (isPointInsideFrame(center, frame)) {
+    // Require the entire object to fit inside the frame (not just center)
+    if (isObjectInsideFrame(draggedObj, frame)) {
       const area = frame.width * frame.height;
       if (area < bestArea) {
         bestArea = area;
@@ -230,16 +240,25 @@ export function findContainingFrameForGroup(
   const groupBox = getGroupBoundingBox(objects);
   if (!groupBox) return null;
 
-  const center: Point = {
-    x: groupBox.centerX,
-    y: groupBox.centerY,
+  // Create a virtual object representing the group bounding box
+  const groupObj: BoardObject = {
+    id: '__group__',
+    type: 'sticky',
+    x: groupBox.x,
+    y: groupBox.y,
+    width: groupBox.width,
+    height: groupBox.height,
+    rotation: 0,
+    createdBy: '',
+    updatedAt: 0,
   };
 
   let bestFrame: Frame | null = null;
   let bestArea = Infinity;
 
   for (const frame of frames) {
-    if (isPointInsideFrame(center, frame)) {
+    // Require the entire group bounding box to fit inside the frame
+    if (isObjectInsideFrame(groupObj, frame)) {
       const area = frame.width * frame.height;
       if (area < bestArea) {
         bestArea = area;

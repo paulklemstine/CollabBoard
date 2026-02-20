@@ -1,361 +1,116 @@
-# Flow Space - Project Instructions
+# Flow Space
 
-## Project
-Flow Space — a playful, real-time collaboration space for thinking, creating, and organizing ideas visually. Firebase backend, React frontend, AI agent.
+Real-time visual collaboration board. Firebase backend, React + react-konva frontend, AI agent via Cloud Functions.
+
+## Quick Facts
+
+| Command | Purpose |
+|---------|---------|
+| `npm run dev` | Start dev server |
+| `npm run build` | Production build (Vite) |
+| `npx vitest run` | Run unit tests |
+| `npx vitest --watch` | Watch mode tests |
+| `npx tsc --noEmit` | Type check |
+| `FUNCTIONS_DISCOVERY_TIMEOUT=60000 firebase deploy` | Deploy (WSL2 needs the env var) |
 
 ## Tech Stack
-- **Frontend:** React 18 + Vite + TypeScript + react-konva + Tailwind CSS
-- **Board Objects:** Firestore (real-time listeners)
-- **Cursors/Presence:** Firebase Realtime Database (RTDB)
-- **Auth:** Firebase Auth (Google sign-in + anonymous with auto-generated display names)
-- **AI Agent:** Firebase Cloud Functions v2 (minInstances=1) + Anthropic Claude Sonnet 4.5 with function calling
-- **Deployment:** Firebase Hosting
 
-## Key Architecture Decisions
-- Dual database: Firestore for board objects, RTDB for cursors/presence (RTDB gives onDisconnect() and <50ms latency)
-- Client writes directly to Firestore (no REST API); security enforced via Firestore rules
-- Last-write-wins conflict resolution (object-level granularity)
-- AI endpoint is a single Cloud Function v2 that calls Claude and writes results to Firestore
+React 18 + Vite + TypeScript + react-konva + Tailwind CSS. Firebase Auth (Google + anonymous), Firestore (board objects), RTDB (cursors/presence), Cloud Functions v2 (AI agent, Anthropic Claude Sonnet 4.5).
+
+## Architecture
+
+- **Dual database**: Firestore for board objects, RTDB for cursors/presence (onDisconnect + <50ms latency)
+- **Client writes directly to Firestore** — security via Firestore rules, no REST API layer
+- **Last-write-wins** conflict resolution at object-level granularity
+- **AI endpoint**: single Cloud Function v2 that calls Claude and writes results to Firestore
+- **Lazy imports in Cloud Functions**: heavy deps (LangChain, Langfuse) use `await import(...)` to avoid deployment timeouts; only firebase-admin and firebase-functions at top level
 
 ## File Structure
-- `src/components/` - React components (Board, Toolbar, Cursors, Presence, AIChat, Auth)
-- `src/hooks/` - Custom hooks (useBoard, useCursors, usePresence, useAI)
-- `src/services/` - Firebase config, board CRUD, AI client
-- `src/types/` - TypeScript interfaces for board objects
-- `functions/src/` - Cloud Functions (AI agent endpoint)
-- `docs/` - Project documentation and development logs
 
-## Conventions
+- `src/components/` — React components (Board, Toolbar, Cursors, Presence, AIChat, Auth)
+- `src/hooks/` — Custom hooks (useBoard, useCursors, usePresence, useAI)
+- `src/services/` — Firebase config, board CRUD, AI client
+- `src/types/` — TypeScript interfaces for board objects
+- `functions/src/` — Cloud Functions (AI agent endpoint)
+- `docs/` — Project documentation and dev logs
+
+## Code Style
+
 - TypeScript strict mode
-- Components: PascalCase (`StickyNote.tsx`)
-- Hooks: `use` prefix (`useBoard.ts`)
-- Tailwind CSS for styling
-- ESLint + Prettier
+- Components: PascalCase files (`StickyNote.tsx`), hooks: `use` prefix (`useBoard.ts`)
+- Tailwind CSS for styling — no CSS modules, no styled-components
+- Use ES modules (`import`/`export`), never CommonJS (`require`)
+- `import type` for type-only imports (erased at compile time, safe at top level)
+- Prefer small, focused components over large monolithic ones
 
-## Git Workflow — Worktrees
+## Gold Standard Files
 
-**MANDATORY:** Use Git worktrees for all development to enable parallel feature work without branch switching disruptions.
+When creating new code, follow the patterns established in these files:
+- **React component**: `src/components/StickyNote.tsx`
+- **Custom hook**: `src/hooks/useBoard.ts`
+- **Service**: `src/services/boardService.ts`
+- **Cloud Function**: `functions/src/index.ts`
 
-### Why Worktrees?
-- Work on multiple features simultaneously without switching branches
-- Keep dev server running in one worktree while working in another
-- Avoid losing uncommitted changes when switching contexts
-- Test features in isolation without merge conflicts
-- Each worktree has its own working directory and node_modules
+## Gotchas
 
-### Worktree Setup
+- **WSL2 + Firebase**: deploy needs `FUNCTIONS_DISCOVERY_TIMEOUT=60000` due to slow I/O on heavy node_modules
+- **react-konva**: Canvas elements don't have DOM — use jest-canvas-mock in tests, not @testing-library queries
+- **Firestore listeners**: always unsubscribe in useEffect cleanup to prevent memory leaks
+- **RTDB presence**: uses `onDisconnect()` which is server-side — don't rely on client-side cleanup alone
+- **Cloud Functions cold start**: lazy imports are intentional — do not refactor to top-level imports
 
-**Initial Repository Structure:**
-```
-CollabBoard/              # Main worktree (production/main branch)
-├── .git/                 # Git metadata (shared by all worktrees)
-├── src/
-├── package.json
-└── ...
+## Git Workflow
 
-CollabBoard-feature-1/    # Feature worktree
-├── src/
-├── package.json
-└── ...
-
-CollabBoard-feature-2/    # Another feature worktree
-├── src/
-├── package.json
-└── ...
-```
-
-### Creating a New Worktree
-
-**ALWAYS create a new worktree for new features:**
+**MANDATORY: Use git worktrees** for all feature work. Never switch branches in the main worktree.
 
 ```bash
-# From main repository directory
-cd c:/Gauntlet/CollabBoard
-
-# Create new worktree for a feature
+# Create worktree for a feature
 git worktree add ../CollabBoard-feature-name -b feature-name
+cd ../CollabBoard-feature-name && npm install
 
-# Navigate to new worktree
-cd ../CollabBoard-feature-name
-
-# Install dependencies (separate node_modules)
-npm install
-
-# Start dev server
-npm run dev
-```
-
-### Worktree Workflow
-
-1. **Create worktree for new feature:**
-   ```bash
-   git worktree add ../CollabBoard-scaling-fix -b fix/scaling-rotation
-   ```
-
-2. **Work in worktree:**
-   ```bash
-   cd ../CollabBoard-scaling-fix
-   npm install
-   # Make changes, commit
-   ```
-
-3. **Merge when ready:**
-   ```bash
-   # From main worktree
-   cd c:/Gauntlet/CollabBoard
-   git checkout main
-   git merge fix/scaling-rotation
-   ```
-
-4. **Remove worktree after merge:**
-   ```bash
-   git worktree remove ../CollabBoard-scaling-fix
-   git branch -d fix/scaling-rotation
-   ```
-
-### Worktree Commands
-
-**List all worktrees:**
-```bash
-git worktree list
-```
-
-**Remove a worktree:**
-```bash
+# After merge, clean up
 git worktree remove ../CollabBoard-feature-name
+git branch -d feature-name
 ```
 
-**Prune stale worktrees:**
-```bash
-git worktree prune
-```
+For the full worktree workflow, see `.claude/skills/git-workflow/SKILL.md`.
 
-### Rules
-- **NEVER switch branches** in main worktree - create new worktree instead
-- **ALWAYS create worktree** for new features, experiments, or bug fixes
-- **Keep main worktree clean** - only merge from feature worktrees
-- **Delete worktrees** after merging to avoid clutter
-- **Run `npm install`** in each worktree after creation (separate node_modules)
+## Testing
 
-### Benefits
-✅ Keep dev server running while working on different features
-✅ No lost work from branch switching
-✅ Test multiple features side-by-side
-✅ Parallel development without conflicts
-✅ Clean separation of concerns
+**TDD is the primary methodology.** Red-Green-Refactor: write failing test first, minimal code to pass, then refactor.
 
-## Build Priority
-1. Cursor sync (RTDB)
-2. Object sync (Firestore)
-3. Conflict handling
-4. State persistence
-5. Board features (shapes, frames, connectors)
-6. AI commands (basic)
-7. AI commands (complex)
+- **Unit/Integration**: Vitest + React Testing Library
+- **Canvas components**: Vitest + jest-canvas-mock (for Konva)
+- **Cloud Functions**: Vitest + firebase-functions-test (mock Claude API, never call real LLM)
+- **E2E**: Playwright (multi-browser collaboration)
+- **Co-locate tests**: `Component.tsx` -> `Component.test.tsx`
 
-## Testing — Test-Driven Development (TDD)
+For detailed TDD rules by component type, see `.claude/skills/testing/SKILL.md`.
 
-TDD is the **primary development methodology** for this project. Always write the test first, watch it fail, then write the minimal code to make it pass.
+### Performance Targets
 
-### TDD Workflow (Red-Green-Refactor)
-1. **Red:** Write a failing test that defines the expected behavior
-2. **Green:** Write the minimal code to make the test pass
-3. **Refactor:** Clean up the code while keeping tests green
+60 FPS, <100ms object sync, <50ms cursor sync, 500+ objects, 5+ concurrent users.
 
-### Tools
-- **Unit/Integration tests:** Vitest + React Testing Library
-- **Component tests:** Vitest + @testing-library/react + jest-canvas-mock (for Konva)
-- **Cloud Functions tests:** Vitest + firebase-functions-test
-- **E2E tests:** Playwright (multi-browser collaboration scenarios)
-- **Local backend:** Firebase Emulator Suite (Firestore, RTDB, Auth, Functions)
+## Documentation
 
-### Test File Conventions
-- Co-locate tests next to source: `Component.tsx` → `Component.test.tsx`
-- Hooks: `useBoard.ts` → `useBoard.test.ts`
-- Services: `boardService.ts` → `boardService.test.ts`
-- Cloud Functions: `aiAgent.ts` → `aiAgent.test.ts`
-- E2E tests: `e2e/` directory at project root
-
-### TDD Rules by Component Type
-
-#### React Components
-1. Write test first: render, verify DOM output, simulate user interactions
-2. Test props, state changes, conditional rendering, event handlers
-3. Mock Firebase hooks — never hit real database in component tests
-```
-// Example: write this FIRST
-describe('StickyNote', () => {
-  it('renders text content', () => { ... })
-  it('enters edit mode on double-click', () => { ... })
-  it('calls onUpdate when text changes', () => { ... })
-})
-// THEN create StickyNote.tsx
-```
-
-#### Custom Hooks (useBoard, useCursors, usePresence, useAI)
-1. Write test first using `renderHook` from @testing-library/react
-2. Mock Firebase SDK calls (Firestore listeners, RTDB refs)
-3. Test state transitions, subscription setup/teardown, error handling
-```
-// Example: write this FIRST
-describe('usePresence', () => {
-  it('registers user on mount', () => { ... })
-  it('removes user on unmount', () => { ... })
-  it('returns list of online users', () => { ... })
-})
-// THEN create usePresence.ts
-```
-
-#### Firebase Services (boardService, aiService)
-1. Write test first against Firebase Emulator Suite
-2. Test CRUD operations, real-time listener callbacks, error cases
-3. Use emulator for integration tests — no mocks for service layer
-```
-// Example: write this FIRST
-describe('boardService', () => {
-  it('creates a sticky note in Firestore', () => { ... })
-  it('notifies listeners on object update', () => { ... })
-  it('deletes object by ID', () => { ... })
-})
-// THEN create boardService.ts
-```
-
-#### Cloud Functions (AI Agent)
-1. Write test first using firebase-functions-test
-2. Mock the Claude API response (never call real LLM in tests)
-3. Test: input parsing, tool call generation, Firestore writes, error responses
-```
-// Example: write this FIRST
-describe('aiAgent', () => {
-  it('creates sticky note from natural language', () => { ... })
-  it('returns error for invalid command', () => { ... })
-  it('handles multi-step commands sequentially', () => { ... })
-})
-// THEN create aiAgent.ts
-```
-
-#### Firestore Security Rules
-1. Write test first using @firebase/rules-unit-testing
-2. Test: authenticated access, unauthenticated rejection, board-scoped writes
-```
-// Example: write this FIRST
-describe('Firestore Rules', () => {
-  it('allows authenticated user to write board objects', () => { ... })
-  it('denies unauthenticated writes', () => { ... })
-  it('denies writes to other boards', () => { ... })
-})
-// THEN write firestore.rules
-```
-
-#### Real-Time Collaboration (E2E)
-1. Write Playwright test first for multi-user scenarios
-2. Use two browser contexts to simulate two users
-3. Test: cursor sync, object creation visibility, presence updates
-```
-// Example: write this FIRST
-describe('collaboration', () => {
-  it('shows cursor movement to other user', () => { ... })
-  it('syncs new sticky note to second browser', () => { ... })
-  it('updates presence when user joins/leaves', () => { ... })
-})
-```
-
-### What NOT to TDD
-- Tailwind CSS styling (visual, not behavioral)
-- Firebase config/initialization boilerplate
-- Vite/build configuration
-- Static type definitions (`src/types/`)
-
-### Enforcement
-- **Never create a new source file without its test file first**
-- **Never implement a function/component before its test exists**
-- Run `npx vitest --watch` during development for continuous feedback
-- All tests must pass before committing (pre-commit hook)
-
-### Performance Testing
-- Manual testing with 2+ browser windows remains critical for real-time sync validation
-- Performance targets: 60 FPS, <100ms object sync, <50ms cursor sync, 500+ objects, 5+ concurrent users
-- Use Chrome DevTools Performance tab to profile FPS during pan/zoom
-
-## Documentation Requirements
-
-**IMPORTANT:** Always maintain up-to-date documentation as you develop features.
-
-### Documentation Workflow
-1. **During Development:** Create/update technical documentation for new features in `docs/`
-2. **After Implementation:** Update the engineering diary in `docs/AI_DEVELOPMENT_LOG.md`
-3. **Before Committing:** Ensure all related docs are included in the commit
-
-### Required Documentation
-
-#### Feature Documentation (`docs/`)
-When implementing significant features, create dedicated markdown files in `docs/`:
-- **Architecture decisions** - Explain why you chose a particular approach
-- **System design** - Document how components interact (e.g., `PRESENCE_HEARTBEAT.md`)
-- **Configuration** - Document tuneable parameters and their rationale
-- **Trade-offs** - Explain costs, performance implications, edge cases
-- **Testing guide** - How to manually test the feature
-
-Examples:
-- `docs/PRESENCE_HEARTBEAT.md` - Presence and cursor timeout systems
-- `docs/AI_COST_ANALYSIS.md` - AI feature cost analysis
-- `docs/ARCHITECTURE.md` - Overall system architecture
-
-#### Engineering Diary (`docs/AI_DEVELOPMENT_LOG.md`)
-**ALWAYS update the development log after completing work.** This is a chronological record of all development activities.
-
-For each work session, add an entry with:
-- **Date & Time** - When the work was done
-- **Task/Feature** - What was implemented or fixed
-- **Approach** - High-level description of how you solved it
-- **Key Changes** - Files modified, new patterns introduced
-- **Challenges** - Problems encountered and how you solved them
-- **Testing** - How you verified it works
-- **Commit Hash** - Link to the commit for traceability
-
-Entry Format:
-```markdown
-### [YYYY-MM-DD HH:MM] Feature/Fix Name
-
-**Task:** Brief description of what needed to be done
-
-**Approach:**
-- Key decision 1
-- Key decision 2
-
-**Changes:**
-- `file/path.ts` - What changed and why
-- `file/path2.ts` - What changed and why
-
-**Challenges:**
-- Problem encountered and solution
-
-**Testing:**
-- How it was tested (unit tests, manual testing, etc.)
-
-**Commit:** [abc1234] Commit message
-```
-
-### Documentation Best Practices
-- **Write docs as you code** - Don't wait until the end
-- **Be specific** - Include code snippets, configuration values, file paths
-- **Explain "why"** - Not just "what" but "why did we choose this approach"
-- **Update existing docs** - When changing behavior, update related documentation
-- **Link between docs** - Cross-reference related documentation files
-- **Include examples** - Real-world usage examples and common patterns
+Update `docs/AI_DEVELOPMENT_LOG.md` after completing significant work. Create dedicated docs in `docs/` for architecture decisions and system design. See `.claude/skills/documentation/SKILL.md` for the full format.
 
 ## Tracking
-After completing significant work (bug fix, feature, refactor, plan approval), append a prompt
-assessment entry to `<project>/.claude/tracking/key-prompts/YYYY-MM-DD.md` (today's date).
-Create the file if it doesn't exist, using the same header format as existing files.
 
-Use this format:
-  ## [date] — [short title]
-  **Category**: breakthrough | bug-resolution | architecture | feature
-  **Context**: What problem was being solved?
-  **The Prompt**: (exact or close paraphrase)
-  **Why It Worked**: (what made the phrasing/framing effective)
-  **Prior Attempts That Failed**: (for bugs: what didn't work; otherwise: N/A)
+After significant work, append an entry to `.claude/tracking/key-prompts/YYYY-MM-DD.md`:
 
-Only write entries for genuinely high-signal prompts. Skip routine exchanges.
-Do not ask permission — just append after significant work.
+```
+## [date] — [short title]
+**Category**: breakthrough | bug-resolution | architecture | feature
+**Context**: What problem was being solved?
+**The Prompt**: (exact or close paraphrase)
+**Why It Worked**: (what made the phrasing/framing effective)
+**Prior Attempts That Failed**: (for bugs: what didn't work; otherwise: N/A)
+```
+
+## Context Management
+
+- Use `/clear` between unrelated tasks to prevent context pollution
+- Use subagents (Task tool) for heavy investigation — protects main context window
+- If Claude ignores instructions after extended sessions, `/clear` and restart with a focused prompt
+- When compacting, preserve: list of modified files, current task, and test commands

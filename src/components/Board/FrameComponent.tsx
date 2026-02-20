@@ -403,13 +403,15 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
       )}
       {/* Title bar — hidden for borderless frames */}
       {!frame.borderless && (() => {
+        const bg = frame.color;
         const bc = frame.borderColor || '#a78bfa';
+        const isCustomBg = !!bg;
         const isCustomBorder = !!frame.borderColor;
         const titleFontSize = frame.fontSize ?? 14;
         const titleBarH = Math.max(36, titleFontSize + 20);
         return (
         <>
-          {/* Title background — complementary tint from border color */}
+          {/* Title background — tint of the frame's background color */}
           <Rect
             x={0}
             y={-titleBarH}
@@ -418,8 +420,8 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
             fillLinearGradientStartPoint={{ x: 0, y: 0 }}
             fillLinearGradientEndPoint={{ x: localWidth, y: 0 }}
             fillLinearGradientColorStops={
-              isCustomBorder
-                ? [0, hexToRgba(bc, 0.22), 0.5, hexToRgba(bc, 0.12), 1, hexToRgba(bc, 0.06)]
+              isCustomBg
+                ? [0, hexToRgba(bg, 0.35), 0.5, hexToRgba(bg, 0.2), 1, hexToRgba(bg, 0.1)]
                 : [
                     0, 'rgba(251, 146, 60, 0.18)',
                     0.25, 'rgba(251, 113, 133, 0.16)',
@@ -438,7 +440,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
             height={titleBarH}
             fill={isCustomBorder ? bc : undefined}
             fillLinearGradientStartPoint={isCustomBorder ? undefined : { x: 0, y: 0 }}
-            fillLinearGradientEndPoint={isCustomBorder ? undefined : { x: 0, y: 36 }}
+            fillLinearGradientEndPoint={isCustomBorder ? undefined : { x: 0, y: titleBarH }}
             fillLinearGradientColorStops={isCustomBorder ? undefined : [0, '#f472b6', 0.33, '#a78bfa', 0.66, '#60a5fa', 1, '#34d399']}
             cornerRadius={[16, 0, 0, 0]}
           />
@@ -452,7 +454,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
             fontSize={titleFontSize}
             fontFamily={frame.fontFamily || "'Inter', sans-serif"}
             fontStyle={`${frame.fontWeight ?? 'bold'}${(frame.fontStyle === 'italic') ? ' italic' : ''}`}
-            fill={frame.title ? (frame.textColor || '#581c87') : (isCustomBorder ? hexToRgba(bc, 0.5) : '#a78bfa')}
+            fill={frame.title ? (frame.textColor || '#581c87') : (isCustomBg ? hexToRgba(bg, 0.5) : '#a78bfa')}
             listening={false}
           />
           {/* Double-click area for title editing */}

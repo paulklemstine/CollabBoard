@@ -31,7 +31,8 @@ import { Minimap } from './components/Minimap/Minimap';
 import { useChat } from './hooks/useChat';
 import type { StickyNote, Shape, Frame, Sticker, Connector, TextObject, BoardMetadata } from './types/board';
 import { calculateGroupObjectTransform } from './utils/groupTransform';
-import type { AnyBoardObject } from './services/boardService';
+import { batchAddObjects, type AnyBoardObject } from './services/boardService';
+import { duplicateObjects } from './utils/duplicate';
 
 function App() {
   const { user, loading, refreshUser } = useAuth();
@@ -105,62 +106,8 @@ function BoardView({
   const [copied, setCopied] = useState(false);
   const stageContainerRef = useRef<HTMLDivElement | null>(null);
   const captureInFlightRef = useRef(false);
-
-  const capturePreview = useCallback(async () => {
-    const el = stageContainerRef.current;
-    if (!el || captureInFlightRef.current) return;
-    captureInFlightRef.current = true;
-    try {
-      // Read the Konva canvas directly (html-to-image can't clone canvas content)
-      const sourceCanvas = el.querySelector('canvas');
-      if (!sourceCanvas) return;
-
-      const WIDTH = 600;
-      const HEIGHT = 280; // Match BoardPreview aspect ratio (300:140)
-      const offscreen = document.createElement('canvas');
-      offscreen.width = WIDTH;
-      offscreen.height = HEIGHT;
-      const ctx = offscreen.getContext('2d');
-      if (!ctx) return;
-
-      // Fill white background (JPEG has no transparency)
-      ctx.fillStyle = '#f8fafc';
-      ctx.fillRect(0, 0, WIDTH, HEIGHT);
-
-      // Draw Konva canvas scaled to preview size
-      ctx.drawImage(sourceCanvas, 0, 0, WIDTH, HEIGHT);
-
-      // Composite GIF overlay <img> elements using their CSS matrix transforms
-      const sx = WIDTH / sourceCanvas.width;
-      const sy = HEIGHT / sourceCanvas.height;
-      const imgs = el.querySelectorAll('img');
-      for (const img of imgs) {
-        const match = img.style.transform.match(/matrix\(([^)]+)\)/);
-        if (!match) continue;
-        const [a, b, c, d, e, f] = match[1].split(',').map(Number);
-        const w = parseFloat(img.style.width) || img.naturalWidth;
-        const h = parseFloat(img.style.height) || img.naturalHeight;
-        ctx.save();
-        ctx.setTransform(a * sx, b * sy, c * sx, d * sy, e * sx, f * sy);
-        try { ctx.drawImage(img, 0, 0, w, h); } catch { /* cross-origin fallback */ }
-        ctx.restore();
-      }
-
-      const blob = await new Promise<Blob | null>((resolve) =>
-        offscreen.toBlob(resolve, 'image/jpeg', 0.7)
-      );
-      if (!blob) return;
-
-      const sRef = storageRef(storage, `boards/${boardId}/preview.jpg`);
-      await uploadBytes(sRef, blob, { contentType: 'image/jpeg' });
-      const url = await getDownloadURL(sRef);
-      await updateBoardMetadata(boardId, { thumbnailUrl: url });
-    } catch {
-      // Non-critical — silently ignore capture failures
-    } finally {
-      captureInFlightRef.current = false;
-    }
-  }, [boardId]);
+  const lastCaptureRef = useRef(0);
+  const MIN_CAPTURE_INTERVAL = 60_000; // 1 minute between captures
 
   // Track visit so private boards persist in user's "My Boards"
   useEffect(() => {
@@ -236,25 +183,6 @@ function BoardView({
     updateObjectProperties,
   } = useBoard(boardId, user.uid);
 
-  // Debounced preview capture: 30s after last object change
-  const captureTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    if (objects.length === 0) return;
-    if (captureTimerRef.current) clearTimeout(captureTimerRef.current);
-    captureTimerRef.current = setTimeout(() => {
-      capturePreview();
-    }, 30_000);
-    return () => {
-      if (captureTimerRef.current) clearTimeout(captureTimerRef.current);
-    };
-  }, [objects, capturePreview]);
-
-  // Capture preview on board exit — await capture so DOM stays alive
-  const handleNavigateBack = useCallback(async () => {
-    await capturePreview();
-    onNavigateBack();
-  }, [capturePreview, onNavigateBack]);
-
   const handleContainerRef = useCallback((el: HTMLDivElement | null) => {
     stageContainerRef.current = el;
   }, []);
@@ -297,6 +225,7 @@ function BoardView({
     handleGroupRotateMove,
     handleGroupRotate,
     selectObject,
+    selectMultiple,
   } = useMultiSelect(objects, boardId);
 
   // Compute the single selected object (null when 0 or 2+ selected)
@@ -365,27 +294,95 @@ function BoardView({
     clearSelection();
   }, [selectedIds, removeObject, clearSelection]);
 
-  // Keyboard shortcuts: Escape to clear selection, Delete/Backspace to delete selected
+  // Clipboard for copy/paste (in-memory, not system clipboard)
+  const clipboardRef = useRef<AnyBoardObject[]>([]);
+
+  const handleDuplicateSelected = useCallback(
+    async (offset: { dx: number; dy: number }) => {
+      if (selectedIds.size === 0) return;
+      const selected = objects.filter((o) => selectedIds.has(o.id));
+      if (selected.length === 0) return;
+      const { clones, idRemap } = duplicateObjects(selected, objects, user.uid, offset);
+      if (clones.length === 0) return;
+      await batchAddObjects(boardId, clones);
+      const newIds = new Set<string>();
+      for (const [, newId] of idRemap) {
+        if (clones.some((c) => c.id === newId)) newIds.add(newId);
+      }
+      selectMultiple(newIds);
+    },
+    [selectedIds, objects, user.uid, boardId, selectMultiple]
+  );
+
+  const handleCopy = useCallback(() => {
+    if (selectedIds.size === 0) return;
+    clipboardRef.current = structuredClone(objects.filter((o) => selectedIds.has(o.id)));
+  }, [selectedIds, objects]);
+
+  const handlePaste = useCallback(async () => {
+    if (clipboardRef.current.length === 0) return;
+    const { clones, idRemap } = duplicateObjects(clipboardRef.current, objects, user.uid, { dx: 40, dy: 40 });
+    if (clones.length === 0) return;
+    await batchAddObjects(boardId, clones);
+    const newIds = new Set<string>();
+    for (const [, newId] of idRemap) {
+      if (clones.some((c) => c.id === newId)) newIds.add(newId);
+    }
+    selectMultiple(newIds);
+    // Update clipboard to clones so repeated paste cascades diagonally
+    clipboardRef.current = structuredClone(clones);
+  }, [objects, user.uid, boardId, selectMultiple]);
+
+  const handleDuplicateObject = useCallback(
+    async (id: string) => {
+      const obj = objects.find((o) => o.id === id);
+      if (!obj) return;
+      const { clones } = duplicateObjects([obj], objects, user.uid, { dx: 20, dy: 20 });
+      if (clones.length === 0) return;
+      await batchAddObjects(boardId, clones);
+      selectMultiple(new Set(clones.map((c) => c.id)));
+    },
+    [objects, user.uid, boardId, selectMultiple]
+  );
+
+  // Keyboard shortcuts: Escape, Delete, Ctrl+C/V/D, L
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable;
+
       if (e.key === 'Escape' && selectedIds.size > 0) {
         clearSelection();
       }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIds.size > 0) {
-        const tag = (e.target as HTMLElement)?.tagName;
-        if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return;
+        if (isInput) return;
         e.preventDefault();
         handleDeleteSelected();
       }
+      // Ctrl/Cmd+D — duplicate selected
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'd' || e.key === 'D')) {
+        if (isInput) return;
+        e.preventDefault();
+        if (selectedIds.size > 0) handleDuplicateSelected({ dx: 20, dy: 20 });
+      }
+      // Ctrl/Cmd+C — copy selected
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C') && !e.shiftKey) {
+        if (isInput) return;
+        if (selectedIds.size > 0) handleCopy();
+      }
+      // Ctrl/Cmd+V — paste from clipboard
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V') && !e.shiftKey) {
+        if (isInput) return;
+        handlePaste();
+      }
       if (e.key === 'l' || e.key === 'L') {
-        const tag = (e.target as HTMLElement)?.tagName;
-        if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return;
+        if (isInput) return;
         setShowAILabels((prev) => !prev);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedIds.size, clearSelection, handleDeleteSelected]);
+  }, [selectedIds.size, clearSelection, handleDeleteSelected, handleDuplicateSelected, handleCopy, handlePaste]);
 
   const [stageTransform, setStageTransform] = useState<StageTransform>({ x: 0, y: 0, scale: 1 });
   const [showAILabels, setShowAILabels] = useState(false);
@@ -396,6 +393,101 @@ function BoardView({
     resetZoom: () => void;
     setTransform: (transform: StageTransform) => void;
   } | null>(null);
+
+  // Capture board preview on exit: zoom-to-fit all objects, screenshot, upload
+  const capturePreview = useCallback(async () => {
+    const el = stageContainerRef.current;
+    if (!el || captureInFlightRef.current || !zoomControls) return;
+    if (Date.now() - lastCaptureRef.current < MIN_CAPTURE_INTERVAL) return;
+    captureInFlightRef.current = true;
+    try {
+      const sourceCanvas = el.querySelector('canvas');
+      if (!sourceCanvas) return;
+
+      // Compute bounding box of all visible objects
+      const visible = objects.filter(o => o.type !== 'connector');
+      if (visible.length === 0) return;
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const obj of visible) {
+        minX = Math.min(minX, obj.x);
+        minY = Math.min(minY, obj.y);
+        maxX = Math.max(maxX, obj.x + obj.width);
+        maxY = Math.max(maxY, obj.y + obj.height);
+      }
+      const bboxW = maxX - minX || 1;
+      const bboxH = maxY - minY || 1;
+      const padFactor = 1.2; // 10% padding each side
+      const fitScaleX = sourceCanvas.width / (bboxW * padFactor);
+      const fitScaleY = sourceCanvas.height / (bboxH * padFactor);
+      const fitScale = Math.min(fitScaleX, fitScaleY);
+      const centerX = (minX + maxX) / 2;
+      const centerY = (minY + maxY) / 2;
+
+      // Temporarily zoom-to-fit all objects
+      const savedTransform = { ...stageTransform };
+      zoomControls.setTransform({
+        x: sourceCanvas.width / 2 - centerX * fitScale,
+        y: sourceCanvas.height / 2 - centerY * fitScale,
+        scale: fitScale,
+      });
+
+      // Wait for stage redraw + GIF overlay position sync
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+      // Capture to offscreen canvas
+      const WIDTH = 600;
+      const HEIGHT = 280;
+      const offscreen = document.createElement('canvas');
+      offscreen.width = WIDTH;
+      offscreen.height = HEIGHT;
+      const ctx = offscreen.getContext('2d');
+      if (!ctx) { zoomControls.setTransform(savedTransform); return; }
+
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+      ctx.drawImage(sourceCanvas, 0, 0, WIDTH, HEIGHT);
+
+      // Composite GIF overlay <img> elements
+      const sx = WIDTH / sourceCanvas.width;
+      const sy = HEIGHT / sourceCanvas.height;
+      const imgs = el.querySelectorAll('img');
+      for (const img of imgs) {
+        const match = img.style.transform.match(/matrix\(([^)]+)\)/);
+        if (!match) continue;
+        const [a, b, c, d, e, f] = match[1].split(',').map(Number);
+        const w = parseFloat(img.style.width) || img.naturalWidth;
+        const h = parseFloat(img.style.height) || img.naturalHeight;
+        ctx.save();
+        ctx.setTransform(a * sx, b * sy, c * sx, d * sy, e * sx, f * sy);
+        try { ctx.drawImage(img, 0, 0, w, h); } catch { /* cross-origin */ }
+        ctx.restore();
+      }
+
+      // Restore viewport before upload (slow part)
+      zoomControls.setTransform(savedTransform);
+
+      const blob = await new Promise<Blob | null>(resolve =>
+        offscreen.toBlob(resolve, 'image/jpeg', 0.7)
+      );
+      if (!blob) return;
+
+      const sRef = storageRef(storage, `boards/${boardId}/preview.jpg`);
+      await uploadBytes(sRef, blob, { contentType: 'image/jpeg' });
+      const url = await getDownloadURL(sRef);
+      await updateBoardMetadata(boardId, { thumbnailUrl: url });
+      lastCaptureRef.current = Date.now();
+    } catch {
+      // Non-critical — silently ignore capture failures
+    } finally {
+      captureInFlightRef.current = false;
+    }
+  }, [boardId, objects, stageTransform, zoomControls]);
+
+  // Capture preview on board exit
+  const handleNavigateBack = useCallback(async () => {
+    await capturePreview();
+    onNavigateBack();
+  }, [capturePreview, onNavigateBack]);
 
   const handleMouseMove = useCallback(
     (x: number, y: number) => {
@@ -603,6 +695,7 @@ function BoardView({
               onDragMove={handleFrameDragMove}
               onDragEnd={handleFrameDragEnd}
               onDelete={removeObject}
+              onDuplicate={handleDuplicateObject}
               onDissolve={dissolveFrame}
               onTitleChange={updateTitle}
               onClick={objectClick}
@@ -628,6 +721,7 @@ function BoardView({
               onDragMove={handleDragMove}
               onDragEnd={handleDragEnd}
               onDelete={removeObject}
+              onDuplicate={handleDuplicateObject}
               onClick={objectClick}
               onResize={resizeObject}
               onRotate={rotateObject}
@@ -652,6 +746,7 @@ function BoardView({
               onDragEnd={handleDragEnd}
               onTextChange={updateText}
               onDelete={removeObject}
+              onDuplicate={handleDuplicateObject}
               onClick={objectClick}
               onResize={resizeObject}
               onRotate={rotateObject}
@@ -675,6 +770,7 @@ function BoardView({
               onDragEnd={handleDragEnd}
               onTextChange={updateText}
               onDelete={removeObject}
+              onDuplicate={handleDuplicateObject}
               onClick={objectClick}
               onResize={resizeObject}
               onRotate={rotateObject}
@@ -697,6 +793,7 @@ function BoardView({
               onDragMove={handleDragMove}
               onDragEnd={handleDragEnd}
               onDelete={removeObject}
+              onDuplicate={handleDuplicateObject}
               onClick={objectClick}
               onResize={resizeObject}
               onRotate={rotateObject}
@@ -734,6 +831,7 @@ function BoardView({
             onGroupRotateMove={handleGroupRotateMove}
             onGroupRotate={handleGroupRotate}
             onDeleteSelected={handleDeleteSelected}
+            onDuplicateSelected={() => handleDuplicateSelected({ dx: 20, dy: 20 })}
           />
         </Board>
       </div>

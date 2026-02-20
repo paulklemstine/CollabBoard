@@ -60,7 +60,7 @@ function App() {
             className="w-14 h-14 rounded-full border-4 border-white/30 border-t-white animate-spin-loader"
           />
           <span className="text-white/90 font-semibold text-sm tracking-wide">
-            Loading...
+            Warming up...
           </span>
         </div>
       </div>
@@ -980,7 +980,7 @@ function BoardView({
           <button
             onClick={handleNavigateBack}
             className="px-2.5 py-1 text-gray-700 hover:text-violet-600 transition-colors duration-200 flex items-center rounded-lg hover:bg-violet-50/60"
-            title="Back to boards"
+            title="Back to your boards"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
@@ -1002,7 +1002,7 @@ function BoardView({
               });
             }}
             className="px-2.5 py-1 text-gray-700 hover:text-violet-600 transition-colors duration-200 flex items-center rounded-lg hover:bg-violet-50/60"
-            title={copied ? "Copied!" : "Share board link"}
+            title={copied ? "Link copied!" : "Share this space"}
           >
             {copied ? (
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -53,7 +53,7 @@ export function GifPicker({ onSelect, onClose }: GifPickerProps) {
   if (!apiKey) {
     return (
       <div className="rounded-xl p-6 text-center max-w-sm" style={{ background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.15) 100%)', border: '1.5px solid rgba(16, 185, 129, 0.3)' }}>
-        <p className="text-sm text-gray-700 font-medium mb-2">Add animated stickers with GIPHY</p>
+        <p className="text-sm text-gray-700 font-medium mb-2">Spice up your board with animated stickers</p>
         <p className="text-xs text-gray-600 mb-3">Set <code className="bg-black/10 px-1 rounded">VITE_GIPHY_API_KEY</code> in your <code className="bg-black/10 px-1 rounded">.env</code> file.</p>
         <a
           href="https://developers.giphy.com/dashboard/"
@@ -71,7 +71,7 @@ export function GifPicker({ onSelect, onClose }: GifPickerProps) {
     <div className="flex flex-col gap-2">
       <input
         type="search"
-        placeholder="Search stickers..."
+        placeholder="Find the perfect vibe..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         className="w-full px-3 py-2 rounded-lg text-sm border border-green-200 focus:ring-2 focus:ring-green-400 focus:border-green-400 outline-none"
@@ -85,17 +85,17 @@ export function GifPicker({ onSelect, onClose }: GifPickerProps) {
         )}
         {error && (
           <div className="text-center py-6">
-            <p className="text-sm text-gray-500 mb-2">Couldn't load GIFs</p>
+            <p className="text-sm text-gray-500 mb-2">GIFs went AWOL</p>
             <button
               onClick={() => fetchGifs(search)}
               className="text-sm font-bold text-green-700 hover:underline"
             >
-              Try again
+              Retry
             </button>
           </div>
         )}
         {!loading && !error && gifs.length === 0 && (
-          <div className="text-center py-6 text-sm text-gray-500">No results</div>
+          <div className="text-center py-6 text-sm text-gray-500">No matches — try something wilder</div>
         )}
         {gifs.length > 0 && (
           <div className="grid grid-cols-3 gap-1.5">

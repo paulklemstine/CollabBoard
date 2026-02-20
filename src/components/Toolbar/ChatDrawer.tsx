@@ -105,7 +105,7 @@ export function ChatDrawer({ messages, currentUserId, onSend }: ChatDrawerProps)
             <div className="overflow-y-auto px-3 py-2 max-h-[300px] min-h-[120px] flex flex-col gap-1.5">
               {messages.length === 0 ? (
                 <div className="flex items-center justify-center h-[120px] text-xs text-gray-400">
-                  No messages yet
+                  Crickets... say something!
                 </div>
               ) : (
                 messages.map((msg) => {
@@ -142,7 +142,7 @@ export function ChatDrawer({ messages, currentUserId, onSend }: ChatDrawerProps)
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Type a message..."
+                  placeholder="Say something brilliant..."
                   className="flex-1 bg-white/50 border border-violet-200/60 rounded-xl px-3 py-1.5 text-sm text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-300 transition-all"
                 />
                 <button

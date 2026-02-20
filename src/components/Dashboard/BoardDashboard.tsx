@@ -39,12 +39,16 @@ export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboar
             <div
               className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg"
               style={{
-                background: 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 50%, #a78bfa 100%)',
+                background: 'linear-gradient(135deg, #f59e0b 0%, #f97316 50%, #fb923c 100%)',
               }}
             >
               <svg width="28" height="28" viewBox="0 0 100 100" fill="none">
-                <path d="M 12 55 Q 25 35, 38 50 T 64 50 T 88 50" stroke="white" strokeWidth="7" strokeLinecap="round"/>
-                <path d="M 12 70 Q 25 50, 38 65 T 64 65 T 88 65" stroke="rgba(255,255,255,0.5)" strokeWidth="5" strokeLinecap="round"/>
+                <g transform="rotate(-10, 38, 50)">
+                  <rect x="18" y="26" width="40" height="44" rx="7" fill="rgba(255,255,255,0.4)"/>
+                </g>
+                <g transform="rotate(5, 58, 50)">
+                  <rect x="38" y="26" width="40" height="44" rx="7" fill="white" opacity="0.95"/>
+                </g>
               </svg>
             </div>
             <div>
@@ -52,7 +56,7 @@ export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboar
                 Flow Space
               </h1>
               <p className="text-sm text-white/70 font-medium" key={refreshKey}>
-                Ready to build momentum, {user.displayName || user.email?.split('@')[0] || 'User'}?
+                What are we building today, {user.displayName || user.email?.split('@')[0] || 'User'}?
               </p>
             </div>
           </div>
@@ -66,7 +70,7 @@ export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboar
 
         {/* Create Board */}
         <div className="glass-playful rounded-2xl p-6 mb-8 shadow-lg">
-          <h2 className="text-lg font-bold text-gray-800 mb-4">Start a new creative flow</h2>
+          <h2 className="text-lg font-bold text-gray-800 mb-4">Spark something new</h2>
           <CreateBoardForm onCreateBoard={handleCreateBoard} />
         </div>
 
@@ -77,11 +81,11 @@ export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboar
         ) : (
           <>
             {/* My Boards */}
-            <h2 className="text-lg font-bold text-white/90 mb-4">My Boards</h2>
+            <h2 className="text-lg font-bold text-white/90 mb-4">Your Spaces</h2>
             {myBoards.length === 0 ? (
               <div className="glass-playful rounded-2xl p-8 text-center shadow-lg mb-8">
-                <p className="text-gray-500 font-medium">No boards yet</p>
-                <p className="text-gray-400 text-sm mt-1">Create one above or open a shared link.</p>
+                <p className="text-gray-500 font-medium">Nothing here yet — that's about to change</p>
+                <p className="text-gray-400 text-sm mt-1">Spin up your first board, or jump into someone else's.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
@@ -102,7 +106,7 @@ export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboar
             {/* Shared with me */}
             {sharedWithMe.length > 0 && (
               <>
-                <h2 className="text-lg font-bold text-white/90 mb-4">Shared with me</h2>
+                <h2 className="text-lg font-bold text-white/90 mb-4">Collab invites</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
                   {sharedWithMe.map((board) => (
                     <BoardCard
@@ -118,10 +122,10 @@ export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboar
             )}
 
             {/* Public Boards */}
-            <h2 className="text-lg font-bold text-white/90 mb-4">Public Boards</h2>
+            <h2 className="text-lg font-bold text-white/90 mb-4">Open vibes</h2>
             {publicBoards.length === 0 ? (
               <div className="glass-playful rounded-2xl p-8 text-center shadow-lg">
-                <p className="text-gray-500 font-medium">No public boards</p>
+                <p className="text-gray-500 font-medium">No public boards yet — be the first</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

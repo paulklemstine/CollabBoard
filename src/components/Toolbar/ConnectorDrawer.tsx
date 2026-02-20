@@ -56,9 +56,9 @@ export function ConnectorDrawer({
 
   const connectLabel = connectMode
     ? connectingFrom
-      ? 'Click target...'
-      : 'Click source...'
-    : 'Connect';
+      ? 'Now pick the target...'
+      : 'Pick the start...'
+    : 'Link';
 
   return (
     <div

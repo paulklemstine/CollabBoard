@@ -122,18 +122,18 @@ export function BoardCard({ board, onSelect, onDelete, canDelete, isOwner, onTog
             )}
             {confirmDelete && (
               <div className="flex items-center gap-1.5 animate-float-up">
-                <span className="text-[11px] font-semibold text-red-500">Delete?</span>
+                <span className="text-[11px] font-semibold text-red-500">Poof it?</span>
                 <button
                   onClick={handleDelete}
                   className="px-2 py-0.5 rounded-md text-[11px] font-bold text-white bg-red-500 hover:shadow-lg transition-all duration-200"
                 >
-                  Yes
+                  Bye bye
                 </button>
                 <button
                   onClick={handleCancelDelete}
                   className="px-2 py-0.5 rounded-md text-[11px] font-semibold text-gray-500 bg-white/60 hover:bg-white/90 border border-gray-200 transition-all duration-200"
                 >
-                  No
+                  Keep
                 </button>
               </div>
             )}

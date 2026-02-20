@@ -38,7 +38,7 @@ function MessageBubble({ message }: { message: AIMessage }) {
         <p className="whitespace-pre-wrap break-words">{message.content}</p>
         {!isUser && message.objectsCreated && message.objectsCreated.length > 0 && (
           <p className="mt-1.5 text-xs opacity-70">
-            {message.objectsCreated.length} object{message.objectsCreated.length !== 1 ? 's' : ''} created
+            {message.objectsCreated.length} thing{message.objectsCreated.length !== 1 ? 's' : ''} dropped on the board
           </p>
         )}
       </div>
@@ -130,9 +130,9 @@ export function AIChat({ boardId, isOpen, onClose, onObjectsCreated, selectedIds
             <div className="w-12 h-12 rounded-full bg-violet-100 flex items-center justify-center mb-3 text-violet-400">
               <SparkleIcon size={24} />
             </div>
-            <p className="text-sm font-medium text-gray-500 mb-1">Co-create with Flow AI</p>
+            <p className="text-sm font-medium text-gray-500 mb-1">Your creative co-pilot is ready</p>
             <p className="text-xs text-gray-400">
-              Try: "Turn these sticky notes into a prioritized action plan"
+              Try: "Organize my chaos into something brilliant"
             </p>
           </div>
         ) : (
@@ -173,7 +173,7 @@ export function AIChat({ boardId, isOpen, onClose, onObjectsCreated, selectedIds
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask Flow AI to shape this board..."
+            placeholder="Tell me what to build..."
             disabled={isLoading}
             className="flex-1 bg-white/50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-300 disabled:opacity-50 transition-all"
           />

@@ -16,7 +16,7 @@ export function PresencePanel({ users, cursors, onFollowUser }: PresencePanelPro
     <div className="glass-playful rounded-2xl shadow-xl p-3.5 animate-float-up">
       <div className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2.5 flex items-center gap-1.5">
         <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse-glow" style={{ color: '#34d399' }} />
-        {users.length === 0 ? 'No one else online' : `${users.length} other${users.length === 1 ? '' : 's'} online`}
+        {users.length === 0 ? 'Just you for now' : `${users.length} other${users.length === 1 ? '' : 's'} vibing`}
       </div>
       <div className="flex flex-col gap-1.5">
         {users.map((user) => {

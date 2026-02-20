@@ -211,7 +211,7 @@ export function BoardQuickLook({ boardId, boardName, onClose, onOpenBoard }: Boa
             className="px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all hover:shadow-lg"
             style={{ background: 'linear-gradient(135deg, #818cf8 0%, #c084fc 100%)' }}
           >
-            Open Board
+            Jump In
           </button>
           <button
             onClick={onClose}

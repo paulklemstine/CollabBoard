@@ -92,12 +92,16 @@ export function AuthPanel({ user, onSignOut, onAuthChange }: AuthPanelProps) {
         <div
           className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg"
           style={{
-            background: 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 50%, #a78bfa 100%)',
+            background: 'linear-gradient(135deg, #f59e0b 0%, #f97316 50%, #fb923c 100%)',
           }}
         >
           <svg width="40" height="40" viewBox="0 0 100 100" fill="none">
-            <path d="M 12 55 Q 25 35, 38 50 T 64 50 T 88 50" stroke="white" strokeWidth="7" strokeLinecap="round"/>
-            <path d="M 12 70 Q 25 50, 38 65 T 64 65 T 88 65" stroke="rgba(255,255,255,0.5)" strokeWidth="5" strokeLinecap="round"/>
+            <g transform="rotate(-10, 38, 50)">
+              <rect x="18" y="26" width="40" height="44" rx="7" fill="rgba(255,255,255,0.4)"/>
+            </g>
+            <g transform="rotate(5, 58, 50)">
+              <rect x="38" y="26" width="40" height="44" rx="7" fill="white" opacity="0.95"/>
+            </g>
           </svg>
         </div>
 
@@ -106,10 +110,10 @@ export function AuthPanel({ user, onSignOut, onAuthChange }: AuthPanelProps) {
             Flow Space
           </h2>
           <p className="text-sm text-gray-400 mt-1 font-medium">
-            A playful space to think, remix, and create side-by-side.
+            Where ideas spark and friends build — together, in real time.
           </p>
           <p className="text-xs text-gray-400/90 mt-2 max-w-[280px] mx-auto leading-relaxed">
-            Drop notes fast, shape ideas visually, and keep momentum with live presence + AI help.
+            Throw down sticky notes, sketch wild shapes, and let AI surprise you. Your crew sees everything live.
           </p>
         </div>
 
@@ -124,7 +128,7 @@ export function AuthPanel({ user, onSignOut, onAuthChange }: AuthPanelProps) {
           {isSignUp && (
             <input
               type="text"
-              placeholder="Name"
+              placeholder="What should we call you?"
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full px-4 py-3 rounded-xl bg-white/60 border border-gray-200 text-sm font-medium text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition-all duration-200"
@@ -132,14 +136,14 @@ export function AuthPanel({ user, onSignOut, onAuthChange }: AuthPanelProps) {
           )}
           <input
             type="email"
-            placeholder="Email"
+            placeholder="Your email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full px-4 py-3 rounded-xl bg-white/60 border border-gray-200 text-sm font-medium text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition-all duration-200"
           />
           <input
             type="password"
-            placeholder="Password"
+            placeholder="Secret passphrase"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full px-4 py-3 rounded-xl bg-white/60 border border-gray-200 text-sm font-medium text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition-all duration-200"
@@ -152,11 +156,11 @@ export function AuthPanel({ user, onSignOut, onAuthChange }: AuthPanelProps) {
               background: 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 50%, #a78bfa 100%)',
             }}
           >
-            {isSignUp ? 'Sign Up' : 'Sign In'}
+            {isSignUp ? "Let's Go" : 'Welcome Back'}
           </button>
 
           <p className="text-center text-sm text-gray-500">
-            {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+            {isSignUp ? 'Been here before?' : 'First time?'}{' '}
             <button
               type="button"
               onClick={() => {
@@ -165,7 +169,7 @@ export function AuthPanel({ user, onSignOut, onAuthChange }: AuthPanelProps) {
               }}
               className="font-semibold text-violet-600 hover:text-violet-800 transition-colors duration-200"
             >
-              {isSignUp ? 'Sign In' : 'Sign Up'}
+              {isSignUp ? 'Sign in' : 'Join the fun'}
             </button>
           </p>
         </div>

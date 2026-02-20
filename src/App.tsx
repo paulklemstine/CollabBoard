@@ -116,12 +116,16 @@ function BoardView({
       if (!sourceCanvas) return;
 
       const WIDTH = 600;
-      const HEIGHT = 400;
+      const HEIGHT = 280; // Match BoardPreview aspect ratio (300:140)
       const offscreen = document.createElement('canvas');
       offscreen.width = WIDTH;
       offscreen.height = HEIGHT;
       const ctx = offscreen.getContext('2d');
       if (!ctx) return;
+
+      // Fill white background (JPEG has no transparency)
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
       // Draw Konva canvas scaled to preview size
       ctx.drawImage(sourceCanvas, 0, 0, WIDTH, HEIGHT);

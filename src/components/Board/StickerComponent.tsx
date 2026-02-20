@@ -245,6 +245,10 @@ export function StickerComponent({
         <Text
           text={sticker.emoji}
           fontSize={fontSize}
+          width={localWidth}
+          height={localHeight}
+          align="center"
+          verticalAlign="middle"
           listening={false}
         />
       )}

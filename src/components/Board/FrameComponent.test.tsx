@@ -66,7 +66,7 @@ describe('FrameComponent', () => {
     expect(container.querySelector('.konvajs-content')).toBeInTheDocument();
   });
 
-  it('renders with isHovered=true without crashing', async () => {
+  it('renders with hoverState=accept without crashing', async () => {
     const { Stage, Layer } = await import('react-konva');
 
     const { container } = render(
@@ -78,7 +78,7 @@ describe('FrameComponent', () => {
             onDragEnd={vi.fn()}
             onDelete={vi.fn()}
             onTitleChange={vi.fn()}
-            isHovered={true}
+            hoverState="accept"
           />
         </Layer>
       </Stage>
@@ -87,7 +87,7 @@ describe('FrameComponent', () => {
     expect(container.querySelector('.konvajs-content')).toBeInTheDocument();
   });
 
-  it('renders with isHovered=false without crashing', async () => {
+  it('renders with hoverState=reject without crashing', async () => {
     const { Stage, Layer } = await import('react-konva');
 
     const { container } = render(
@@ -99,7 +99,7 @@ describe('FrameComponent', () => {
             onDragEnd={vi.fn()}
             onDelete={vi.fn()}
             onTitleChange={vi.fn()}
-            isHovered={false}
+            hoverState="reject"
           />
         </Layer>
       </Stage>

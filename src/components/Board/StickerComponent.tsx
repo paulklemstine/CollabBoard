@@ -19,6 +19,8 @@ interface StickerComponentProps {
   onClick?: (id: string) => void;
   onResize?: (id: string, width: number, height: number) => void;
   onRotate?: (id: string, rotation: number) => void;
+  onResizeEnd?: (id: string, width: number, height: number) => void;
+  onRotateEnd?: (id: string, rotation: number) => void;
   dragOffset?: { x: number; y: number };
   parentRotation?: number;
   isNew?: boolean;
@@ -37,6 +39,8 @@ export function StickerComponent({
   onClick,
   onResize,
   onRotate,
+  onResizeEnd,
+  onRotateEnd,
   dragOffset,
   parentRotation,
   isNew,
@@ -153,7 +157,7 @@ export function StickerComponent({
     const newSize = Math.max(MIN_SIZE, Math.max(e.target.x() + 20, e.target.y() + 20));
     setLocalWidth(newSize);
     setLocalHeight(newSize);
-    onResize?.(sticker.id, newSize, newSize);
+    (onResizeEnd ?? onResize)?.(sticker.id, newSize, newSize);
     setIsResizing(false);
     e.target.position({ x: newSize - 20, y: newSize - 20 });
   };
@@ -389,7 +393,7 @@ export function StickerComponent({
                   const center = group.absolutePosition();
                   const currentAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
                   const delta = currentAngle - rotateStartRef.current.angle;
-                  onRotate(sticker.id, rotateStartRef.current.rotation + delta);
+                  (onRotateEnd ?? onRotate)(sticker.id, rotateStartRef.current.rotation + delta);
                 }
               }
             }

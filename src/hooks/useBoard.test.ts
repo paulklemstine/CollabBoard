@@ -370,7 +370,7 @@ describe('useBoard containment', () => {
     });
   });
 
-  it('handleDragMove sets hoveredFrameId during drag', () => {
+  it('handleDragMove sets hoveredFrame during drag', () => {
     const { result } = renderHook(() => useBoard('board-1', 'user-1'));
 
     const frame = makeFrame({ id: 'f1', x: 100, y: 100, width: 400, height: 300 });
@@ -382,10 +382,10 @@ describe('useBoard containment', () => {
       result.current.handleDragMove('s1', 250, 250);
     });
 
-    expect(result.current.hoveredFrameId).toBe('f1');
+    expect(result.current.hoveredFrame).toEqual({ id: 'f1', fits: true });
   });
 
-  it('handleDragEnd clears hoveredFrameId', () => {
+  it('handleDragEnd clears hoveredFrame', () => {
     const { result } = renderHook(() => useBoard('board-1', 'user-1'));
 
     const frame = makeFrame({ id: 'f1', x: 100, y: 100, width: 400, height: 300 });
@@ -395,12 +395,12 @@ describe('useBoard containment', () => {
     act(() => {
       result.current.handleDragMove('s1', 250, 250);
     });
-    expect(result.current.hoveredFrameId).toBe('f1');
+    expect(result.current.hoveredFrame).toEqual({ id: 'f1', fits: true });
 
     act(() => {
       result.current.handleDragEnd('s1', 250, 250);
     });
-    expect(result.current.hoveredFrameId).toBeNull();
+    expect(result.current.hoveredFrame).toBeNull();
   });
 
   it('handleFrameDragMove moves frame but defers children to drag end', () => {

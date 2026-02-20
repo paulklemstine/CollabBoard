@@ -20,7 +20,10 @@ interface ShapeComponentProps {
   onClick?: (id: string) => void;
   onResize?: (id: string, width: number, height: number) => void;
   onRotate?: (id: string, rotation: number) => void;
+  onResizeEnd?: (id: string, width: number, height: number) => void;
+  onRotateEnd?: (id: string, rotation: number) => void;
   onLineEndpointMove?: (id: string, x: number, y: number, width: number, rotation: number) => void;
+  onLineEndpointEnd?: (id: string, x: number, y: number, width: number, rotation: number) => void;
   onConnectorHoverEnter?: (id: string) => void;
   onConnectorHoverLeave?: () => void;
   isConnectorHighlighted?: boolean;
@@ -33,7 +36,7 @@ interface ShapeComponentProps {
   selectionBox?: SelectionBox | null;
 }
 
-export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDuplicate, onClick, onResize, onRotate, onLineEndpointMove, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, parentRotation, dragOffset, isSelected, groupDragOffset, groupTransformPreview, selectionBox }: ShapeComponentProps) {
+export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDuplicate, onClick, onResize, onRotate, onResizeEnd, onRotateEnd, onLineEndpointMove, onLineEndpointEnd, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, parentRotation, dragOffset, isSelected, groupDragOffset, groupTransformPreview, selectionBox }: ShapeComponentProps) {
   const lastDragUpdate = useRef(0);
   const lastResizeUpdate = useRef(0);
   const lastEndpointUpdate = useRef(0);
@@ -192,8 +195,8 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
     const { fixedX, fixedY } = endpointDragRef.current;
     const result = computeLineFromEndpoints(fixedX, fixedY, worldPos.x, worldPos.y);
 
-    // Final persist
-    onLineEndpointMove(shape.id, result.x, result.y, result.width, result.rotation);
+    // Final persist — use onLineEndpointEnd (triggers undo) if available, fallback to onLineEndpointMove
+    (onLineEndpointEnd ?? onLineEndpointMove)(shape.id, result.x, result.y, result.width, result.rotation);
 
     // Reset handle position (Konva moves the draggable element)
     const end = endpointDragRef.current.end;
@@ -210,7 +213,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
     setLiveLineY(null);
     setLiveLineWidth(null);
     setLiveLineRotation(null);
-  }, [onLineEndpointMove, shape.id, localHeight]);
+  }, [onLineEndpointMove, onLineEndpointEnd, shape.id, localHeight]);
 
   const renderShape = () => {
     const highlighted = isConnectorHighlighted || isMouseHovered;
@@ -398,7 +401,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
 
     setLocalWidth(newWidth);
     setLocalHeight(newHeight);
-    onResize?.(shape.id, newWidth, newHeight);
+    (onResizeEnd ?? onResize)?.(shape.id, newWidth, newHeight);
     setIsResizing(false);
 
     // For line shapes, position handle on right edge with 20px offset
@@ -810,7 +813,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
                   const center = group.absolutePosition();
                   const currentAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
                   const delta = currentAngle - rotateStartRef.current.angle;
-                  onRotate(shape.id, rotateStartRef.current.rotation + delta);
+                  (onRotateEnd ?? onRotate)(shape.id, rotateStartRef.current.rotation + delta);
                 }
               }
             }

@@ -61,6 +61,12 @@ export interface Frame extends BoardObject {
   title: string;
   /** When true, frame renders with no visible border or title bar — invisible grouping container */
   borderless?: boolean;
+  /** Fill / background color */
+  color?: string;
+  /** Border stroke color */
+  borderColor?: string;
+  /** Title text color */
+  textColor?: string;
 }
 
 export interface Sticker extends BoardObject {

@@ -411,7 +411,7 @@ Yellow: #fef9c3, Blue: #dbeafe, Green: #dcfce7, Pink: #fce7f3, Purple: #f3e8ff, 
 ## AI Labels & Grouping
 Always provide aiLabel (short description) and aiGroupId (numeric, reuse same number for related objects).
 Provide aiGroupLabel once per group to name it (e.g. aiGroupId:1, aiGroupLabel:"swot-analysis" on the first object, then just aiGroupId:1 on the rest).
-Only create borderless grouping frames if explicitly requested.
+Use borderless frames (titleless groups) when logical grouping without visual clutter is appropriate, or when explicitly requested.
 
 ## Important
 - Use getBoardState(), getBoardSummary(), or searchObjects() to inspect the board before modifying existing objects.

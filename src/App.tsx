@@ -10,6 +10,7 @@ import { useRouter } from './hooks/useRouter';
 import { useCursors } from './hooks/useCursors';
 import { usePresence, pickColor } from './hooks/usePresence';
 import { useBoard } from './hooks/useBoard';
+import { useUndoRedo } from './hooks/useUndoRedo';
 import { useMultiSelect } from './hooks/useMultiSelect';
 import { AuthPanel } from './components/Auth/AuthPanel';
 import { BoardDashboard } from './components/Dashboard/BoardDashboard';
@@ -148,6 +149,7 @@ function BoardView({
     user.displayName ?? 'Anonymous',
     user.email ?? '',
   );
+  const { pushUndo, undo, redo, canUndo, canRedo, isUndoRedoingRef } = useUndoRedo(boardId);
   const {
     objects,
     addStickyNote,
@@ -170,7 +172,7 @@ function BoardView({
     handleObjectClickForConnect,
     handleObjectHover,
     updateCursorPosition,
-    hoveredFrameId,
+    hoveredFrame,
     newObjectIds,
     frameDragOffset,
     handleDragMove,
@@ -180,7 +182,11 @@ function BoardView({
     dissolveFrame,
     moveLineEndpoint,
     updateObjectProperties,
-  } = useBoard(boardId, user.uid);
+    finalizeResize,
+    finalizeRotate,
+    finalizeLineEndpoint,
+    batchRemoveObjects,
+  } = useBoard(boardId, user.uid, pushUndo, isUndoRedoingRef);
 
   const handleContainerRef = useCallback((el: HTMLDivElement | null) => {
     stageContainerRef.current = el;
@@ -213,7 +219,7 @@ function BoardView({
     transformPreview,
     clearSelection,
     isSelected: isObjectSelected,
-    groupHoveredFrameId,
+    groupHoveredFrame,
     handleStageMouseDown,
     handleStageMouseMove,
     handleStageMouseUp,
@@ -225,7 +231,7 @@ function BoardView({
     handleGroupRotate,
     selectObject,
     selectMultiple,
-  } = useMultiSelect(objects, boardId);
+  } = useMultiSelect(objects, boardId, pushUndo);
 
   // Compute the single selected object (null when 0 or 2+ selected)
   const selectedObject = useMemo<AnyBoardObject | null>(() => {
@@ -287,11 +293,9 @@ function BoardView({
   );
 
   const handleDeleteSelected = useCallback(() => {
-    for (const id of selectedIds) {
-      removeObject(id);
-    }
+    batchRemoveObjects([...selectedIds]);
     clearSelection();
-  }, [selectedIds, removeObject, clearSelection]);
+  }, [selectedIds, batchRemoveObjects, clearSelection]);
 
   // Clipboard for copy/paste (in-memory, not system clipboard)
   const clipboardRef = useRef<AnyBoardObject[]>([]);
@@ -304,13 +308,14 @@ function BoardView({
       const { clones, idRemap } = duplicateObjects(selected, objects, user.uid, offset);
       if (clones.length === 0) return;
       await batchAddObjects(boardId, clones);
+      pushUndo({ changes: clones.map(c => ({ objectId: c.id, before: null, after: structuredClone(c) })) });
       const newIds = new Set<string>();
       for (const [, newId] of idRemap) {
         if (clones.some((c) => c.id === newId)) newIds.add(newId);
       }
       selectMultiple(newIds);
     },
-    [selectedIds, objects, user.uid, boardId, selectMultiple]
+    [selectedIds, objects, user.uid, boardId, selectMultiple, pushUndo]
   );
 
   const handleCopy = useCallback(() => {
@@ -323,6 +328,7 @@ function BoardView({
     const { clones, idRemap } = duplicateObjects(clipboardRef.current, objects, user.uid, { dx: 40, dy: 40 });
     if (clones.length === 0) return;
     await batchAddObjects(boardId, clones);
+    pushUndo({ changes: clones.map(c => ({ objectId: c.id, before: null, after: structuredClone(c) })) });
     const newIds = new Set<string>();
     for (const [, newId] of idRemap) {
       if (clones.some((c) => c.id === newId)) newIds.add(newId);
@@ -330,7 +336,7 @@ function BoardView({
     selectMultiple(newIds);
     // Update clipboard to clones so repeated paste cascades diagonally
     clipboardRef.current = structuredClone(clones);
-  }, [objects, user.uid, boardId, selectMultiple]);
+  }, [objects, user.uid, boardId, selectMultiple, pushUndo]);
 
   const handleDuplicateObject = useCallback(
     async (id: string) => {
@@ -339,12 +345,13 @@ function BoardView({
       const { clones } = duplicateObjects([obj], objects, user.uid, { dx: 20, dy: 20 });
       if (clones.length === 0) return;
       await batchAddObjects(boardId, clones);
+      pushUndo({ changes: clones.map(c => ({ objectId: c.id, before: null, after: structuredClone(c) })) });
       selectMultiple(new Set(clones.map((c) => c.id)));
     },
-    [objects, user.uid, boardId, selectMultiple]
+    [objects, user.uid, boardId, selectMultiple, pushUndo]
   );
 
-  // Keyboard shortcuts: Escape, Delete, Ctrl+C/V/D, L
+  // Keyboard shortcuts: Escape, Delete, Ctrl+C/V/D/Z, L
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
@@ -357,6 +364,21 @@ function BoardView({
         if (isInput) return;
         e.preventDefault();
         handleDeleteSelected();
+      }
+      // Ctrl/Cmd+Z — undo (without shift)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z') && !e.shiftKey) {
+        if (isInput) return;
+        e.preventDefault();
+        undo();
+      }
+      // Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y — redo
+      if (
+        ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z') && e.shiftKey) ||
+        ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y'))
+      ) {
+        if (isInput) return;
+        e.preventDefault();
+        redo();
       }
       // Ctrl/Cmd+D — duplicate selected
       if ((e.ctrlKey || e.metaKey) && (e.key === 'd' || e.key === 'D')) {
@@ -381,7 +403,7 @@ function BoardView({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedIds.size, clearSelection, handleDeleteSelected, handleDuplicateSelected, handleCopy, handlePaste]);
+  }, [selectedIds.size, clearSelection, handleDeleteSelected, handleDuplicateSelected, handleCopy, handlePaste, undo, redo]);
 
   const [stageTransform, setStageTransform] = useState<StageTransform>({ x: 0, y: 0, scale: 1 });
   const [showAILabels, setShowAILabels] = useState(false);
@@ -713,9 +735,15 @@ function BoardView({
               onDissolve={dissolveFrame}
               onTitleChange={updateTitle}
               onClick={objectClick}
-              isHovered={hoveredFrameId === frame.id || groupHoveredFrameId === frame.id}
+              hoverState={
+                hoveredFrame?.id === frame.id ? (hoveredFrame.fits ? 'accept' : 'reject') :
+                groupHoveredFrame?.id === frame.id ? (groupHoveredFrame.fits ? 'accept' : 'reject') :
+                'none'
+              }
               onResize={resizeObject}
               onRotate={rotateObject}
+              onResizeEnd={finalizeResize}
+              onRotateEnd={finalizeRotate}
               dragOffset={getChildOffset(frame)}
               parentRotation={getParentRotation(frame.parentId)}
               onConnectorHoverEnter={objectHoverEnter}
@@ -739,7 +767,10 @@ function BoardView({
               onClick={objectClick}
               onResize={resizeObject}
               onRotate={rotateObject}
+              onResizeEnd={finalizeResize}
+              onRotateEnd={finalizeRotate}
               onLineEndpointMove={moveLineEndpoint}
+              onLineEndpointEnd={finalizeLineEndpoint}
               dragOffset={getChildOffset(shape)}
               parentRotation={getParentRotation(shape.parentId)}
               onConnectorHoverEnter={objectHoverEnter}
@@ -764,6 +795,8 @@ function BoardView({
               onClick={objectClick}
               onResize={resizeObject}
               onRotate={rotateObject}
+              onResizeEnd={finalizeResize}
+              onRotateEnd={finalizeRotate}
               dragOffset={getChildOffset(textObj)}
               parentRotation={getParentRotation(textObj.parentId)}
               onConnectorHoverEnter={objectHoverEnter}
@@ -788,6 +821,8 @@ function BoardView({
               onClick={objectClick}
               onResize={resizeObject}
               onRotate={rotateObject}
+              onResizeEnd={finalizeResize}
+              onRotateEnd={finalizeRotate}
               dragOffset={getChildOffset(note)}
               parentRotation={getParentRotation(note.parentId)}
               onConnectorHoverEnter={objectHoverEnter}
@@ -811,6 +846,8 @@ function BoardView({
               onClick={objectClick}
               onResize={resizeObject}
               onRotate={rotateObject}
+              onResizeEnd={finalizeResize}
+              onRotateEnd={finalizeRotate}
               dragOffset={getChildOffset(sticker)}
               parentRotation={getParentRotation(sticker.parentId)}
               isNew={newObjectIds.has(sticker.id)}
@@ -855,6 +892,7 @@ function BoardView({
         onAddText={(fontSize, fontFamily, fontWeight, fontStyle, textAlign, textColor) => addText(stageTransform, fontSize, fontFamily, fontWeight, fontStyle, textAlign, textColor)}
         onAddShape={(shapeType, fillColor, strokeColor, borderColor) => addShape(stageTransform, shapeType, fillColor, undefined, undefined, strokeColor, borderColor)}
         onAddFrame={() => addFrame(stageTransform)}
+        onAddBorderlessFrame={() => addFrame(stageTransform, undefined, undefined, true)}
         onAddSticker={(emoji) => addSticker(stageTransform, emoji)}
         onAddGifSticker={addGifSticker ? (gifUrl) => addGifSticker(stageTransform, gifUrl) : undefined}
         connectMode={connectMode}
@@ -871,6 +909,10 @@ function BoardView({
         onCurveStyleChange={handleCurveStyleChange}
         selectedObject={selectedObject}
         onUpdateSelectedObject={handleUpdateSelectedObject}
+        onUndo={undo}
+        onRedo={redo}
+        canUndo={canUndo}
+        canRedo={canRedo}
       />
       <AIChat boardId={boardId} isOpen={aiOpen} onClose={() => setAiOpen(false)} />
       {/* Top left: Back/Share buttons and minimap */}

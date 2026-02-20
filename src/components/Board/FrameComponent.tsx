@@ -18,9 +18,11 @@ interface FrameComponentProps {
   onDissolve?: (id: string) => void;
   onTitleChange: (id: string, title: string) => void;
   onClick?: (id: string) => void;
-  isHovered?: boolean;
+  hoverState?: 'none' | 'accept' | 'reject';
   onResize?: (id: string, width: number, height: number) => void;
   onRotate?: (id: string, rotation: number) => void;
+  onResizeEnd?: (id: string, width: number, height: number) => void;
+  onRotateEnd?: (id: string, rotation: number) => void;
   onConnectorHoverEnter?: (id: string) => void;
   onConnectorHoverLeave?: () => void;
   isConnectorHighlighted?: boolean;
@@ -33,7 +35,7 @@ interface FrameComponentProps {
   selectionBox?: SelectionBox | null;
 }
 
-export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDuplicate, onDissolve, onTitleChange, onClick, isHovered, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, dragOffset, parentRotation, isSelected, groupDragOffset, groupTransformPreview, selectionBox }: FrameComponentProps) {
+export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDuplicate, onDissolve, onTitleChange, onClick, hoverState = 'none', onResize, onRotate, onResizeEnd, onRotateEnd, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, dragOffset, parentRotation, isSelected, groupDragOffset, groupTransformPreview, selectionBox }: FrameComponentProps) {
   const lastDragUpdate = useRef(0);
   const lastResizeUpdate = useRef(0);
   const titleRef = useRef<Konva.Text>(null);
@@ -103,7 +105,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
     [frame.id, onDragMove, localWidth, localHeight, dragOffset]
   );
 
-  // Hover animation via Konva Tween — priority: containment isHovered > isMouseHovered > default
+  // Hover animation via Konva Tween — priority: containment hoverState (accept/reject) > isMouseHovered > default
   useEffect(() => {
     const rect = borderRef.current;
     if (!rect) return;
@@ -114,15 +116,29 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
       tweenRef.current = null;
     }
 
-    if (isHovered) {
-      // Containment hover — strongest visual
+    if (hoverState === 'accept') {
+      // Containment hover — object fits, green glow
       tweenRef.current = new Konva.Tween({
         node: rect,
         duration: 0.25,
-        stroke: '#a78bfa',
+        stroke: '#22c55e',
         strokeWidth: 3.5,
-        fill: 'rgba(167, 139, 250, 0.1)',
-        shadowColor: '#a78bfa',
+        fill: 'rgba(34, 197, 94, 0.15)',
+        shadowColor: '#22c55e',
+        shadowBlur: 16,
+        shadowOpacity: 0.5,
+        easing: Konva.Easings.EaseInOut,
+      });
+      tweenRef.current.play();
+    } else if (hoverState === 'reject') {
+      // Containment hover — object too big, red glow
+      tweenRef.current = new Konva.Tween({
+        node: rect,
+        duration: 0.25,
+        stroke: '#ef4444',
+        strokeWidth: 3.5,
+        fill: 'rgba(239, 68, 68, 0.15)',
+        shadowColor: '#ef4444',
         shadowBlur: 16,
         shadowOpacity: 0.5,
         easing: Konva.Easings.EaseInOut,
@@ -164,7 +180,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
         tweenRef.current = null;
       }
     };
-  }, [isHovered, isMouseHovered]);
+  }, [hoverState, isMouseHovered]);
 
   useEffect(() => {
     if (!isEditing) return;
@@ -319,10 +335,10 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
           ref={borderRef}
           width={localWidth}
           height={localHeight}
-          stroke={isConnectorHighlighted ? '#818cf8' : '#a78bfa'}
+          stroke={isConnectorHighlighted ? '#818cf8' : (frame.borderColor || '#a78bfa')}
           strokeWidth={isConnectorHighlighted ? 4 : 2.5}
           dash={[12, 6]}
-          fill="rgba(250, 245, 255, 0.12)"
+          fill={frame.color || "rgba(250, 245, 255, 0.12)"}
           cornerRadius={16}
         />
       )}
@@ -338,6 +354,35 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
           dash={[8, 4]}
           fill="transparent"
           cornerRadius={18}
+          listening={false}
+        />
+      )}
+      {/* Accept/Reject overlay icons during drag containment */}
+      {hoverState === 'accept' && (
+        <Text
+          x={localWidth / 2 - Math.min(localWidth, localHeight) * 0.15}
+          y={localHeight / 2 - Math.min(localWidth, localHeight) * 0.15}
+          width={Math.min(localWidth, localHeight) * 0.3}
+          height={Math.min(localWidth, localHeight) * 0.3}
+          text={"\u2705"}
+          fontSize={Math.min(localWidth, localHeight) * 0.25}
+          align="center"
+          verticalAlign="middle"
+          opacity={0.8}
+          listening={false}
+        />
+      )}
+      {hoverState === 'reject' && (
+        <Text
+          x={localWidth / 2 - Math.min(localWidth, localHeight) * 0.15}
+          y={localHeight / 2 - Math.min(localWidth, localHeight) * 0.15}
+          width={Math.min(localWidth, localHeight) * 0.3}
+          height={Math.min(localWidth, localHeight) * 0.3}
+          text={"\uD83D\uDEAB"}
+          fontSize={Math.min(localWidth, localHeight) * 0.25}
+          align="center"
+          verticalAlign="middle"
+          opacity={0.8}
           listening={false}
         />
       )}
@@ -393,7 +438,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
             fontSize={14}
             fontFamily="'Inter', sans-serif"
             fontStyle="700"
-            fill={frame.title ? '#581c87' : '#a78bfa'}
+            fill={frame.title ? (frame.textColor || '#581c87') : '#a78bfa'}
             listening={false}
           />
           {/* Double-click area for title editing */}
@@ -604,7 +649,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
                   const center = group.absolutePosition();
                   const currentAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
                   const delta = currentAngle - rotateStartRef.current.angle;
-                  onRotate(frame.id, rotateStartRef.current.rotation + delta);
+                  (onRotateEnd ?? onRotate)(frame.id, rotateStartRef.current.rotation + delta);
                 }
               }
             }
@@ -673,7 +718,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
             const newHeight = Math.max(MIN_HEIGHT, e.target.y() + 20);
             setLocalWidth(newWidth);
             setLocalHeight(newHeight);
-            onResize(frame.id, newWidth, newHeight);
+            (onResizeEnd ?? onResize)(frame.id, newWidth, newHeight);
             setIsResizing(false);
             e.target.position({ x: newWidth - 20, y: newHeight - 20 });
           }}

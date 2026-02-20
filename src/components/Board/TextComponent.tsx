@@ -19,6 +19,8 @@ interface TextComponentProps {
   onClick?: (id: string) => void;
   onResize?: (id: string, width: number, height: number) => void;
   onRotate?: (id: string, rotation: number) => void;
+  onResizeEnd?: (id: string, width: number, height: number) => void;
+  onRotateEnd?: (id: string, rotation: number) => void;
   onConnectorHoverEnter?: (id: string) => void;
   onConnectorHoverLeave?: () => void;
   isConnectorHighlighted?: boolean;
@@ -33,7 +35,7 @@ interface TextComponentProps {
 
 export function TextComponent({
   textObj, onDragMove, onDragEnd, onTextChange, onDelete, onDuplicate, onClick,
-  onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave,
+  onResize, onRotate, onResizeEnd, onRotateEnd, onConnectorHoverEnter, onConnectorHoverLeave,
   isConnectorHighlighted, isNew, parentRotation, dragOffset,
   isSelected, groupDragOffset, groupTransformPreview, selectionBox,
 }: TextComponentProps) {
@@ -454,7 +456,7 @@ export function TextComponent({
                   const center = group.absolutePosition();
                   const currentAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
                   const delta = currentAngle - rotateStartRef.current.angle;
-                  onRotate(textObj.id, rotateStartRef.current.rotation + delta);
+                  (onRotateEnd ?? onRotate)(textObj.id, rotateStartRef.current.rotation + delta);
                 }
               }
             }
@@ -506,7 +508,7 @@ export function TextComponent({
             const newHeight = Math.max(minHeight, e.target.y() + 20);
             setLocalWidth(newWidth);
             setLocalHeight(newHeight);
-            onResize(textObj.id, newWidth, newHeight);
+            (onResizeEnd ?? onResize)(textObj.id, newWidth, newHeight);
             setIsResizing(false);
             e.target.position({ x: newWidth - 20, y: newHeight - 20 });
           }}

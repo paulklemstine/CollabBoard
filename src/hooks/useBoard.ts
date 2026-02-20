@@ -5,26 +5,33 @@ import {
   deleteObject,
   subscribeToBoard,
   batchUpdateObjects,
+  batchDeleteObjects,
   type AnyBoardObject,
 } from '../services/boardService';
 import type { StickyNote, Shape, ShapeType, Frame, Sticker, Connector, TextObject } from '../types/board';
-import { findContainingFrame, getChildrenOfFrame, scaleToFitFrame } from '../utils/containment';
+import { findContainingFrame, getChildrenOfFrame, fitsInFrame } from '../utils/containment';
 import { screenToWorld } from '../utils/coordinates';
 import type { StageTransform } from '../components/Board/Board';
 import { GiphyFetch } from '@giphy/js-fetch-api';
+import type { UndoEntry, UndoChange } from './useUndoRedo';
 
 const giphyApiKey = import.meta.env.VITE_GIPHY_API_KEY ?? '';
 const gf = giphyApiKey ? new GiphyFetch(giphyApiKey) : null;
 
 const STICKY_COLORS = ['#fef9c3', '#fef3c7', '#dcfce7', '#dbeafe', '#f3e8ff', '#ffe4e6', '#fed7aa', '#e0e7ff'];
 
-export function useBoard(boardId: string, userId: string) {
+export function useBoard(
+  boardId: string,
+  userId: string,
+  pushUndo?: (entry: UndoEntry) => void,
+  isUndoRedoingRef?: React.MutableRefObject<boolean>,
+) {
   const [objects, setObjects] = useState<AnyBoardObject[]>([]);
   const [connectMode, setConnectMode] = useState(false);
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
   const [hoveredObjectId, setHoveredObjectId] = useState<string | null>(null);
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
-  const [hoveredFrameId, setHoveredFrameId] = useState<string | null>(null);
+  const [hoveredFrame, setHoveredFrame] = useState<{ id: string; fits: boolean } | null>(null);
   const [newObjectIds, setNewObjectIds] = useState<Set<string>>(new Set());
   const [frameDragOffset, setFrameDragOffset] = useState<{ frameId: string; dx: number; dy: number } | null>(null);
   const pendingFrameClearRef = useRef(false);
@@ -34,6 +41,30 @@ export function useBoard(boardId: string, userId: string) {
   // Keep a ref to objects so drag callbacks always see the latest state
   const objectsRef = useRef(objects);
   objectsRef.current = objects;
+
+  // Undo: before-snapshots captured during drag/resize/rotate sessions
+  const dragSnapshotRef = useRef<Map<string, AnyBoardObject>>(new Map());
+
+  // Stable refs for undo dependencies (avoids dep-array churn)
+  const pushUndoRef = useRef(pushUndo);
+  pushUndoRef.current = pushUndo;
+  const isUndoRedoingRefRef = useRef(isUndoRedoingRef);
+  isUndoRedoingRefRef.current = isUndoRedoingRef;
+
+  /** Push an undo entry, guarded by isUndoRedoing flag */
+  const maybePushUndo = useCallback((entry: UndoEntry) => {
+    if (!pushUndoRef.current) return;
+    if (isUndoRedoingRefRef.current?.current) return;
+    if (entry.changes.length === 0) return;
+    pushUndoRef.current(entry);
+  }, []);
+
+  /** Capture a before-snapshot for an object (no-op if already captured for this drag session) */
+  const captureBeforeSnapshot = useCallback((id: string) => {
+    if (dragSnapshotRef.current.has(id)) return;
+    const obj = objectsRef.current.find(o => o.id === id);
+    if (obj) dragSnapshotRef.current.set(id, structuredClone(obj));
+  }, []);
 
   // Clear frame drag offset atomically when Firestore optimistic update arrives
   useLayoutEffect(() => {
@@ -123,8 +154,9 @@ export function useBoard(boardId: string, userId: string) {
       };
       addObject(boardId, note);
       trackNewObject(note.id);
+      maybePushUndo({ changes: [{ objectId: note.id, before: null, after: structuredClone(note) }] });
     },
-    [boardId, userId, trackNewObject]
+    [boardId, userId, trackNewObject, maybePushUndo]
   );
 
   const addShape = useCallback(
@@ -169,12 +201,13 @@ export function useBoard(boardId: string, userId: string) {
       };
       addObject(boardId, shape);
       trackNewObject(shape.id);
+      maybePushUndo({ changes: [{ objectId: shape.id, before: null, after: structuredClone(shape) }] });
     },
-    [boardId, userId, trackNewObject]
+    [boardId, userId, trackNewObject, maybePushUndo]
   );
 
   const addFrame = useCallback(
-    (transform: StageTransform, x?: number, y?: number) => {
+    (transform: StageTransform, x?: number, y?: number, borderless?: boolean) => {
       // Calculate screen coordinates for toolbar button position
       const screenX = window.innerWidth / 2 - 200; // Center horizontally (frame is 400px wide)
       const screenY = window.innerHeight - 300 - 170; // Above toolbar (300px height + 170px for toolbar space)
@@ -205,11 +238,13 @@ export function useBoard(boardId: string, userId: string) {
         createdBy: userId,
         updatedAt: maxUpdatedAt + 1, // Ensure it's on top
         title: '',
+        ...(borderless ? { borderless: true } : {}),
       };
       addObject(boardId, frame);
       trackNewObject(frame.id);
+      maybePushUndo({ changes: [{ objectId: frame.id, before: null, after: structuredClone(frame) }] });
     },
-    [boardId, userId, trackNewObject]
+    [boardId, userId, trackNewObject, maybePushUndo]
   );
 
   const addSticker = useCallback(
@@ -247,8 +282,9 @@ export function useBoard(boardId: string, userId: string) {
       };
       addObject(boardId, sticker);
       trackNewObject(sticker.id);
+      maybePushUndo({ changes: [{ objectId: sticker.id, before: null, after: structuredClone(sticker) }] });
     },
-    [boardId, userId, trackNewObject]
+    [boardId, userId, trackNewObject, maybePushUndo]
   );
 
   const addGifSticker = useCallback(
@@ -281,8 +317,9 @@ export function useBoard(boardId: string, userId: string) {
       };
       addObject(boardId, sticker);
       trackNewObject(sticker.id);
+      maybePushUndo({ changes: [{ objectId: sticker.id, before: null, after: structuredClone(sticker) }] });
     },
-    [boardId, userId, trackNewObject]
+    [boardId, userId, trackNewObject, maybePushUndo]
   );
 
   const addText = useCallback(
@@ -338,8 +375,9 @@ export function useBoard(boardId: string, userId: string) {
       };
       addObject(boardId, textObj);
       trackNewObject(textObj.id);
+      maybePushUndo({ changes: [{ objectId: textObj.id, before: null, after: structuredClone(textObj) }] });
     },
-    [boardId, userId, trackNewObject]
+    [boardId, userId, trackNewObject, maybePushUndo]
   );
 
   const moveObject = useCallback(
@@ -351,28 +389,74 @@ export function useBoard(boardId: string, userId: string) {
 
   const resizeObject = useCallback(
     (objectId: string, width: number, height: number) => {
+      captureBeforeSnapshot(objectId);
       updateObject(boardId, objectId, { width, height });
     },
-    [boardId]
+    [boardId, captureBeforeSnapshot]
   );
 
   const rotateObject = useCallback(
     (objectId: string, rotation: number) => {
+      captureBeforeSnapshot(objectId);
       updateObject(boardId, objectId, { rotation });
     },
-    [boardId]
+    [boardId, captureBeforeSnapshot]
   );
 
   const moveLineEndpoint = useCallback(
     (objectId: string, x: number, y: number, width: number, rotation: number) => {
+      captureBeforeSnapshot(objectId);
       updateObject(boardId, objectId, { x, y, width, rotation });
     },
-    [boardId]
+    [boardId, captureBeforeSnapshot]
+  );
+
+  /** Called at the end of a resize drag — commits final size + pushes undo */
+  const finalizeResize = useCallback(
+    (objectId: string, width: number, height: number) => {
+      const before = dragSnapshotRef.current.get(objectId);
+      updateObject(boardId, objectId, { width, height });
+      if (before) {
+        const after = structuredClone({ ...before, width, height, updatedAt: Date.now() });
+        maybePushUndo({ changes: [{ objectId, before: structuredClone(before), after }] });
+      }
+      dragSnapshotRef.current.delete(objectId);
+    },
+    [boardId, maybePushUndo]
+  );
+
+  /** Called at the end of a rotate drag — commits final rotation + pushes undo */
+  const finalizeRotate = useCallback(
+    (objectId: string, rotation: number) => {
+      const before = dragSnapshotRef.current.get(objectId);
+      updateObject(boardId, objectId, { rotation });
+      if (before) {
+        const after = structuredClone({ ...before, rotation, updatedAt: Date.now() });
+        maybePushUndo({ changes: [{ objectId, before: structuredClone(before), after }] });
+      }
+      dragSnapshotRef.current.delete(objectId);
+    },
+    [boardId, maybePushUndo]
+  );
+
+  /** Called at the end of a line endpoint drag — commits final position + pushes undo */
+  const finalizeLineEndpoint = useCallback(
+    (objectId: string, x: number, y: number, width: number, rotation: number) => {
+      const before = dragSnapshotRef.current.get(objectId);
+      updateObject(boardId, objectId, { x, y, width, rotation });
+      if (before) {
+        const after = structuredClone({ ...before, x, y, width, rotation, updatedAt: Date.now() });
+        maybePushUndo({ changes: [{ objectId, before: structuredClone(before), after }] });
+      }
+      dragSnapshotRef.current.delete(objectId);
+    },
+    [boardId, maybePushUndo]
   );
 
   /** Called during drag of non-frame objects — updates position + detects hover over frames */
   const handleDragMove = useCallback(
     (objectId: string, x: number, y: number) => {
+      captureBeforeSnapshot(objectId);
       updateObject(boardId, objectId, { x, y });
 
       const obj = objectsRef.current.find((o) => o.id === objectId);
@@ -383,18 +467,26 @@ export function useBoard(boardId: string, userId: string) {
         (o): o is Frame => o.type === 'frame'
       );
       const containingFrame = findContainingFrame(draggedObj, frames, objectsRef.current);
-      setHoveredFrameId(containingFrame?.id ?? null);
+      setHoveredFrame(containingFrame ? { id: containingFrame.id, fits: fitsInFrame(draggedObj, containingFrame) } : null);
     },
-    [boardId]
+    [boardId, captureBeforeSnapshot]
   );
 
-  /** Called on drag end — persists position + sets/clears parentId based on containment */
+  /** Called on drag end — persists position + sets/clears parentId based on containment.
+   *  Oversized objects are rejected (not placed inside the frame). */
   const handleDragEnd = useCallback(
     (objectId: string, x: number, y: number) => {
       const obj = objectsRef.current.find((o) => o.id === objectId);
       if (!obj) {
         updateObject(boardId, objectId, { x, y });
-        setHoveredFrameId(null);
+        setHoveredFrame(null);
+        // Push undo from snapshot even if obj not found in current state
+        const before = dragSnapshotRef.current.get(objectId);
+        if (before) {
+          const after = structuredClone({ ...before, x, y, updatedAt: Date.now() });
+          maybePushUndo({ changes: [{ objectId, before: structuredClone(before), after }] });
+          dragSnapshotRef.current.delete(objectId);
+        }
         return;
       }
 
@@ -403,24 +495,24 @@ export function useBoard(boardId: string, userId: string) {
         (o): o is Frame => o.type === 'frame'
       );
       const containingFrame = findContainingFrame(draggedObj, frames, objectsRef.current);
-      const newParentId = containingFrame?.id ?? '';
 
-      // Scale down the object if it doesn't fit in the frame
-      const updates: Partial<typeof obj> = { x, y, parentId: newParentId };
-      if (containingFrame) {
-        const scaled = scaleToFitFrame(draggedObj, containingFrame);
-        if (scaled) {
-          updates.x = scaled.x;
-          updates.y = scaled.y;
-          updates.width = scaled.width;
-          updates.height = scaled.height;
-        }
+      // Reject oversized objects — only accept if object fits in frame
+      const fits = containingFrame ? fitsInFrame(draggedObj, containingFrame) : false;
+      const newParentId = containingFrame && fits ? containingFrame.id : '';
+
+      updateObject(boardId, objectId, { x, y, parentId: newParentId });
+
+      // Push undo
+      const before = dragSnapshotRef.current.get(objectId);
+      if (before) {
+        const after = structuredClone({ ...before, x, y, parentId: newParentId, updatedAt: Date.now() });
+        maybePushUndo({ changes: [{ objectId, before: structuredClone(before), after }] });
+        dragSnapshotRef.current.delete(objectId);
       }
 
-      updateObject(boardId, objectId, updates);
-      setHoveredFrameId(null);
+      setHoveredFrame(null);
     },
-    [boardId]
+    [boardId, maybePushUndo]
   );
 
   /** Called during frame drag — moves frame, tracks offset for children locally, detects containment */
@@ -444,6 +536,15 @@ export function useBoard(boardId: string, userId: string) {
         connectorDragStartRef.current = new Map();
         for (const connector of connectors) {
           connectorDragStartRef.current.set(connector.id, { x: connector.x, y: connector.y });
+        }
+
+        // Capture undo snapshots for frame + children + connectors
+        captureBeforeSnapshot(frameId);
+        for (const child of children) {
+          captureBeforeSnapshot(child.id);
+        }
+        for (const connector of connectors) {
+          captureBeforeSnapshot(connector.id);
         }
       }
 
@@ -488,9 +589,9 @@ export function useBoard(boardId: string, userId: string) {
         (o): o is Frame => o.type === 'frame' && o.id !== frameId
       );
       const containingFrame = findContainingFrame(draggedFrame, otherFrames, objectsRef.current);
-      setHoveredFrameId(containingFrame?.id ?? null);
+      setHoveredFrame(containingFrame ? { id: containingFrame.id, fits: fitsInFrame(draggedFrame, containingFrame) } : null);
     },
-    [boardId]
+    [boardId, captureBeforeSnapshot]
   );
 
   /** Called on frame drag end — persist final child positions, set parentId, clear offset */
@@ -501,8 +602,9 @@ export function useBoard(boardId: string, userId: string) {
         updateObject(boardId, frameId, { x: newX, y: newY });
         frameDragStartRef.current = null;
         connectorDragStartRef.current.clear();
-        setHoveredFrameId(null);
+        setHoveredFrame(null);
         pendingFrameClearRef.current = true;
+        dragSnapshotRef.current.clear();
         return;
       }
 
@@ -512,34 +614,22 @@ export function useBoard(boardId: string, userId: string) {
         (o): o is Frame => o.type === 'frame' && o.id !== frameId
       );
       const containingFrame = findContainingFrame(draggedFrame, otherFrames, objectsRef.current);
-      const newParentId = containingFrame?.id ?? '';
 
-      // Scale down the frame if it doesn't fit in the containing frame
+      // Reject oversized frames — only accept if frame fits
+      const fits = containingFrame ? fitsInFrame(draggedFrame, containingFrame) : false;
+      const newParentId = containingFrame && fits ? containingFrame.id : '';
+
       const frameUpdates: Partial<Frame> = { x: newX, y: newY, parentId: newParentId };
-      let finalFrameX = newX;
-      let finalFrameY = newY;
-
-      if (containingFrame) {
-        const scaled = scaleToFitFrame(draggedFrame, containingFrame);
-        if (scaled) {
-          frameUpdates.x = scaled.x;
-          frameUpdates.y = scaled.y;
-          frameUpdates.width = scaled.width;
-          frameUpdates.height = scaled.height;
-          finalFrameX = scaled.x;
-          finalFrameY = scaled.y;
-        }
-      }
 
       // Prepare batch updates for frame and all children to avoid flickering
       const batchUpdates: Array<{ id: string; updates: Partial<AnyBoardObject> }> = [
         { id: frameId, updates: frameUpdates },
       ];
 
-      // Move all children with the frame (using final position after scaling)
+      // Move all children with the frame
       if (frameDragStartRef.current) {
-        const dx = finalFrameX - frameDragStartRef.current.x;
-        const dy = finalFrameY - frameDragStartRef.current.y;
+        const dx = newX - frameDragStartRef.current.x;
+        const dy = newY - frameDragStartRef.current.y;
 
         const children = getChildrenOfFrame(frameId, objectsRef.current);
         for (const child of children) {
@@ -570,10 +660,23 @@ export function useBoard(boardId: string, userId: string) {
         }
       }
 
+      // Push compound undo entry before clearing state
+      const undoChanges: UndoChange[] = [];
+      const now = Date.now();
+      for (const { id, updates: upd } of batchUpdates) {
+        const before = dragSnapshotRef.current.get(id);
+        if (before) {
+          const after = structuredClone({ ...before, ...upd, updatedAt: now });
+          undoChanges.push({ objectId: id, before: structuredClone(before), after });
+        }
+      }
+      if (undoChanges.length > 0) maybePushUndo({ changes: undoChanges });
+
       // Clear frame drag state
       frameDragStartRef.current = null;
       connectorDragStartRef.current.clear();
-      setHoveredFrameId(null);
+      setHoveredFrame(null);
+      dragSnapshotRef.current.clear();
 
       // Set BEFORE the write so useLayoutEffect can catch the optimistic update
       pendingFrameClearRef.current = true;
@@ -587,7 +690,7 @@ export function useBoard(boardId: string, userId: string) {
         setFrameDragOffset(null);
       }
     },
-    [boardId]
+    [boardId, maybePushUndo]
   );
 
   const updateText = useCallback(
@@ -606,51 +709,136 @@ export function useBoard(boardId: string, userId: string) {
 
   const removeObject = useCallback(
     (objectId: string) => {
-      const obj = objects.find((o) => o.id === objectId);
+      const obj = objectsRef.current.find((o) => o.id === objectId);
+      const changes: UndoChange[] = [];
+
+      // Capture the object itself for undo
+      if (obj) {
+        changes.push({ objectId, before: structuredClone(obj), after: null });
+      }
 
       // If deleting a frame, unparent all its children first
       if (obj?.type === 'frame') {
-        const children = getChildrenOfFrame(objectId, objects);
+        const children = getChildrenOfFrame(objectId, objectsRef.current);
         for (const child of children) {
+          changes.push({
+            objectId: child.id,
+            before: structuredClone(child),
+            after: structuredClone({ ...child, parentId: '', updatedAt: Date.now() }),
+          });
           updateObject(boardId, child.id, { parentId: '' });
         }
       }
 
       // Auto-delete connectors that reference the removed object
-      const orphanedConnectors = objects.filter(
+      const orphanedConnectors = objectsRef.current.filter(
         (o): o is Connector =>
           o.type === 'connector' && (o.fromId === objectId || o.toId === objectId)
       );
       for (const connector of orphanedConnectors) {
+        changes.push({ objectId: connector.id, before: structuredClone(connector), after: null });
         deleteObject(boardId, connector.id);
       }
       deleteObject(boardId, objectId);
+
+      if (changes.length > 0) maybePushUndo({ changes });
     },
-    [boardId, objects]
+    [boardId, maybePushUndo]
+  );
+
+  /** Delete multiple objects as a single undo entry (used by handleDeleteSelected) */
+  const batchRemoveObjects = useCallback(
+    (ids: string[]) => {
+      if (ids.length === 0) return;
+      const changes: UndoChange[] = [];
+      const deletedIds = new Set<string>(ids);
+
+      for (const objectId of ids) {
+        const obj = objectsRef.current.find((o) => o.id === objectId);
+        if (!obj) continue;
+
+        // Capture for undo
+        changes.push({ objectId, before: structuredClone(obj), after: null });
+
+        // If frame, unparent children that aren't also being deleted
+        if (obj.type === 'frame') {
+          const children = getChildrenOfFrame(objectId, objectsRef.current);
+          for (const child of children) {
+            if (!deletedIds.has(child.id)) {
+              changes.push({
+                objectId: child.id,
+                before: structuredClone(child),
+                after: structuredClone({ ...child, parentId: '', updatedAt: Date.now() }),
+              });
+              updateObject(boardId, child.id, { parentId: '' });
+            }
+          }
+        }
+
+        // Auto-delete orphaned connectors
+        const orphanedConnectors = objectsRef.current.filter(
+          (o): o is Connector =>
+            o.type === 'connector' &&
+            (o.fromId === objectId || o.toId === objectId) &&
+            !deletedIds.has(o.id)
+        );
+        for (const connector of orphanedConnectors) {
+          deletedIds.add(connector.id);
+          changes.push({ objectId: connector.id, before: structuredClone(connector), after: null });
+        }
+      }
+
+      // Delete all objects
+      for (const id of deletedIds) {
+        deleteObject(boardId, id);
+      }
+
+      if (changes.length > 0) maybePushUndo({ changes });
+    },
+    [boardId, maybePushUndo]
   );
 
   /** Delete a frame but leave its children in place (unparented) */
   const dissolveFrame = useCallback(
     (frameId: string) => {
-      const children = getChildrenOfFrame(frameId, objects);
+      const frame = objectsRef.current.find((o) => o.id === frameId);
+      const children = getChildrenOfFrame(frameId, objectsRef.current);
+      const changes: UndoChange[] = [];
+
+      // Capture frame for undo
+      if (frame) {
+        changes.push({ objectId: frameId, before: structuredClone(frame), after: null });
+      }
+
+      // Unparent children
       const updates: Array<{ id: string; updates: Partial<AnyBoardObject> }> = children.map(
         (child) => ({ id: child.id, updates: { parentId: '' } })
       );
       if (updates.length > 0) {
         batchUpdateObjects(boardId, updates);
       }
+      for (const child of children) {
+        changes.push({
+          objectId: child.id,
+          before: structuredClone(child),
+          after: structuredClone({ ...child, parentId: '', updatedAt: Date.now() }),
+        });
+      }
 
       // Auto-delete connectors attached to the frame itself (not its children)
-      const orphanedConnectors = objects.filter(
+      const orphanedConnectors = objectsRef.current.filter(
         (o): o is Connector =>
           o.type === 'connector' && (o.fromId === frameId || o.toId === frameId)
       );
       for (const connector of orphanedConnectors) {
+        changes.push({ objectId: connector.id, before: structuredClone(connector), after: null });
         deleteObject(boardId, connector.id);
       }
       deleteObject(boardId, frameId);
+
+      if (changes.length > 0) maybePushUndo({ changes });
     },
-    [boardId, objects]
+    [boardId, maybePushUndo]
   );
 
   const toggleConnectMode = useCallback(() => {
@@ -719,18 +907,24 @@ export function useBoard(boardId: string, userId: string) {
         };
         addObject(boardId, connector);
         trackNewObject(connector.id);
+        maybePushUndo({ changes: [{ objectId: connector.id, before: null, after: structuredClone(connector) }] });
         setConnectingFrom(null);
         setConnectMode(false);
       }
     },
-    [connectMode, connectingFrom, objects, boardId, userId, trackNewObject]
+    [connectMode, connectingFrom, objects, boardId, userId, trackNewObject, maybePushUndo]
   );
 
   const updateObjectProperties = useCallback(
     (objectId: string, updates: Partial<AnyBoardObject>) => {
+      const before = objectsRef.current.find((o) => o.id === objectId);
       updateObject(boardId, objectId, updates);
+      if (before) {
+        const after = structuredClone({ ...before, ...updates, updatedAt: Date.now() });
+        maybePushUndo({ changes: [{ objectId, before: structuredClone(before), after }] });
+      }
     },
-    [boardId]
+    [boardId, maybePushUndo]
   );
 
   const cancelConnecting = useCallback(() => {
@@ -762,7 +956,7 @@ export function useBoard(boardId: string, userId: string) {
     handleObjectHover,
     updateCursorPosition,
     cancelConnecting,
-    hoveredFrameId,
+    hoveredFrame,
     frameDragOffset,
     handleDragMove,
     handleDragEnd,
@@ -772,5 +966,9 @@ export function useBoard(boardId: string, userId: string) {
     dissolveFrame,
     moveLineEndpoint,
     updateObjectProperties,
+    finalizeResize,
+    finalizeRotate,
+    finalizeLineEndpoint,
+    batchRemoveObjects,
   };
 }

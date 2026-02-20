@@ -20,6 +20,8 @@ interface StickyNoteProps {
   onClick?: (id: string) => void;
   onResize?: (id: string, width: number, height: number) => void;
   onRotate?: (id: string, rotation: number) => void;
+  onResizeEnd?: (id: string, width: number, height: number) => void;
+  onRotateEnd?: (id: string, rotation: number) => void;
   onConnectorHoverEnter?: (id: string) => void;
   onConnectorHoverLeave?: () => void;
   isConnectorHighlighted?: boolean;
@@ -32,7 +34,7 @@ interface StickyNoteProps {
   selectionBox?: SelectionBox | null;
 }
 
-export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange, onDelete, onDuplicate, onClick, onResize, onRotate, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, parentRotation, dragOffset, isSelected, groupDragOffset, groupTransformPreview, selectionBox }: StickyNoteProps) {
+export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange, onDelete, onDuplicate, onClick, onResize, onRotate, onResizeEnd, onRotateEnd, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, parentRotation, dragOffset, isSelected, groupDragOffset, groupTransformPreview, selectionBox }: StickyNoteProps) {
   const textRef = useRef<Konva.Text>(null);
   const [isEditing, setIsEditing] = useState(false);
   const lastDragUpdate = useRef(0);
@@ -440,7 +442,7 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
                   const center = group.absolutePosition();
                   const currentAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
                   const delta = currentAngle - rotateStartRef.current.angle;
-                  onRotate(note.id, rotateStartRef.current.rotation + delta);
+                  (onRotateEnd ?? onRotate)(note.id, rotateStartRef.current.rotation + delta);
                 }
               }
             }
@@ -509,7 +511,7 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
             const newHeight = Math.max(MIN_HEIGHT, e.target.y() + 20);
             setLocalWidth(newWidth);
             setLocalHeight(newHeight);
-            onResize(note.id, newWidth, newHeight);
+            (onResizeEnd ?? onResize)(note.id, newWidth, newHeight);
             setIsResizing(false);
             // Reset handle position to bottom-right of new size
             e.target.position({ x: newWidth - 20, y: newHeight - 20 });

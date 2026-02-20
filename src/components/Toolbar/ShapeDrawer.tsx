@@ -11,13 +11,14 @@ interface ShapeDrawerProps {
   onBorderColorChange: (c: string) => void;
   onAddShape: (shapeType: ShapeType) => void;
   onAddFrame: () => void;
+  onAddBorderlessFrame: () => void;
   onAddSticky: () => void;
 }
 
 export function ShapeDrawer({
   fillColor, strokeColor, borderColor: _borderColor,
   onFillColorChange, onStrokeColorChange, onBorderColorChange: _onBorderColorChange,
-  onAddShape, onAddFrame, onAddSticky,
+  onAddShape, onAddFrame, onAddBorderlessFrame, onAddSticky,
 }: ShapeDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [tab, setTab] = useState<'shapes' | 'colors'>('shapes');
@@ -31,7 +32,7 @@ export function ShapeDrawer({
     closeTimeout.current = setTimeout(() => setIsOpen(false), 300);
   }, []);
 
-  const shapes: { type: ShapeType | 'frame'; icon: React.ReactNode; label: string; uiColor: string; action: () => void }[] = [
+  const shapes: { type: ShapeType | 'frame' | 'borderless-frame'; icon: React.ReactNode; label: string; uiColor: string; action: () => void }[] = [
     {
       type: 'rect', label: 'Rectangle', uiColor: '#6366f1',
       action: () => onAddShape('rect'),
@@ -53,19 +54,9 @@ export function ShapeDrawer({
       icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><polygon points="12,2 22,12 12,22 2,12" /></svg>,
     },
     {
-      type: 'sticky' as ShapeType, label: 'Sticky', uiColor: '#f59e0b',
-      action: () => onAddSticky(),
-      icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><path d="M15.5 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V8.5L15.5 3z" /><polyline points="14 3 14 9 21 9" /></svg>,
-    },
-    {
       type: 'hexagon', label: 'Hexagon', uiColor: '#06b6d4',
       action: () => onAddShape('hexagon'),
       icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><polygon points="12,2 21,7 21,17 12,22 3,17 3,7" /></svg>,
-    },
-    {
-      type: 'octagon', label: 'Octagon', uiColor: '#ef4444',
-      action: () => onAddShape('octagon'),
-      icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><polygon points="8,2 16,2 22,8 22,16 16,22 8,22 2,16 2,8" /></svg>,
     },
     {
       type: 'star', label: 'Star', uiColor: '#f97316',
@@ -83,6 +74,11 @@ export function ShapeDrawer({
       icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><polygon points="8,2 16,2 16,8 22,8 22,16 16,16 16,22 8,22 8,16 2,16 2,8 8,8" /></svg>,
     },
     {
+      type: 'sticky' as ShapeType, label: 'Sticky', uiColor: '#f59e0b',
+      action: () => onAddSticky(),
+      icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><path d="M15.5 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V8.5L15.5 3z" /><polyline points="14 3 14 9 21 9" /></svg>,
+    },
+    {
       type: 'line', label: 'Line', uiColor: '#78716c',
       action: () => onAddShape('line'),
       icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="4" y1="20" x2="20" y2="4" /></svg>,
@@ -91,6 +87,11 @@ export function ShapeDrawer({
       type: 'frame', label: 'Frame', uiColor: '#a855f7',
       action: () => onAddFrame(),
       icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2" strokeDasharray="6 3" /></svg>,
+    },
+    {
+      type: 'borderless-frame', label: 'Group', uiColor: '#94a3b8',
+      action: () => onAddBorderlessFrame(),
+      icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="3 3"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8" cy="12" r="1.5" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" /><circle cx="16" cy="12" r="1.5" fill="currentColor" stroke="none" /></svg>,
     },
   ];
 

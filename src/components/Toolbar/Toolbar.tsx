@@ -12,6 +12,7 @@ interface ToolbarProps {
   onAddText: (fontSize: number, fontFamily: string, fontWeight: 'normal' | 'bold', fontStyle: 'normal' | 'italic', textAlign: 'left' | 'center' | 'right', textColor: string) => void;
   onAddShape: (shapeType: ShapeType, fillColor: string, strokeColor?: string, borderColor?: string) => void;
   onAddFrame: () => void;
+  onAddBorderlessFrame: () => void;
   onAddSticker: (emoji: string) => void;
   onAddGifSticker?: (gifUrl: string) => void;
   connectMode: boolean;
@@ -28,6 +29,10 @@ interface ToolbarProps {
   onCurveStyleChange: (style: 'straight' | 'curved') => void;
   selectedObject?: AnyBoardObject | null;
   onUpdateSelectedObject?: (updates: Partial<AnyBoardObject>) => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
 }
 
 export function Toolbar({
@@ -35,6 +40,7 @@ export function Toolbar({
   onAddText,
   onAddShape,
   onAddFrame,
+  onAddBorderlessFrame,
   onAddSticker,
   onAddGifSticker,
   connectMode,
@@ -51,6 +57,10 @@ export function Toolbar({
   onCurveStyleChange,
   selectedObject,
   onUpdateSelectedObject,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
 }: ToolbarProps) {
   // Text styling
   const [textFontSize, setTextFontSize] = useState(24);
@@ -69,6 +79,7 @@ export function Toolbar({
   const editingText = selectedObject?.type === 'text';
   const editingShape = selectedObject?.type === 'shape';
   const editingSticky = selectedObject?.type === 'sticky';
+  const editingFrame = selectedObject?.type === 'frame';
 
   // Track the selected object ID so useEffect only fires on selection *change*, not on every Firestore update
   const prevSelectedIdRef = useRef<string | null>(null);
@@ -100,14 +111,18 @@ export function Toolbar({
       setShapeBorder(s.borderColor ?? 'transparent');
     } else if (editingSticky) {
       const s = selectedObject as import('../../types/board').StickyNote;
-      // ShapeDrawer (Fill=bg, Stroke=textColor, Border=borderColor)
+      // ShapeDrawer (Fill=bg, Stroke=border, Border unused)
       setShapeFill(s.color);
-      setShapeStroke(s.textColor ?? '#1e293b');
-      setShapeBorder(s.borderColor ?? 'transparent');
+      setShapeStroke(s.borderColor ?? 'transparent');
       // TextDrawer color = sticky textColor
       setTextColor(s.textColor ?? '#1e293b');
+    } else if (editingFrame) {
+      const f = selectedObject as import('../../types/board').Frame;
+      setShapeFill(f.color ?? 'transparent');
+      setShapeStroke(f.borderColor ?? '#a78bfa');
+      setTextColor(f.textColor ?? '#581c87');
     }
-  }, [selectedObject?.id, editingText, editingShape, editingSticky]);
+  }, [selectedObject?.id, editingText, editingShape, editingSticky, editingFrame]);
 
   // Wrapped onChange handlers that also update the selected object
   const handleTextFontSizeChange = (size: number) => {
@@ -143,7 +158,9 @@ export function Toolbar({
     } else if (editingSticky) {
       // TextDrawer color controls sticky's textColor
       onUpdateSelectedObject({ textColor: color } as Partial<AnyBoardObject>);
-      setShapeStroke(color); // keep ShapeDrawer "Stroke" in sync
+    } else if (editingFrame) {
+      // TextDrawer color controls frame's title textColor
+      onUpdateSelectedObject({ textColor: color } as Partial<AnyBoardObject>);
     }
   };
 
@@ -152,6 +169,8 @@ export function Toolbar({
     if (!onUpdateSelectedObject) return;
     if (editingShape || editingSticky) {
       onUpdateSelectedObject({ color } as Partial<AnyBoardObject>);
+    } else if (editingFrame) {
+      onUpdateSelectedObject({ color: color === 'transparent' ? undefined : color } as Partial<AnyBoardObject>);
     } else if (editingText) {
       // ShapeDrawer Fill controls text's bgColor
       onUpdateSelectedObject({ bgColor: color === 'transparent' ? undefined : color } as Partial<AnyBoardObject>);
@@ -164,9 +183,10 @@ export function Toolbar({
     if (editingShape) {
       onUpdateSelectedObject({ strokeColor: color === 'transparent' ? undefined : color } as Partial<AnyBoardObject>);
     } else if (editingSticky) {
-      // ShapeDrawer Stroke controls sticky's textColor
-      onUpdateSelectedObject({ textColor: color } as Partial<AnyBoardObject>);
-      setTextColor(color); // keep TextDrawer color in sync
+      // ShapeDrawer Border controls sticky's borderColor
+      onUpdateSelectedObject({ borderColor: color === 'transparent' ? undefined : color } as Partial<AnyBoardObject>);
+    } else if (editingFrame) {
+      onUpdateSelectedObject({ borderColor: color === 'transparent' ? undefined : color } as Partial<AnyBoardObject>);
     } else if (editingText) {
       // ShapeDrawer Border controls text's borderColor
       onUpdateSelectedObject({ borderColor: color === 'transparent' ? undefined : color } as Partial<AnyBoardObject>);
@@ -176,7 +196,7 @@ export function Toolbar({
   const handleShapeBorderChange = (color: string) => {
     setShapeBorder(color);
     if (!onUpdateSelectedObject) return;
-    if (editingShape || editingSticky || editingText) {
+    if (editingShape || editingSticky || editingText || editingFrame) {
       onUpdateSelectedObject({ borderColor: color === 'transparent' ? undefined : color } as Partial<AnyBoardObject>);
     }
   };
@@ -210,6 +230,36 @@ export function Toolbar({
           }}
           className="flex gap-1.5 glass-playful rounded-2xl p-2.5 items-center animate-float-up"
         >
+      {/* Undo/Redo */}
+      <button
+        onClick={onUndo}
+        disabled={!canUndo}
+        className={`btn-lift w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200 ${
+          canUndo ? 'text-violet-600 hover:bg-violet-50/60' : 'text-gray-300 cursor-not-allowed'
+        }`}
+        title="Undo (Ctrl+Z)"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="1 4 1 10 7 10" />
+          <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+        </svg>
+      </button>
+      <button
+        onClick={onRedo}
+        disabled={!canRedo}
+        className={`btn-lift w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200 ${
+          canRedo ? 'text-violet-600 hover:bg-violet-50/60' : 'text-gray-300 cursor-not-allowed'
+        }`}
+        title="Redo (Ctrl+Shift+Z)"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="23 4 23 10 17 10" />
+          <path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10" />
+        </svg>
+      </button>
+
+      {divider}
+
       {/* Text */}
       <TextDrawer
         fontSize={textFontSize}
@@ -239,6 +289,7 @@ export function Toolbar({
         onBorderColorChange={handleShapeBorderChange}
         onAddShape={(shapeType) => onAddShape(shapeType, shapeFill, shapeStroke, shapeBorder)}
         onAddFrame={onAddFrame}
+        onAddBorderlessFrame={onAddBorderlessFrame}
         onAddSticky={() => onAddStickyNote(shapeFill, shapeStroke, shapeBorder)}
       />
 

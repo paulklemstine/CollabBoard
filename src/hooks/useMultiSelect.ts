@@ -3,6 +3,7 @@ import type Konva from 'konva';
 import type { AnyBoardObject } from '../services/boardService';
 import type { Frame } from '../types/board';
 import { batchUpdateObjects } from '../services/boardService';
+import type { UndoEntry, UndoChange } from './useUndoRedo';
 import {
   getBoundingBox,
   rectanglesIntersect,
@@ -13,7 +14,7 @@ import {
 } from '../utils/selectionMath';
 import {
   findContainingFrameForGroup,
-  scaleGroupToFitFrame,
+  groupFitsInFrame,
 } from '../utils/containment';
 
 export interface Marquee {
@@ -43,13 +44,17 @@ export interface SelectionBox {
   rotation: number;
 }
 
-export function useMultiSelect(objects: AnyBoardObject[], boardId: string) {
+export function useMultiSelect(
+  objects: AnyBoardObject[],
+  boardId: string,
+  pushUndo?: (entry: UndoEntry) => void,
+) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [marquee, setMarquee] = useState<Marquee | null>(null);
   const [isMarqueeActive, setIsMarqueeActive] = useState(false);
   const [groupDragOffset, setGroupDragOffset] = useState<GroupDragOffset | null>(null);
   const [transformPreview, setTransformPreview] = useState<GroupTransformPreview | null>(null);
-  const [groupHoveredFrameId, setGroupHoveredFrameId] = useState<string | null>(null);
+  const [groupHoveredFrame, setGroupHoveredFrame] = useState<{ id: string; fits: boolean } | null>(null);
   const [selectionHidden, setSelectionHidden] = useState(false);
 
   // Derive selection box from actual objects — always correct, no manual tracking.
@@ -74,6 +79,27 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string) {
   selectionBoxRef.current = selectionBox;
   const isMarqueeActiveRef = useRef(false);
 
+  // Stable ref for pushUndo (avoids dep-array churn)
+  const pushUndoRef = useRef(pushUndo);
+  pushUndoRef.current = pushUndo;
+
+  /** Build undo changes from selected objects and their batch updates */
+  const buildGroupUndoChanges = useCallback(
+    (selected: AnyBoardObject[], updates: Array<{ id: string; updates: Partial<AnyBoardObject> }>): UndoChange[] => {
+      const changes: UndoChange[] = [];
+      const now = Date.now();
+      for (const { id, updates: upd } of updates) {
+        const before = selected.find((o) => o.id === id);
+        if (before) {
+          const after = structuredClone({ ...before, ...upd, updatedAt: now });
+          changes.push({ objectId: id, before: structuredClone(before), after });
+        }
+      }
+      return changes;
+    },
+    []
+  );
+
   // Track pending preview clears after transform commits.
   // When Firestore's optimistic update fires onSnapshot (updating `objects`),
   // useLayoutEffect clears the preview before the browser paints —
@@ -96,7 +122,7 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string) {
     setSelectedIds(new Set());
     setGroupDragOffset(null);
     setTransformPreview(null);
-    setGroupHoveredFrameId(null);
+    setGroupHoveredFrame(null);
   }, []);
 
   const isSelected = useCallback(
@@ -243,7 +269,7 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string) {
     );
 
     const containingFrame = findContainingFrameForGroup(movedObjects, frames);
-    setGroupHoveredFrameId(containingFrame?.id ?? null);
+    setGroupHoveredFrame(containingFrame ? { id: containingFrame.id, fits: groupFitsInFrame(movedObjects, containingFrame) } : null);
   }, []);
 
   const handleGroupDragEnd = useCallback(
@@ -269,38 +295,20 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string) {
 
       const containingFrame = findContainingFrameForGroup(movedObjects, frames);
 
-      if (containingFrame) {
-        // Scale the group to fit inside the frame if needed
-        const scaleUpdates = scaleGroupToFitFrame(movedObjects, containingFrame);
+      // Reject oversized groups — only accept if group fits in frame
+      const fits = containingFrame ? groupFitsInFrame(movedObjects, containingFrame) : false;
 
-        if (scaleUpdates) {
-          // Replace position/size updates with scaled versions
-          updates = scaleUpdates.map((scaled) => {
-            const original = updates.find((u) => u.id === scaled.id);
-            return {
-              id: scaled.id,
-              updates: {
-                ...original?.updates,
-                x: scaled.x,
-                y: scaled.y,
-                width: scaled.width,
-                height: scaled.height,
-                parentId: containingFrame.id,
-              },
-            };
-          });
-        } else {
-          // Group fits, just set parentId
-          updates = updates.map((update) => ({
-            ...update,
-            updates: {
-              ...update.updates,
-              parentId: containingFrame.id,
-            },
-          }));
-        }
+      if (containingFrame && fits) {
+        // Group fits, set parentId
+        updates = updates.map((update) => ({
+          ...update,
+          updates: {
+            ...update.updates,
+            parentId: containingFrame.id,
+          },
+        }));
       } else {
-        // No containing frame — clear parentId for all selected objects
+        // No containing frame or doesn't fit — clear parentId for all selected objects
         updates = updates.map((update) => ({
           ...update,
           updates: {
@@ -310,9 +318,15 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string) {
         }));
       }
 
+      // Push undo before committing
+      if (pushUndoRef.current) {
+        const changes = buildGroupUndoChanges(selected, updates);
+        if (changes.length > 0) pushUndoRef.current({ changes });
+      }
+
       pendingClearRef.current = 'drag';
       setSelectionHidden(true);
-      setGroupHoveredFrameId(null);
+      setGroupHoveredFrame(null);
 
       await batchUpdateObjects(boardId, updates);
 
@@ -323,7 +337,7 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string) {
         setSelectionHidden(false);
       }
     },
-    [boardId]
+    [boardId, buildGroupUndoChanges]
   );
 
   const handleGroupResizeMove = useCallback((scaleX: number, scaleY: number) => {
@@ -347,6 +361,12 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string) {
 
       const updates = transformGroupResize(selected, bbox, scaleX, scaleY, bbox.x, bbox.y);
 
+      // Push undo before committing
+      if (pushUndoRef.current) {
+        const changes = buildGroupUndoChanges(selected, updates);
+        if (changes.length > 0) pushUndoRef.current({ changes });
+      }
+
       pendingClearRef.current = 'transform';
       setSelectionHidden(true);
 
@@ -359,7 +379,7 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string) {
         setSelectionHidden(false);
       }
     },
-    [boardId]
+    [boardId, buildGroupUndoChanges]
   );
 
   const handleGroupRotateMove = useCallback((deltaAngle: number) => {
@@ -383,6 +403,12 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string) {
 
       const updates = transformGroupRotate(selected, bbox, deltaAngle);
 
+      // Push undo before committing
+      if (pushUndoRef.current) {
+        const changes = buildGroupUndoChanges(selected, updates);
+        if (changes.length > 0) pushUndoRef.current({ changes });
+      }
+
       pendingClearRef.current = 'transform';
       setSelectionHidden(true);
 
@@ -395,7 +421,7 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string) {
         setSelectionHidden(false);
       }
     },
-    [boardId]
+    [boardId, buildGroupUndoChanges]
   );
 
   return {
@@ -406,7 +432,7 @@ export function useMultiSelect(objects: AnyBoardObject[], boardId: string) {
     selectionBox,
     selectionHidden,
     transformPreview,
-    groupHoveredFrameId,
+    groupHoveredFrame,
     clearSelection,
     isSelected,
     selectObject,

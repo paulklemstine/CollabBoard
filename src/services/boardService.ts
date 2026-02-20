@@ -81,6 +81,24 @@ export async function batchUpdateObjects(
   await batch.commit();
 }
 
+/**
+ * Batch delete multiple objects atomically.
+ * Used by undo to remove objects created in a single action.
+ */
+export async function batchDeleteObjects(
+  boardId: string,
+  ids: string[]
+): Promise<void> {
+  if (ids.length === 0) return;
+
+  const batch = writeBatch(db);
+  for (const id of ids) {
+    if (!id) continue;
+    batch.delete(doc(objectsCollection(boardId), id));
+  }
+  await batch.commit();
+}
+
 export async function getBoardObjects(boardId: string): Promise<AnyBoardObject[]> {
   const snapshot = await getDocs(objectsCollection(boardId));
   return snapshot.docs.map((d) => ({ ...d.data(), id: d.id }) as AnyBoardObject);

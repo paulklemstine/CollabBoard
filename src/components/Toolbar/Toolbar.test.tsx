@@ -8,6 +8,7 @@ const defaultProps = {
   onAddText: vi.fn(),
   onAddShape: vi.fn(),
   onAddFrame: vi.fn(),
+  onAddBorderlessFrame: vi.fn(),
   onAddSticker: vi.fn(),
   connectMode: false,
   connectingFrom: null,

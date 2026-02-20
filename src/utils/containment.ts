@@ -177,6 +177,11 @@ export function scaleToFitFrame(
   };
 }
 
+/** Returns true if the object already fits inside the frame without scaling. */
+export function fitsInFrame(obj: BoardObject, frame: Frame): boolean {
+  return scaleToFitFrame(obj, frame) === null;
+}
+
 /**
  * Calculate the bounding box of a group of objects.
  */
@@ -306,4 +311,9 @@ export function scaleGroupToFitFrame(
   });
 
   return updates;
+}
+
+/** Returns true if the group of objects already fits inside the frame without scaling. */
+export function groupFitsInFrame(objects: BoardObject[], frame: Frame): boolean {
+  return scaleGroupToFitFrame(objects, frame) === null;
 }

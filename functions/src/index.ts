@@ -7,7 +7,7 @@ import type { BaseMessage } from '@langchain/core/messages';
 initializeApp();
 const db = getFirestore();
 
-const opencodeApiKey = defineSecret('OPENCODE_API_KEY');
+const anthropicApiKey = defineSecret('ANTHROPIC_API_KEY');
 const langchainApiKey = defineSecret('LANGCHAIN_API_KEY');
 const langfuseSecretKey = defineSecret('LANGFUSE_SECRET_KEY');
 const langfusePublicKey = defineSecret('LANGFUSE_PUBLIC_KEY');
@@ -1734,7 +1734,7 @@ async function executeTool(
 export const processAIRequest = onDocumentCreated(
   {
     document: 'boards/{boardId}/aiRequests/{requestId}',
-    secrets: [opencodeApiKey, langchainApiKey, langfuseSecretKey, langfusePublicKey, langfuseHost],
+    secrets: [anthropicApiKey, langchainApiKey, langfuseSecretKey, langfusePublicKey, langfuseHost],
     timeoutSeconds: 300,
     memory: '512MiB',
     maxInstances: 10,
@@ -1777,7 +1777,7 @@ export const processAIRequest = onDocumentCreated(
     process.env.LANGFUSE_BASE_URL = langfuseHost.value();
 
     // Lazy-load LangChain and Langfuse
-    const { ChatOpenAI } = await import('@langchain/openai');
+    const { ChatAnthropic } = await import('@langchain/anthropic');
     const { HumanMessage, SystemMessage } = await import('@langchain/core/messages');
     const { CallbackHandler } = await import('@langfuse/langchain');
 
@@ -1825,15 +1825,12 @@ export const processAIRequest = onDocumentCreated(
         }
       }
 
-      // LangChain ChatOpenAI with tools
-      const model = new ChatOpenAI({
-        model: 'minimax-m2.5-free',
+      // LangChain ChatAnthropic with tools
+      const model = new ChatAnthropic({
+        model: 'claude-haiku-4-5-20251001',
         maxTokens: 4096,
         maxRetries: 2,
-        apiKey: opencodeApiKey.value(),
-        configuration: {
-          baseURL: 'https://opencode.ai/zen/v1',
-        },
+        anthropicApiKey: anthropicApiKey.value(),
       });
       const modelWithTools = model.bindTools(tools as never);
 

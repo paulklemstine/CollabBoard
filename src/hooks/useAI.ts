@@ -1,6 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
 import { sendAICommand } from '../services/aiService';
-import type { AIMode } from '../services/aiService';
 import type { AIMessage } from '../types/board';
 
 export function useAI(boardId: string, onObjectsCreated?: (ids: string[]) => void, selectedIds?: string[]) {
@@ -8,15 +7,10 @@ export function useAI(boardId: string, onObjectsCreated?: (ids: string[]) => voi
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
-  const [mode, setMode] = useState<AIMode>('fast');
 
   // Use ref to avoid stale closure — selection may change between renders
   const selectedIdsRef = useRef(selectedIds);
   selectedIdsRef.current = selectedIds;
-
-  // Use ref for mode to avoid stale closure in sendCommand
-  const modeRef = useRef(mode);
-  modeRef.current = mode;
 
   const sendCommand = useCallback(
     async (prompt: string) => {
@@ -36,7 +30,7 @@ export function useAI(boardId: string, onObjectsCreated?: (ids: string[]) => voi
       setError(null);
 
       try {
-        const result = await sendAICommand(boardId, trimmed, (p) => setProgress(p), selectedIdsRef.current, modeRef.current);
+        const result = await sendAICommand(boardId, trimmed, (p) => setProgress(p), selectedIdsRef.current);
 
         const assistantMessage: AIMessage = {
           id: `assistant-${Date.now()}`,
@@ -72,5 +66,5 @@ export function useAI(boardId: string, onObjectsCreated?: (ids: string[]) => voi
     setError(null);
   }, []);
 
-  return { messages, isLoading, error, progress, sendCommand, clearMessages, dismissError, mode, setMode };
+  return { messages, isLoading, error, progress, sendCommand, clearMessages, dismissError };
 }

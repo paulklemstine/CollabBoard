@@ -10,7 +10,7 @@
   },
   "main": "lib/index.js",
   "dependencies": {
-    "@langchain/openai": "^0.5.0",
+    "@langchain/anthropic": "^0.3.0",
     "@langchain/core": "^0.3.80",
     "@langfuse/langchain": "^4.6.1",
     "@langfuse/otel": "^4.6.1",

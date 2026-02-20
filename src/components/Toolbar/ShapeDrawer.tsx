@@ -26,6 +26,7 @@ export function ShapeDrawer({
 
   const handleMouseEnter = useCallback(() => {
     if (closeTimeout.current) { clearTimeout(closeTimeout.current); closeTimeout.current = null; }
+    setIsOpen(true);
   }, []);
 
   const handleMouseLeave = useCallback(() => {

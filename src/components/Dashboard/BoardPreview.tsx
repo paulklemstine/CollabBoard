@@ -10,7 +10,7 @@ interface BoardPreviewProps {
 }
 
 const PREVIEW_W = 300;
-const PREVIEW_H = 140;
+const PREVIEW_H = 300;
 const PAD = 16;
 
 function truncateText(text: string, maxLen: number): string {
@@ -71,8 +71,8 @@ export function BoardPreview({ boardId, thumbnailUrl }: BoardPreviewProps) {
       <img
         src={thumbnailUrl}
         alt="Board preview"
-        className="w-full object-cover"
-        style={{ height: PREVIEW_H }}
+        className="w-full object-contain"
+        style={{ aspectRatio: '1 / 1', background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%)' }}
       />
     );
   }
@@ -83,7 +83,7 @@ export function BoardPreview({ boardId, thumbnailUrl }: BoardPreviewProps) {
         className="animate-pulse"
         style={{
           width: '100%',
-          height: PREVIEW_H,
+          aspectRatio: '1 / 1',
           background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
         }}
       />
@@ -99,7 +99,7 @@ export function BoardPreview({ boardId, thumbnailUrl }: BoardPreviewProps) {
         className="flex items-center justify-center"
         style={{
           width: '100%',
-          height: PREVIEW_H,
+          aspectRatio: '1 / 1',
           background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%)',
         }}
       >
@@ -138,10 +138,9 @@ export function BoardPreview({ boardId, thumbnailUrl }: BoardPreviewProps) {
   return (
     <svg
       width="100%"
-      height={PREVIEW_H}
       viewBox={`0 0 ${PREVIEW_W} ${PREVIEW_H}`}
       preserveAspectRatio="xMidYMid meet"
-      style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%)' }}
+      style={{ aspectRatio: '1 / 1', background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%)' }}
     >
       <defs>
         {visible.map((obj) => {

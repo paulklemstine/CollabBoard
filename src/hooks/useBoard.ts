@@ -11,6 +11,8 @@ import type { StickyNote, Shape, ShapeType, Frame, Sticker, Connector, TextObjec
 import { findContainingFrame, getChildrenOfFrame, isObjectInsideFrame } from '../utils/containment';
 import { screenToWorld } from '../utils/coordinates';
 import type { StageTransform } from '../components/Board/Board';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '../services/firebase';
 import { GiphyFetch } from '@giphy/js-fetch-api';
 import type { UndoEntry, UndoChange } from './useUndoRedo';
 
@@ -318,6 +320,22 @@ export function useBoard(
       addObject(boardId, sticker);
       trackNewObject(sticker.id);
       maybePushUndo({ changes: [{ objectId: sticker.id, before: null, after: structuredClone(sticker) }] });
+
+      // Cache GIF in Firebase Storage in the background
+      fetch(gifUrl)
+        .then((res) => {
+          if (!res.ok) throw new Error(`Failed to fetch GIF: ${res.status}`);
+          return res.blob();
+        })
+        .then((blob) => {
+          const sRef = storageRef(storage, `boards/${boardId}/gifs/${sticker.id}.gif`);
+          return uploadBytes(sRef, blob, { contentType: 'image/gif' });
+        })
+        .then((snapshot) => getDownloadURL(snapshot.ref))
+        .then((cachedUrl) => {
+          updateObject(boardId, sticker.id, { gifUrl: cachedUrl } as Partial<Sticker>);
+        })
+        .catch((err) => console.warn('GIF caching failed, keeping original URL:', err));
     },
     [boardId, userId, trackNewObject, maybePushUndo]
   );

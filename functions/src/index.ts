@@ -31,6 +31,14 @@ const tools = [
         aiLabel: { type: 'string', description: 'Object description' },
         aiGroupId: { type: 'number', description: 'Numeric group ID (reuse same number for related objects)' },
         aiGroupLabel: { type: 'string', description: 'Group name (provide once per aiGroupId)' },
+        borderColor: { type: 'string', description: 'Border color as hex string (default: none)' },
+        fontSize: { type: 'number', description: 'Font size: 16, 24, 36, or 48 (default: 16)' },
+        fontFamily: { type: 'string', enum: ['sans', 'serif', 'mono', 'cursive'], description: 'Font family (default: sans). sans=Inter, serif=Georgia, mono=Fira Code, cursive=Caveat' },
+        fontWeight: { type: 'string', enum: ['normal', 'bold'], description: 'Font weight (default: normal)' },
+        fontStyle: { type: 'string', enum: ['normal', 'italic'], description: 'Font style (default: normal)' },
+        textAlign: { type: 'string', enum: ['left', 'center', 'right'], description: 'Text alignment (default: left)' },
+        width: { type: 'number', description: 'Width in pixels (default: 200)' },
+        height: { type: 'number', description: 'Height in pixels (default: 200)' },
       },
       required: ['text'],
     },
@@ -56,6 +64,7 @@ const tools = [
         aiLabel: { type: 'string', description: 'Object description' },
         aiGroupId: { type: 'number', description: 'Numeric group ID (reuse same number for related objects)' },
         aiGroupLabel: { type: 'string', description: 'Group name (provide once per aiGroupId)' },
+        borderColor: { type: 'string', description: 'Additional border color (default: none). Separate from strokeColor.' },
       },
       required: ['shapeType'],
     },
@@ -72,6 +81,13 @@ const tools = [
         width: { type: 'number', description: 'Width in pixels (default: 400)' },
         height: { type: 'number', description: 'Height in pixels (default: 300)' },
         borderless: { type: 'boolean', description: 'If true, creates a transparent borderless frame — invisible grouping container with no border or title bar. Great for logical groupings without visual clutter. (default: false)' },
+        color: { type: 'string', description: 'Background/fill color as hex string (default: none)' },
+        borderColor: { type: 'string', description: 'Border stroke color as hex string (default: none)' },
+        textColor: { type: 'string', description: 'Title text color as hex string (default: none)' },
+        fontSize: { type: 'number', description: 'Title font size (default: 16)' },
+        fontFamily: { type: 'string', enum: ['sans', 'serif', 'mono', 'cursive'], description: 'Title font family (default: sans)' },
+        fontWeight: { type: 'string', enum: ['normal', 'bold'], description: 'Title font weight (default: normal)' },
+        fontStyle: { type: 'string', enum: ['normal', 'italic'], description: 'Title font style (default: normal)' },
         parentId: { type: 'string', description: 'Parent frame ID for nesting' },
         aiLabel: { type: 'string', description: 'Object description' },
         aiGroupId: { type: 'number', description: 'Numeric group ID (reuse same number for related objects)' },
@@ -133,6 +149,8 @@ const tools = [
         textAlign: { type: 'string', enum: ['left', 'center', 'right'], description: 'Text alignment (default: left)' },
         color: { type: 'string', description: 'Text color as hex string (default: #1e293b)' },
         bgColor: { type: 'string', description: 'Background color (default: transparent)' },
+        fontFamily: { type: 'string', enum: ['sans', 'serif', 'mono', 'cursive'], description: 'Font family (default: sans). sans=Inter, serif=Georgia, mono=Fira Code, cursive=Caveat' },
+        borderColor: { type: 'string', description: 'Border color as hex string (default: none)' },
         parentId: { type: 'string', description: 'Frame ID to attach to' },
         aiLabel: { type: 'string', description: 'Object description' },
         aiGroupId: { type: 'number', description: 'Numeric group ID (reuse same number for related objects)' },
@@ -202,15 +220,16 @@ const tools = [
   },
   {
     name: 'changeColor',
-    description: 'Change colors of an existing object. For sticky notes: color (background), textColor. For shapes: color (fill), strokeColor (border). For text elements: color (text), bgColor (background). For connectors: color. Provide only the color properties you want to change.',
+    description: 'Change colors of an existing object. For sticky notes: color (background), textColor, borderColor. For shapes: color (fill), strokeColor (border), borderColor. For text elements: color (text), bgColor (background), borderColor. For frames: color (background), borderColor, textColor. For connectors: color. Provide only the color properties you want to change.',
     input_schema: {
       type: 'object' as const,
       properties: {
         objectId: { type: 'string', description: 'ID of the object to recolor' },
         newColor: { type: 'string', description: 'New background/fill color as hex string' },
-        textColor: { type: 'string', description: 'New text color (sticky notes and text elements)' },
+        textColor: { type: 'string', description: 'New text color (sticky notes, text elements, frames)' },
         strokeColor: { type: 'string', description: 'New border/outline color (shapes only)' },
         bgColor: { type: 'string', description: 'New background color (text elements only)' },
+        borderColor: { type: 'string', description: 'New border color (sticky notes, shapes, text elements, frames)' },
       },
       required: ['objectId'],
     },
@@ -236,6 +255,18 @@ const tools = [
         newParentId: { type: 'string', description: 'ID of the new parent frame, or empty string ("") to make object independent' },
       },
       required: ['objectId', 'newParentId'],
+    },
+  },
+  {
+    name: 'embedInFrame',
+    description: 'Move one or more existing objects into a frame. Auto-repositions them inside the frame in a vertical stack. Use this instead of calling updateParent + moveObject separately for each object.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        objectIds: { type: 'array', items: { type: 'string' }, description: 'IDs of existing objects to embed into the frame' },
+        frameId: { type: 'string', description: 'ID of the target frame to embed objects into' },
+      },
+      required: ['objectIds', 'frameId'],
     },
   },
   {
@@ -443,6 +474,22 @@ Use borderless frames (titleless groups) when logical grouping without visual cl
 - Use getSelectedObjects() to fetch full details of the currently selected objects.
 - In getBoardState() and searchObjects() output, selected objects are marked with sel:true.
 
+## Font Families
+Four font families are available for sticky notes, text elements, and frames:
+- sans (default): Inter — clean, modern sans-serif
+- serif: Georgia — classic serif
+- mono: Fira Code — monospace/code font
+- cursive: Caveat — handwritten/casual style
+
+## Sticky Note Styling
+Besides color and textColor, sticky notes support: borderColor, fontSize (16/24/36/48), fontFamily, fontWeight (normal/bold), fontStyle (normal/italic), textAlign (left/center/right), width, height.
+
+## Frame Styling
+Frames support: color (background fill), borderColor (border stroke), textColor (title text), fontSize, fontFamily, fontWeight, fontStyle. Set borderless=true for invisible grouping.
+
+## Stickers
+Two sticker types: emoji stickers (single emoji character) and GIF stickers (animated GIFs from GIPHY via search term). Use createSticker for emoji, createGifSticker for animated GIFs.
+
 ## Important
 - Use getBoardState(), getBoardSummary(), or searchObjects() to inspect the board before modifying existing objects.
 - Use getObject() for a single object by ID.
@@ -488,11 +535,15 @@ function requestNeedsContext(prompt: string): 'none' | 'summary' {
 function buildBoardSummary(boardState: any[]): string {
   if (boardState.length === 0) return 'Board is empty.';
   const byType: Record<string, number> = {};
-  const frames: { id: string; title: string }[] = [];
+  const childCounts: Record<string, number> = {};
+  const frames: { id: string; title: string; childCount: number }[] = [];
   for (const obj of boardState) {
     byType[obj.type] = (byType[obj.type] || 0) + 1;
+    if (obj.parentId) childCounts[obj.parentId] = (childCounts[obj.parentId] || 0) + 1;
+  }
+  for (const obj of boardState) {
     if (obj.type === 'frame') {
-      frames.push({ id: obj.id, title: obj.title ?? 'Untitled' });
+      frames.push({ id: obj.id, title: obj.title ?? 'Untitled', childCount: childCounts[obj.id] || 0 });
     }
   }
   const parts = [`${boardState.length} objects`];
@@ -501,7 +552,7 @@ function buildBoardSummary(boardState: any[]): string {
   }
   let summary = parts.join(', ') + '.';
   if (frames.length > 0) {
-    summary += ' Frames: ' + frames.map(f => `${f.title} (${f.id})`).join(', ') + '.';
+    summary += ' Frames: ' + frames.map(f => `${f.title} (${f.id}, ${f.childCount > 0 ? f.childCount + ' children' : 'empty'})`).join(', ') + '.';
   }
   return summary;
 }
@@ -538,7 +589,7 @@ function compactBoardObject(obj: any): Record<string, unknown> {
     'text:bgColor': 'transparent',
     'connector:color': '#6366f1',
   };
-  for (const field of ['color', 'textColor', 'strokeColor', 'bgColor']) {
+  for (const field of ['color', 'textColor', 'strokeColor', 'bgColor', 'borderColor']) {
     if (obj[field] != null) {
       const defaultKey = `${obj.type}:${field}`;
       if (obj[field] !== defaultColors[defaultKey]) {
@@ -560,6 +611,7 @@ function compactBoardObject(obj: any): Record<string, unknown> {
   if (obj.fontWeight && obj.fontWeight !== 'normal') compact.fontWeight = obj.fontWeight;
   if (obj.fontStyle && obj.fontStyle !== 'normal') compact.fontStyle = obj.fontStyle;
   if (obj.textAlign && obj.textAlign !== 'left') compact.textAlign = obj.textAlign;
+  if (obj.fontFamily && obj.fontFamily !== "'Inter', sans-serif") compact.fontFamily = obj.fontFamily;
   // Frame borderless
   if (obj.borderless) compact.borderless = true;
   // AI metadata
@@ -595,6 +647,7 @@ interface ToolInput {
   fontWeight?: string;
   fontStyle?: string;
   textAlign?: string;
+  fontFamily?: string;
   bgColor?: string;
   searchTerm?: string;
   objectId?: string;
@@ -627,6 +680,7 @@ interface ToolInput {
   aiGroupLabel?: string;
   objectType?: string;
   textContains?: string;
+  frameId?: string;
 }
 
 // ---- Layout helpers ----
@@ -829,6 +883,16 @@ function layoutFan(objects: LayoutObject[], radiusInput: number | undefined, arc
   });
 }
 
+const FONT_FAMILY_MAP: Record<string, string> = {
+  sans: "'Inter', sans-serif",
+  serif: "'Georgia', serif",
+  mono: "'Fira Code', monospace",
+  cursive: "'Caveat', cursive",
+};
+function resolveFontFamily(input?: string): string {
+  return FONT_FAMILY_MAP[input ?? 'sans'] ?? FONT_FAMILY_MAP.sans;
+}
+
 async function executeTool(
   toolName: string,
   input: ToolInput,
@@ -855,8 +919,8 @@ async function executeTool(
         text: input.text ?? '',
         x: input.x ?? 0,
         y: input.y ?? 0,
-        width: 200,
-        height: 200,
+        width: input.width ?? 200,
+        height: input.height ?? 200,
         color: input.color ?? '#fef9c3',
         textColor: input.textColor ?? '#1e293b',
         rotation: 0,
@@ -864,6 +928,12 @@ async function executeTool(
         updatedAt: now,
         parentId: input.parentId ?? '',
       };
+      if (input.borderColor) data.borderColor = input.borderColor;
+      if (input.fontSize) data.fontSize = input.fontSize;
+      if (input.fontFamily) data.fontFamily = resolveFontFamily(input.fontFamily);
+      if (input.fontWeight && input.fontWeight !== 'normal') data.fontWeight = input.fontWeight;
+      if (input.fontStyle && input.fontStyle !== 'normal') data.fontStyle = input.fontStyle;
+      if (input.textAlign && input.textAlign !== 'left') data.textAlign = input.textAlign;
       if (input.aiLabel) data.aiLabel = input.aiLabel;
       if (resolvedGroupId) data.aiGroupId = resolvedGroupId;
       await docRef.set(data);
@@ -910,6 +980,7 @@ async function executeTool(
         updatedAt: now,
         parentId: input.parentId ?? '',
       };
+      if (input.borderColor) data.borderColor = input.borderColor;
       if (input.aiLabel) data.aiLabel = input.aiLabel;
       if (resolvedGroupId) data.aiGroupId = resolvedGroupId;
       await docRef.set(data);
@@ -972,7 +1043,7 @@ async function executeTool(
         width: input.width ?? 300,
         height: input.height ?? 50,
         fontSize: input.fontSize ?? 24,
-        fontFamily: "'Inter', sans-serif",
+        fontFamily: resolveFontFamily(input.fontFamily),
         fontWeight: input.fontWeight ?? 'normal',
         fontStyle: input.fontStyle ?? 'normal',
         textAlign: input.textAlign ?? 'left',
@@ -983,6 +1054,7 @@ async function executeTool(
         updatedAt: now,
         parentId: input.parentId ?? '',
       };
+      if (input.borderColor) data.borderColor = input.borderColor;
       if (input.aiLabel) data.aiLabel = input.aiLabel;
       if (resolvedGroupId) data.aiGroupId = resolvedGroupId;
       await docRef.set(data);
@@ -1005,6 +1077,13 @@ async function executeTool(
         parentId: input.parentId ?? '',
         borderless: input.borderless ?? false,
       };
+      if (input.color) data.color = input.color;
+      if (input.borderColor) data.borderColor = input.borderColor;
+      if (input.textColor) data.textColor = input.textColor;
+      if (input.fontSize) data.fontSize = input.fontSize;
+      if (input.fontFamily) data.fontFamily = resolveFontFamily(input.fontFamily);
+      if (input.fontWeight && input.fontWeight !== 'normal') data.fontWeight = input.fontWeight;
+      if (input.fontStyle && input.fontStyle !== 'normal') data.fontStyle = input.fontStyle;
       if (input.aiLabel) data.aiLabel = input.aiLabel;
       if (resolvedGroupId) data.aiGroupId = resolvedGroupId;
       await docRef.set(data);
@@ -1075,6 +1154,7 @@ async function executeTool(
       if (input.textColor !== undefined) colorUpdates.textColor = input.textColor;
       if (input.strokeColor !== undefined) colorUpdates.strokeColor = input.strokeColor;
       if (input.bgColor !== undefined) colorUpdates.bgColor = input.bgColor;
+      if (input.borderColor !== undefined) colorUpdates.borderColor = input.borderColor;
       await docRef.update(colorUpdates);
       return JSON.stringify({ success: true });
     }
@@ -1087,11 +1167,103 @@ async function executeTool(
 
     case 'updateParent': {
       const docRef = objectsRef.doc(input.objectId!);
-      await docRef.update({
-        parentId: input.newParentId ?? '',
-        updatedAt: now,
-      });
-      return JSON.stringify({ success: true, objectId: input.objectId, newParentId: input.newParentId });
+      const objSnap = await docRef.get();
+      if (!objSnap.exists) return JSON.stringify({ error: 'Object not found' });
+      const obj = objSnap.data() as any;
+      const updates: Record<string, unknown> = { parentId: input.newParentId ?? '', updatedAt: now };
+
+      // Auto-reposition into frame when attaching
+      if (input.newParentId) {
+        const frameSnap = await objectsRef.doc(input.newParentId).get();
+        const frame = frameSnap.exists ? frameSnap.data() as any : null;
+        if (frame && frame.type === 'frame') {
+          const titleBarH = frame.borderless ? 0 : 36;
+          const margin = 20;
+          const interiorX = frame.x + margin;
+          const interiorY = frame.y + titleBarH + margin;
+          const interiorRight = frame.x + frame.width - margin;
+          const interiorBottom = frame.y + frame.height - margin;
+
+          // Check if object is outside frame bounds
+          const objRight = obj.x + (obj.width || 200);
+          const objBottom = obj.y + (obj.height || 200);
+          const isOutside = obj.x < frame.x || obj.y < frame.y || objRight > frame.x + frame.width || objBottom > frame.y + frame.height;
+
+          if (isOutside) {
+            // Find existing children to stack below them
+            const allObjects = await readBoardState(boardId);
+            const siblings = (allObjects as any[]).filter(
+              (o: any) => o.parentId === input.newParentId && o.id !== input.objectId
+            );
+            let targetY = interiorY;
+            for (const sib of siblings) {
+              const sibBottom = sib.y + (sib.height || 200) + 10;
+              if (sibBottom > targetY) targetY = sibBottom;
+            }
+            updates.x = interiorX;
+            updates.y = targetY;
+
+            // Scale down if object is wider/taller than frame interior
+            const maxW = interiorRight - interiorX;
+            const maxH = interiorBottom - targetY;
+            if (obj.width > maxW) updates.width = maxW;
+            if (obj.height > maxH && maxH > 50) updates.height = Math.max(maxH, 50);
+          }
+        }
+      }
+
+      await docRef.update(updates);
+      return JSON.stringify({ success: true, objectId: input.objectId, newParentId: input.newParentId, repositioned: !!updates.x });
+    }
+
+    case 'embedInFrame': {
+      const ids = input.objectIds ?? [];
+      const frameId = input.frameId!;
+      if (ids.length === 0) return JSON.stringify({ error: 'No object IDs provided' });
+
+      const frameSnap = await objectsRef.doc(frameId).get();
+      if (!frameSnap.exists) return JSON.stringify({ error: 'Frame not found' });
+      const frame = frameSnap.data() as any;
+      if (frame.type !== 'frame') return JSON.stringify({ error: 'Target is not a frame' });
+
+      const titleBarH = frame.borderless ? 0 : 36;
+      const margin = 20;
+      const interiorX = frame.x + margin;
+      let nextY = frame.y + titleBarH + margin;
+      const interiorRight = frame.x + frame.width - margin;
+      const maxW = interiorRight - interiorX;
+
+      // Find existing children to stack below them
+      const allObjects = await readBoardState(boardId);
+      const existingChildren = (allObjects as any[]).filter(
+        (o: any) => o.parentId === frameId && !ids.includes(o.id)
+      );
+      for (const child of existingChildren) {
+        const childBottom = child.y + (child.height || 200) + 10;
+        if (childBottom > nextY) nextY = childBottom;
+      }
+
+      const results: { id: string; repositioned: boolean }[] = [];
+      for (const id of ids) {
+        const docSnap = await objectsRef.doc(id).get();
+        if (!docSnap.exists) {
+          results.push({ id, repositioned: false });
+          continue;
+        }
+        const obj = docSnap.data() as any;
+        const updates: Record<string, unknown> = { parentId: frameId, updatedAt: now };
+
+        updates.x = interiorX;
+        updates.y = nextY;
+        if (obj.width > maxW) updates.width = maxW;
+
+        nextY += (obj.height || 200) + 10;
+
+        await objectsRef.doc(id).update(updates);
+        results.push({ id, repositioned: true });
+      }
+
+      return JSON.stringify({ success: true, frameId, embedded: results.length, results });
     }
 
     case 'alignObjects': {
@@ -1282,22 +1454,25 @@ async function executeTool(
 
       switch (templateType) {
         case 'swot': {
-          // Create 2x2 grid of frames
+          // Create 2x2 grid of frames with starter stickies
           const frameWidth = 400;
           const frameHeight = 300;
           const gap = 20;
           const titles = ['Strengths', 'Weaknesses', 'Opportunities', 'Threats'];
           const colors = ['#dcfce7', '#fce7f3', '#dbeafe', '#ffedd5'];
+          const prompts = ['What are we good at?', 'Where can we improve?', 'What trends can we leverage?', 'What risks do we face?'];
 
           for (let i = 0; i < 4; i++) {
             const col = i % 2;
             const row = Math.floor(i / 2);
             const frameRef = objectsRef.doc();
+            const fx = startX + col * (frameWidth + gap);
+            const fy = startY + row * (frameHeight + gap);
             const frameData = {
               type: 'frame',
               title: titles[i],
-              x: startX + col * (frameWidth + gap),
-              y: startY + row * (frameHeight + gap),
+              x: fx,
+              y: fy,
               width: frameWidth,
               height: frameHeight,
               rotation: 0,
@@ -1308,24 +1483,47 @@ async function executeTool(
             await frameRef.set(frameData);
             objectsCreated.push(frameRef.id);
             created.push(frameRef.id);
+
+            // Starter sticky inside frame
+            const stickyRef = objectsRef.doc();
+            await stickyRef.set({
+              type: 'sticky',
+              text: prompts[i],
+              x: fx + 20,
+              y: fy + 56,
+              width: 180,
+              height: 180,
+              color: colors[i],
+              textColor: '#1e293b',
+              rotation: 0,
+              createdBy: userId,
+              updatedAt: now,
+              parentId: frameRef.id,
+            });
+            objectsCreated.push(stickyRef.id);
+            created.push(stickyRef.id);
           }
           break;
         }
 
         case 'kanban': {
-          // Create 3 columns
+          // Create 3 columns with starter stickies
           const frameWidth = 350;
           const frameHeight = 600;
           const gap = 20;
           const titles = ['To Do', 'In Progress', 'Done'];
+          const kanbanColors = ['#fef9c3', '#dbeafe', '#dcfce7'];
+          const kanbanPrompts = ['Add tasks here', 'Work in progress', 'Completed tasks'];
 
           for (let i = 0; i < 3; i++) {
             const frameRef = objectsRef.doc();
+            const fx = startX + i * (frameWidth + gap);
+            const fy = startY;
             const frameData = {
               type: 'frame',
               title: titles[i],
-              x: startX + i * (frameWidth + gap),
-              y: startY,
+              x: fx,
+              y: fy,
               width: frameWidth,
               height: frameHeight,
               rotation: 0,
@@ -1336,26 +1534,49 @@ async function executeTool(
             await frameRef.set(frameData);
             objectsCreated.push(frameRef.id);
             created.push(frameRef.id);
+
+            // Starter sticky inside frame
+            const stickyRef = objectsRef.doc();
+            await stickyRef.set({
+              type: 'sticky',
+              text: kanbanPrompts[i],
+              x: fx + 20,
+              y: fy + 56,
+              width: 180,
+              height: 180,
+              color: kanbanColors[i],
+              textColor: '#1e293b',
+              rotation: 0,
+              createdBy: userId,
+              updatedAt: now,
+              parentId: frameRef.id,
+            });
+            objectsCreated.push(stickyRef.id);
+            created.push(stickyRef.id);
           }
           break;
         }
 
         case 'retrospective': {
-          // What went well, What didn't, Action items
-          const frameWidth = 400;
-          const frameHeight = 500;
-          const gap = 20;
-          const titles = ['What Went Well 😊', 'What Didn\'t Go Well 😞', 'Action Items 🎯'];
+          // What went well, What didn't, Action items — with starter stickies
+          const retroFrameWidth = 400;
+          const retroFrameHeight = 500;
+          const retroGap = 20;
+          const retroTitles = ['What Went Well \u{1F60A}', 'What Didn\'t Go Well \u{1F61E}', 'Action Items \u{1F3AF}'];
+          const retroColors = ['#dcfce7', '#fce7f3', '#dbeafe'];
+          const retroPrompts = ['Add your wins here', 'What could be better?', 'Next steps to take'];
 
           for (let i = 0; i < 3; i++) {
             const frameRef = objectsRef.doc();
+            const fx = startX + i * (retroFrameWidth + retroGap);
+            const fy = startY;
             const frameData = {
               type: 'frame',
-              title: titles[i],
-              x: startX + i * (frameWidth + gap),
-              y: startY,
-              width: frameWidth,
-              height: frameHeight,
+              title: retroTitles[i],
+              x: fx,
+              y: fy,
+              width: retroFrameWidth,
+              height: retroFrameHeight,
               rotation: 0,
               createdBy: userId,
               updatedAt: now,
@@ -1364,6 +1585,25 @@ async function executeTool(
             await frameRef.set(frameData);
             objectsCreated.push(frameRef.id);
             created.push(frameRef.id);
+
+            // Starter sticky inside frame
+            const stickyRef = objectsRef.doc();
+            await stickyRef.set({
+              type: 'sticky',
+              text: retroPrompts[i],
+              x: fx + 20,
+              y: fy + 56,
+              width: 180,
+              height: 180,
+              color: retroColors[i],
+              textColor: '#1e293b',
+              rotation: 0,
+              createdBy: userId,
+              updatedAt: now,
+              parentId: frameRef.id,
+            });
+            objectsCreated.push(stickyRef.id);
+            created.push(stickyRef.id);
           }
           break;
         }
@@ -1515,11 +1755,15 @@ async function executeTool(
     case 'getBoardSummary': {
       const allObjects = await readBoardState(boardId);
       const byType: Record<string, number> = {};
-      const frames: { id: string; title: string }[] = [];
+      const frames: { id: string; title: string; childCount: number; x: number; y: number; w: number; h: number }[] = [];
+      const childCounts: Record<string, number> = {};
       for (const obj of allObjects as any[]) {
         byType[obj.type] = (byType[obj.type] || 0) + 1;
+        if (obj.parentId) childCounts[obj.parentId] = (childCounts[obj.parentId] || 0) + 1;
+      }
+      for (const obj of allObjects as any[]) {
         if (obj.type === 'frame') {
-          frames.push({ id: obj.id, title: obj.title ?? 'Untitled' });
+          frames.push({ id: obj.id, title: obj.title ?? 'Untitled', childCount: childCounts[obj.id] || 0, x: obj.x, y: obj.y, w: obj.width, h: obj.height });
         }
       }
       return JSON.stringify({ totalCount: allObjects.length, byType, frames });

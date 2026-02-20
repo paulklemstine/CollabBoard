@@ -1323,15 +1323,23 @@ export const processAIRequest = onDocumentCreated(
     // Ensure Langfuse callbacks complete before Cloud Function terminates (LangChain v0.3+ backgrounds them by default)
     process.env.LANGCHAIN_CALLBACKS_BACKGROUND = 'false';
 
+    // Set Langfuse env vars BEFORE importing @langfuse packages (v4 reads credentials from environment at import time)
+    process.env.LANGFUSE_SECRET_KEY = langfuseSecretKey.value();
+    process.env.LANGFUSE_PUBLIC_KEY = langfusePublicKey.value();
+    process.env.LANGFUSE_BASE_URL = langfuseHost.value();
+
     // Lazy-load LangChain and Langfuse to avoid deployment timeouts
     const { ChatAnthropic } = await import('@langchain/anthropic');
     const { HumanMessage, SystemMessage, ToolMessage } = await import('@langchain/core/messages');
     const { CallbackHandler } = await import('@langfuse/langchain');
 
-    // Set Langfuse env vars (v4 reads credentials from environment)
-    process.env.LANGFUSE_SECRET_KEY = langfuseSecretKey.value();
-    process.env.LANGFUSE_PUBLIC_KEY = langfusePublicKey.value();
-    process.env.LANGFUSE_BASE_URL = langfuseHost.value();
+    // Set up OpenTelemetry with Langfuse exporter (v4 requires OTEL TracerProvider)
+    const { NodeSDK } = await import('@opentelemetry/sdk-node');
+    const { LangfuseSpanProcessor } = await import('@langfuse/otel');
+    const otelSdk = new NodeSDK({
+      spanProcessors: [new LangfuseSpanProcessor()],
+    });
+    otelSdk.start();
 
     // Create Langfuse callback handler for observability
     const langfuseHandler = new CallbackHandler({
@@ -1463,7 +1471,8 @@ export const processAIRequest = onDocumentCreated(
         completedAt: Date.now(),
       });
     } finally {
-      // v4 SDK flushes synchronously when LANGCHAIN_CALLBACKS_BACKGROUND=false
+      // Flush all pending OTEL spans to Langfuse before the Cloud Function terminates
+      await otelSdk.shutdown();
     }
   },
 );

@@ -446,6 +446,7 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
             const currentAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
             const delta = currentAngle - rotateStartRef.current.angle;
             onRotate(note.id, rotateStartRef.current.rotation + delta);
+            e.target.position({ x: -20, y: localHeight - 20 });
           }}
           onDragEnd={(e) => {
             e.cancelBubble = true;

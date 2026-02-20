@@ -181,6 +181,7 @@ export function SelectionOverlay({
       const delta = currentAngle - rotateStartRef.current.angle;
 
       onGroupRotateMove(delta);
+      if (box) e.target.position({ x: -HANDLE_SIZE / 2, y: box.height - HANDLE_SIZE / 2 });
     },
     [box, onGroupRotateMove]
   );

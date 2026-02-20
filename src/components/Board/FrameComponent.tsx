@@ -439,11 +439,9 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
               isCustomBg
                 ? [0, hexToRgba(bg, 0.35), 0.5, hexToRgba(bg, 0.2), 1, hexToRgba(bg, 0.1)]
                 : [
-                    0, 'rgba(251, 146, 60, 0.18)',
-                    0.25, 'rgba(251, 113, 133, 0.16)',
-                    0.5, 'rgba(168, 85, 247, 0.16)',
-                    0.75, 'rgba(96, 165, 250, 0.14)',
-                    1, 'rgba(74, 222, 128, 0.12)'
+                    0, 'rgba(139, 92, 246, 0.18)',
+                    0.5, 'rgba(139, 92, 246, 0.1)',
+                    1, 'rgba(139, 92, 246, 0.05)'
                   ]
             }
             cornerRadius={[16, 16, 0, 0]}
@@ -657,6 +655,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
             const currentAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
             const delta = currentAngle - rotateStartRef.current.angle;
             onRotate(frame.id, rotateStartRef.current.rotation + delta);
+            e.target.position({ x: -20, y: localHeight - 20 });
           }}
           onDragEnd={(e) => {
             e.cancelBubble = true;

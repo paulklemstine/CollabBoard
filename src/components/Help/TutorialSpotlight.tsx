@@ -12,7 +12,7 @@ interface TargetRect {
 }
 
 const PADDING = 8;
-const RADIUS = 12;
+const RADIUS = 14;
 
 export function TutorialSpotlight({ targetSelector }: TutorialSpotlightProps) {
   const [target, setTarget] = useState<TargetRect | null>(null);
@@ -39,7 +39,6 @@ export function TutorialSpotlight({ targetSelector }: TutorialSpotlightProps) {
     };
 
     update();
-    // Re-measure on resize/scroll
     window.addEventListener('resize', update);
     window.addEventListener('scroll', update);
     const interval = setInterval(update, 500);
@@ -51,38 +50,42 @@ export function TutorialSpotlight({ targetSelector }: TutorialSpotlightProps) {
     };
   }, [targetSelector]);
 
+  if (!target) return null;
+
   return (
-    <svg
-      className="fixed inset-0 z-[9000] pointer-events-none spotlight-fade"
-      width="100vw"
-      height="100vh"
-      style={{ width: '100vw', height: '100vh' }}
-    >
-      <defs>
-        <mask id="tutorial-spotlight-mask">
-          <rect x="0" y="0" width="100%" height="100%" fill="white" />
-          {target && (
-            <rect
-              x={target.x}
-              y={target.y}
-              width={target.width}
-              height={target.height}
-              rx={RADIUS}
-              ry={RADIUS}
-              fill="black"
-              className="transition-all duration-500 ease-out"
-            />
-          )}
-        </mask>
-      </defs>
-      <rect
-        x="0"
-        y="0"
-        width="100%"
-        height="100%"
-        fill="rgba(0, 0, 0, 0.5)"
-        mask="url(#tutorial-spotlight-mask)"
+    <div className="fixed inset-0 z-[9000] pointer-events-none">
+      {/* Glow ring around the target */}
+      <div
+        className="absolute spotlight-glow"
+        style={{
+          left: target.x,
+          top: target.y,
+          width: target.width,
+          height: target.height,
+          borderRadius: RADIUS,
+          transition: 'all 500ms cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
       />
-    </svg>
+      {/* Sparkle dots at corners */}
+      {[
+        { cx: target.x - 4, cy: target.y - 4 },
+        { cx: target.x + target.width + 4, cy: target.y - 4 },
+        { cx: target.x - 4, cy: target.y + target.height + 4 },
+        { cx: target.x + target.width + 4, cy: target.y + target.height + 4 },
+      ].map((pos, i) => (
+        <div
+          key={i}
+          className="absolute rounded-full spotlight-sparkle"
+          style={{
+            left: pos.cx - 3,
+            top: pos.cy - 3,
+            width: 6,
+            height: 6,
+            background: 'white',
+            animationDelay: `${i * 0.15}s`,
+          }}
+        />
+      ))}
+    </div>
   );
 }

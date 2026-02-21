@@ -111,12 +111,13 @@ function BoardView({
   user,
   boardId,
   onNavigateBack,
-  onSignOut,
+  onSignOut: _onSignOut,
 }: {
   user: { uid: string; displayName: string | null; email: string | null };
   boardId: string;
   onNavigateBack: () => void;
   onSignOut: () => Promise<void>;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
 }) {
   const [boardMetadata, setBoardMetadata] = useState<BoardMetadata | null>(null);
   const [copied, setCopied] = useState(false);
@@ -1038,11 +1039,11 @@ function BoardView({
         <ConfettiBurst trigger={showConfetti} onComplete={() => setShowConfetti(false)} />
       </div>
       {/* Top left: Back/Share buttons and minimap */}
-      <div className="absolute top-4 left-4 z-50 flex flex-col gap-3">
-        <div className="glass-playful rounded-xl shadow-lg flex items-center py-1 min-w-[220px]">
+      <div className="absolute top-4 left-4 z-50 flex flex-col gap-3 w-[220px]">
+        <div className="glass-playful rounded-xl shadow-lg py-1.5 px-1.5 w-full flex items-center gap-1">
           <button
             onClick={handleNavigateBack}
-            className="px-2.5 py-1 text-gray-700 hover:text-violet-600 transition-colors duration-200 flex items-center rounded-lg hover:bg-violet-50/60"
+            className="px-1.5 py-1 text-gray-700 hover:text-violet-600 transition-colors duration-200 flex items-center rounded-lg hover:bg-violet-50/60 shrink-0"
             title="Back to your boards"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1050,12 +1051,17 @@ function BoardView({
             </svg>
           </button>
           <div className="w-px h-6 bg-gray-300" />
-          {boardMetadata && (
-              <span className="flex-1 px-3 text-center text-2xl font-bold text-orange-500 truncate">
-                {boardMetadata.name}
-              </span>
-          )}
+          <span className="text-lg font-bold text-orange-500 truncate flex-1 min-w-0 text-center">
+            {boardMetadata?.name ?? ''}
+          </span>
           <div className="w-px h-6 bg-gray-300" />
+          <button
+            onClick={() => setHelpOpen((o) => !o)}
+            className="px-1.5 py-1 text-violet-600 hover:text-violet-700 transition-colors duration-200 flex items-center rounded-lg hover:bg-violet-50/60 font-bold text-sm shrink-0"
+            title="Help & shortcuts"
+          >
+            ?
+          </button>
           <button
             onClick={() => {
               const url = `${window.location.origin}/${boardId}`;
@@ -1064,7 +1070,7 @@ function BoardView({
                 setTimeout(() => setCopied(false), 2000);
               });
             }}
-            className="px-2.5 py-1 text-gray-700 hover:text-violet-600 transition-colors duration-200 flex items-center rounded-lg hover:bg-violet-50/60"
+            className="px-1.5 py-1 text-gray-700 hover:text-violet-600 transition-colors duration-200 flex items-center rounded-lg hover:bg-violet-50/60 shrink-0"
             title={copied ? "Link copied!" : "Share this space"}
           >
             {copied ? (
@@ -1079,59 +1085,48 @@ function BoardView({
               </svg>
             )}
           </button>
-          <div className="w-px h-6 bg-gray-300" />
-          <button
-            onClick={() => setHelpOpen((o) => !o)}
-            className="px-2.5 py-1 text-violet-600 hover:text-violet-700 transition-colors duration-200 flex items-center rounded-lg hover:bg-violet-50/60 font-bold text-sm"
-            title="Help & shortcuts"
-          >
-            ?
-          </button>
         </div>
-        {zoomControls && (
-          <div className="glass-playful rounded-xl shadow-lg flex items-center justify-center gap-0.5 px-1.5 py-1">
-            <button
-              onClick={zoomControls.zoomOut}
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-violet-600 hover:bg-violet-50/60 transition-colors text-lg font-bold"
-              title="Zoom out"
-            >
-              -
-            </button>
-            <button
-              onClick={zoomControls.resetZoom}
-              className="px-2 h-8 flex items-center justify-center rounded-lg text-violet-600 hover:bg-violet-50/60 transition-colors text-xs font-semibold min-w-[3rem]"
-              title="Reset zoom"
-            >
-              {Math.round((zoomControls.scale ?? 1) * 100)}%
-            </button>
-            <button
-              onClick={zoomControls.zoomIn}
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-violet-600 hover:bg-violet-50/60 transition-colors text-lg font-bold"
-              title="Zoom in"
-            >
-              +
-            </button>
-          </div>
-        )}
-        <Minimap
-          transform={stageTransform}
-          objects={objects.map((obj) => ({
-            x: obj.x,
-            y: obj.y,
-            width: obj.width,
-            height: obj.height,
-            type: obj.type,
-            color: 'color' in obj ? (obj as any).color : undefined,
-            shapeType: 'shapeType' in obj ? (obj as any).shapeType : undefined,
-          }))}
-          onPanTo={handleMinimapPanTo}
-        />
-      </div>
-
-      {/* Top right: Sign out and Presence */}
-      <div className="absolute top-4 right-4 z-50 flex flex-col gap-3 items-end">
-        <AuthPanel user={user as never} onSignOut={onSignOut} />
-        <PresencePanel users={onlineUsers} cursors={cursors} onFollowUser={handleFollowUser} />
+        <div className="relative w-full">
+          <Minimap
+            transform={stageTransform}
+            objects={objects.map((obj) => ({
+              x: obj.x,
+              y: obj.y,
+              width: obj.width,
+              height: obj.height,
+              type: obj.type,
+              color: 'color' in obj ? (obj as any).color : undefined,
+              shapeType: 'shapeType' in obj ? (obj as any).shapeType : undefined,
+            }))}
+            onPanTo={handleMinimapPanTo}
+          />
+          {zoomControls && (
+            <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-white/70 backdrop-blur-sm rounded-lg px-1 py-0.5">
+              <button
+                onClick={zoomControls.zoomOut}
+                className="w-6 h-6 flex items-center justify-center rounded text-violet-600 hover:bg-violet-50/60 transition-colors text-sm font-bold"
+                title="Zoom out"
+              >
+                -
+              </button>
+              <button
+                onClick={zoomControls.resetZoom}
+                className="px-1 h-6 flex items-center justify-center rounded text-violet-600 hover:bg-violet-50/60 transition-colors text-[10px] font-semibold min-w-[2.5rem]"
+                title="Reset zoom"
+              >
+                {Math.round((zoomControls.scale ?? 1) * 100)}%
+              </button>
+              <button
+                onClick={zoomControls.zoomIn}
+                className="w-6 h-6 flex items-center justify-center rounded text-violet-600 hover:bg-violet-50/60 transition-colors text-sm font-bold"
+                title="Zoom in"
+              >
+                +
+              </button>
+            </div>
+          )}
+        </div>
+        <PresencePanel users={onlineUsers} cursors={cursors} onFollowUser={handleFollowUser} currentUser={{ displayName: user.displayName, email: user.email, color: userColor }} />
       </div>
       <PresenceToastContainer toasts={presenceToasts} />
 
@@ -1147,7 +1142,9 @@ function BoardView({
           step={tutorial.currentStep}
           stepIndex={tutorial.currentStepIndex}
           totalSteps={tutorial.totalSteps}
+          isAnimating={tutorial.isAnimating}
           onNext={tutorial.nextStep}
+          onPrev={tutorial.prevStep}
           onSkip={tutorial.skipTutorial}
           onFinish={tutorial.finishTutorial}
         />

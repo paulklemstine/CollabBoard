@@ -22,10 +22,10 @@ export function WebcamDock({
     <div
       className="fixed right-3 flex flex-col gap-2 overflow-y-auto pointer-events-auto"
       style={{
-        top: 140,
+        top: 16,
         bottom: 100,
         zIndex: 1050,
-        maxHeight: 'calc(100vh - 240px)',
+        maxHeight: 'calc(100vh - 116px)',
       }}
     >
       {activePeers.map((peer) => {

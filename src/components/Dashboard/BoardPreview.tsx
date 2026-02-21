@@ -26,7 +26,6 @@ function getColor(obj: AnyBoardObject): string {
     case 'text': return obj.bgColor && obj.bgColor !== 'transparent' ? obj.bgColor : 'transparent';
     case 'frame': return obj.color || 'rgba(250, 245, 255, 0.12)';
     case 'sticker': return '#c084fc';
-    case 'webcam': return '#1e1e2e';
     default: return '#94a3b8';
   }
 }
@@ -413,42 +412,6 @@ export function BoardPreview({ boardId, thumbnailUrl }: BoardPreviewProps) {
                   {truncateText(obj.text, 50)}
                 </text>
               )}
-            </g>
-          );
-        }
-
-        // --- Webcam ---
-        if (obj.type === 'webcam') {
-          const iconSize = Math.min(w, h) * 0.35;
-          return (
-            <g key={obj.id} transform={rotateTransform}>
-              <rect
-                x={x} y={y} width={w} height={h}
-                fill="#1e1e2e"
-                rx={Math.max(2, 8 * scale)}
-                opacity={0.85}
-              />
-              {/* Camera icon: circle lens + body */}
-              <circle
-                cx={x + w / 2}
-                cy={y + h / 2 - iconSize * 0.1}
-                r={iconSize * 0.3}
-                fill="none"
-                stroke="#94a3b8"
-                strokeWidth={Math.max(0.5, scale)}
-                opacity={0.6}
-              />
-              <rect
-                x={x + w / 2 - iconSize * 0.5}
-                y={y + h / 2 - iconSize * 0.35}
-                width={iconSize}
-                height={iconSize * 0.7}
-                rx={Math.max(1, 2 * scale)}
-                fill="none"
-                stroke="#94a3b8"
-                strokeWidth={Math.max(0.5, scale)}
-                opacity={0.6}
-              />
             </g>
           );
         }

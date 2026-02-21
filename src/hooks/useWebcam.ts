@@ -2,30 +2,34 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import Peer from 'peerjs';
 import { ref, set, onValue, onDisconnect, remove } from 'firebase/database';
 import { rtdb } from '../services/firebase';
-import type { Webcam } from '../types/board';
+
+export interface WebcamPeer {
+  streamerId: string;
+  label: string;
+}
 
 interface UseWebcamReturn {
   localStream: MediaStream | null;
   remoteStreams: Map<string, MediaStream>;
   isStreaming: boolean;
-  startStreaming: () => Promise<MediaStream>;
+  activePeers: WebcamPeer[];
+  startStreaming: (label: string) => Promise<MediaStream>;
   stopStreaming: () => void;
 }
 
 export function useWebcam(
   boardId: string,
   userId: string,
-  webcamObjects: Webcam[],
 ): UseWebcamReturn {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const [isStreaming, setIsStreaming] = useState(false);
+  const [activePeers, setActivePeers] = useState<WebcamPeer[]>([]);
 
   const peerRef = useRef<Peer | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const activeCallsRef = useRef<Map<string, import('peerjs').MediaConnection>>(new Map());
   const peerIdMapRef = useRef<Map<string, string>>(new Map()); // streamerId → peerId
-  const rtdbUnsubsRef = useRef<Map<string, () => void>>(new Map());
   const isStreamingRef = useRef(false);
 
   // Keep refs in sync
@@ -47,10 +51,11 @@ export function useWebcam(
       peerRef.current = peer;
 
       peer.on('open', (peerId) => {
-        // Write our peerId to RTDB for discovery
-        const peerRef_ = ref(rtdb, `boards/${boardId}/webcamPeers/${userId}`);
-        set(peerRef_, { peerId });
-        onDisconnect(peerRef_).remove();
+        // Write our peerId to RTDB for discovery — label is set separately
+        const peerRef_ = ref(rtdb, `boards/${boardId}/webcamPeers/${userId}/peerId`);
+        set(peerRef_, peerId);
+        const entryRef = ref(rtdb, `boards/${boardId}/webcamPeers/${userId}`);
+        onDisconnect(entryRef).remove();
         resolve(peer);
       });
 
@@ -63,16 +68,12 @@ export function useWebcam(
       peer.on('call', (call) => {
         const stream = localStreamRef.current;
         call.answer(stream ?? new MediaStream());
-        call.on('stream', (remoteStream) => {
-          // We don't need their stream since we're the streamer
-          // But store it if it's non-empty (for mutual video later)
-        });
       });
     });
   }, [boardId, userId]);
 
   /** Start streaming local camera */
-  const startStreaming = useCallback(async (): Promise<MediaStream> => {
+  const startStreaming = useCallback(async (label: string): Promise<MediaStream> => {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { width: { ideal: 640 }, height: { ideal: 480 } },
       audio: true,
@@ -84,6 +85,10 @@ export function useWebcam(
     // Ensure peer is created and registered in RTDB
     const peer = await ensurePeer();
 
+    // Write label to RTDB
+    const labelRef = ref(rtdb, `boards/${boardId}/webcamPeers/${userId}/label`);
+    set(labelRef, label);
+
     // Re-register the answer handler with the new stream
     peer.off('call');
     peer.on('call', (call) => {
@@ -91,7 +96,7 @@ export function useWebcam(
     });
 
     return stream;
-  }, [ensurePeer]);
+  }, [ensurePeer, boardId, userId]);
 
   /** Stop streaming */
   const stopStreaming = useCallback(() => {
@@ -110,8 +115,8 @@ export function useWebcam(
     setRemoteStreams(new Map());
 
     // Remove RTDB entry
-    const peerRef_ = ref(rtdb, `boards/${boardId}/webcamPeers/${userId}`);
-    remove(peerRef_);
+    const entryRef = ref(rtdb, `boards/${boardId}/webcamPeers/${userId}`);
+    remove(entryRef);
 
     // Destroy peer
     if (peerRef.current) {
@@ -122,101 +127,93 @@ export function useWebcam(
     setIsStreaming(false);
   }, [boardId, userId]);
 
-  // Subscribe to remote webcam peers via RTDB and establish calls
+  // Subscribe to ALL webcam peers via RTDB and establish calls to remote ones
   useEffect(() => {
-    const remoteWebcams = webcamObjects.filter((w) => w.streamerId !== userId);
-    const activeStreamerIds = new Set(remoteWebcams.map((w) => w.streamerId));
+    const peersRef = ref(rtdb, `boards/${boardId}/webcamPeers`);
+    const unsub = onValue(peersRef, async (snapshot) => {
+      const data = snapshot.val() as Record<string, { peerId?: string; label?: string }> | null;
 
-    // Subscribe to new remote streamer peerIds
-    for (const webcam of remoteWebcams) {
-      const { streamerId } = webcam;
-      if (rtdbUnsubsRef.current.has(streamerId)) continue;
+      // Build active peers list
+      const peers: WebcamPeer[] = [];
+      const remoteStreamerIds = new Set<string>();
 
-      const peerRef_ = ref(rtdb, `boards/${boardId}/webcamPeers/${streamerId}`);
-      const unsub = onValue(peerRef_, async (snapshot) => {
-        const data = snapshot.val();
-        if (!data?.peerId) {
-          // Streamer went offline — clean up call
-          const existingCall = activeCallsRef.current.get(streamerId);
-          if (existingCall) {
-            existingCall.close();
-            activeCallsRef.current.delete(streamerId);
-            setRemoteStreams((prev) => {
-              const next = new Map(prev);
-              next.delete(streamerId);
-              return next;
-            });
-          }
-          peerIdMapRef.current.delete(streamerId);
-          return;
-        }
-
-        const remotePeerId = data.peerId;
-        const prevPeerId = peerIdMapRef.current.get(streamerId);
-
-        // If peerId changed (reconnect), close old call
-        if (prevPeerId && prevPeerId !== remotePeerId) {
-          const oldCall = activeCallsRef.current.get(streamerId);
-          if (oldCall) {
-            oldCall.close();
-            activeCallsRef.current.delete(streamerId);
-          }
-        }
-
-        peerIdMapRef.current.set(streamerId, remotePeerId);
-
-        // Don't call if we already have an active call to this peer
-        if (activeCallsRef.current.has(streamerId) && prevPeerId === remotePeerId) return;
-
-        // Ensure our peer exists
-        try {
-          const peer = await ensurePeer();
-          // Call the remote peer with an empty stream (we just want their video)
-          const call = peer.call(remotePeerId, new MediaStream());
-          activeCallsRef.current.set(streamerId, call);
-
-          call.on('stream', (remoteStream) => {
-            setRemoteStreams((prev) => {
-              const next = new Map(prev);
-              next.set(streamerId, remoteStream);
-              return next;
-            });
+      if (data) {
+        for (const [streamerId, entry] of Object.entries(data)) {
+          peers.push({
+            streamerId,
+            label: entry.label ?? 'Anonymous',
           });
 
-          call.on('close', () => {
-            activeCallsRef.current.delete(streamerId);
-            setRemoteStreams((prev) => {
-              const next = new Map(prev);
-              next.delete(streamerId);
-              return next;
+          // Skip our own stream — we don't need to call ourselves
+          if (streamerId === userId) continue;
+          if (!entry.peerId) continue;
+
+          remoteStreamerIds.add(streamerId);
+          const remotePeerId = entry.peerId;
+          const prevPeerId = peerIdMapRef.current.get(streamerId);
+
+          // If peerId changed (reconnect), close old call
+          if (prevPeerId && prevPeerId !== remotePeerId) {
+            const oldCall = activeCallsRef.current.get(streamerId);
+            if (oldCall) {
+              oldCall.close();
+              activeCallsRef.current.delete(streamerId);
+            }
+          }
+
+          peerIdMapRef.current.set(streamerId, remotePeerId);
+
+          // Don't call if we already have an active call to this peer
+          if (activeCallsRef.current.has(streamerId) && prevPeerId === remotePeerId) continue;
+
+          // Ensure our peer exists
+          try {
+            const peer = await ensurePeer();
+            const call = peer.call(remotePeerId, new MediaStream());
+            activeCallsRef.current.set(streamerId, call);
+
+            call.on('stream', (remoteStream) => {
+              setRemoteStreams((prev) => {
+                const next = new Map(prev);
+                next.set(streamerId, remoteStream);
+                return next;
+              });
             });
-          });
-        } catch (err) {
-          console.warn('Failed to call remote peer:', err);
-        }
-      });
 
-      rtdbUnsubsRef.current.set(streamerId, unsub);
-    }
-
-    // Clean up subscriptions for streamers that are no longer on the board
-    for (const [streamerId, unsub] of rtdbUnsubsRef.current) {
-      if (!activeStreamerIds.has(streamerId)) {
-        unsub();
-        rtdbUnsubsRef.current.delete(streamerId);
-        const call = activeCallsRef.current.get(streamerId);
-        if (call) {
-          call.close();
-          activeCallsRef.current.delete(streamerId);
+            call.on('close', () => {
+              activeCallsRef.current.delete(streamerId);
+              setRemoteStreams((prev) => {
+                const next = new Map(prev);
+                next.delete(streamerId);
+                return next;
+              });
+            });
+          } catch (err) {
+            console.warn('Failed to call remote peer:', err);
+          }
         }
-        setRemoteStreams((prev) => {
-          const next = new Map(prev);
-          next.delete(streamerId);
-          return next;
-        });
       }
-    }
-  }, [webcamObjects, userId, boardId, ensurePeer]);
+
+      setActivePeers(peers);
+
+      // Clean up calls to streamers that disappeared from RTDB
+      for (const [streamerId] of activeCallsRef.current) {
+        if (!remoteStreamerIds.has(streamerId)) {
+          const call = activeCallsRef.current.get(streamerId);
+          if (call) call.close();
+          activeCallsRef.current.delete(streamerId);
+          peerIdMapRef.current.delete(streamerId);
+          setRemoteStreams((prev) => {
+            const next = new Map(prev);
+            next.delete(streamerId);
+            return next;
+          });
+        }
+      }
+    });
+
+    return () => unsub();
+  }, [boardId, userId, ensurePeer]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -230,15 +227,10 @@ export function useWebcam(
         call.close();
       }
       activeCallsRef.current.clear();
-      // Unsubscribe RTDB listeners
-      for (const [, unsub] of rtdbUnsubsRef.current) {
-        unsub();
-      }
-      rtdbUnsubsRef.current.clear();
       // Remove our RTDB entry
       // (onDisconnect handles this too, but explicit is better)
-      const peerRef_ = ref(rtdb, `boards/${boardId}/webcamPeers/${userId}`);
-      remove(peerRef_);
+      const entryRef = ref(rtdb, `boards/${boardId}/webcamPeers/${userId}`);
+      remove(entryRef);
       // Destroy peer
       if (peerRef.current) {
         peerRef.current.destroy();
@@ -251,6 +243,7 @@ export function useWebcam(
     localStream,
     remoteStreams,
     isStreaming,
+    activePeers,
     startStreaming,
     stopStreaming,
   };

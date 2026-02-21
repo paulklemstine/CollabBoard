@@ -12,7 +12,7 @@ export interface BoardMetadata {
 
 export interface BoardObject {
   id: string;
-  type: 'sticky' | 'shape' | 'frame' | 'sticker' | 'connector' | 'text' | 'webcam';
+  type: 'sticky' | 'shape' | 'frame' | 'sticker' | 'connector' | 'text';
   x: number;
   y: number;
   width: number;
@@ -112,8 +112,8 @@ export interface Connector extends BoardObject {
   color?: string;
 }
 
-export interface Webcam extends BoardObject {
-  type: 'webcam';
+/** @deprecated Webcams are now RTDB presence-linked DOM panels, not Firestore board objects. */
+export interface Webcam {
   streamerId: string;
   label: string;
 }

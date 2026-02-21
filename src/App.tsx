@@ -21,7 +21,7 @@ import { ShapeComponent } from './components/Board/ShapeComponent';
 import { FrameComponent } from './components/Board/FrameComponent';
 import { ConnectorComponent } from './components/Board/ConnectorComponent';
 import { StickerComponent } from './components/Board/StickerComponent';
-import { WebcamComponent } from './components/Board/WebcamComponent';
+import { WebcamDock } from './components/Webcam/WebcamDock';
 import { TextComponent } from './components/Board/TextComponent';
 import { PreviewConnector } from './components/Board/PreviewConnector';
 import { SelectionOverlay } from './components/Board/SelectionOverlay';
@@ -36,7 +36,7 @@ import { useWebcam } from './hooks/useWebcam';
 import { usePresenceToasts } from './hooks/usePresenceToasts';
 import { PresenceToastContainer } from './components/Effects/PresenceToast';
 import { ConfettiBurst } from './components/Effects/ConfettiBurst';
-import type { StickyNote, Shape, Frame, Sticker, Connector, TextObject, Webcam, BoardMetadata } from './types/board';
+import type { StickyNote, Shape, Frame, Sticker, Connector, TextObject, BoardMetadata } from './types/board';
 import { calculateGroupObjectTransform } from './utils/groupTransform';
 import { batchAddObjects, type AnyBoardObject } from './services/boardService';
 import { duplicateObjects } from './utils/duplicate';
@@ -175,7 +175,6 @@ function BoardView({
     addFrame,
     addSticker,
     addGifSticker,
-    addWebcam,
     addText,
     moveObject: _moveObject,
     resizeObject,
@@ -260,18 +259,14 @@ function BoardView({
     userColor,
   );
 
-  // Webcam: filter webcam objects from the full list for the hook
-  const webcamObjectsForHook = useMemo(
-    () => objects.filter((o): o is Webcam => o.type === 'webcam'),
-    [objects]
-  );
   const {
     localStream,
     remoteStreams,
     isStreaming: isWebcamStreaming,
+    activePeers,
     startStreaming,
     stopStreaming,
-  } = useWebcam(boardId, user.uid, webcamObjectsForHook);
+  } = useWebcam(boardId, user.uid);
 
   const {
     selectedIds,
@@ -478,18 +473,11 @@ function BoardView({
   const handleToggleWebcam = useCallback(async () => {
     if (isWebcamStreaming) {
       stopStreaming();
-      const myWebcam = objects.find(
-        (o): o is Webcam => o.type === 'webcam' && o.streamerId === user.uid
-      );
-      if (myWebcam) removeObject(myWebcam.id);
     } else {
-      // Enforce per-board webcam limit
-      const currentWebcams = objects.filter((o) => o.type === 'webcam').length;
-      if (currentWebcams >= MAX_WEBCAMS_PER_BOARD) return;
-      await startStreaming();
-      addWebcam(stageTransform, user.uid, user.displayName ?? 'Anonymous');
+      if (activePeers.length >= MAX_WEBCAMS_PER_BOARD) return;
+      await startStreaming(user.displayName ?? 'Anonymous');
     }
-  }, [isWebcamStreaming, stopStreaming, startStreaming, objects, user.uid, user.displayName, removeObject, addWebcam, stageTransform]);
+  }, [isWebcamStreaming, stopStreaming, startStreaming, activePeers.length, user.displayName]);
 
   const [showAILabels, setShowAILabels] = useState(false);
   const [zoomControls, setZoomControls] = useState<{
@@ -653,8 +641,6 @@ function BoardView({
   const stickers = objects.filter((o): o is Sticker => o.type === 'sticker')
     .sort((a, b) => a.updatedAt - b.updatedAt);
   const textObjects = objects.filter((o): o is TextObject => o.type === 'text')
-    .sort((a, b) => a.updatedAt - b.updatedAt);
-  const webcams = objects.filter((o): o is Webcam => o.type === 'webcam')
     .sort((a, b) => a.updatedAt - b.updatedAt);
 
   // Build a map of frames for child transform lookups
@@ -975,34 +961,6 @@ function BoardView({
               dragTint={getDragTint(sticker.id)}
             />
           ))}
-          {webcams.map((webcam) => (
-            <WebcamComponent
-              key={webcam.id}
-              webcam={webcam}
-              mediaStream={
-                webcam.streamerId === user.uid
-                  ? localStream
-                  : remoteStreams.get(webcam.streamerId) ?? null
-              }
-              isMine={webcam.streamerId === user.uid}
-              onDragMove={handleDragMove}
-              onDragEnd={handleDragEnd}
-              onDelete={removeObject}
-              onClick={objectClick}
-              onResize={resizeObject}
-              onRotate={rotateObject}
-              onResizeEnd={finalizeResize}
-              onRotateEnd={finalizeRotate}
-              dragOffset={getChildOffset(webcam)}
-              parentRotation={getParentRotation(webcam.parentId)}
-              isNew={newObjectIds.has(webcam.id)}
-              isSelected={isObjectSelected(webcam.id)}
-              groupDragOffset={selectedIds.size > 1 && isObjectSelected(webcam.id) ? groupDragOffset : null}
-              groupTransformPreview={selectedIds.size > 1 && isObjectSelected(webcam.id) ? transformPreview : null}
-              selectionBox={selectedIds.size > 1 && isObjectSelected(webcam.id) ? selectionBox : null}
-              dragTint={getDragTint(webcam.id)}
-            />
-          ))}
           {showAILabels && objects.filter((o) => o.aiLabel || o.aiGroupId).map((o) => (
             <AILabelOverlay
               key={`ai-label-${o.id}`}
@@ -1033,6 +991,13 @@ function BoardView({
         </Board>
       </div>
       <CursorsOverlay cursors={cursors} stageTransform={stageTransform} />
+      <WebcamDock
+        activePeers={activePeers}
+        localStream={localStream}
+        remoteStreams={remoteStreams}
+        userId={user.uid}
+        onStopStreaming={stopStreaming}
+      />
       <Toolbar
         onAddStickyNote={(bgColor, textColor, borderColor) => addStickyNote(stageTransform, undefined, undefined, bgColor, textColor, borderColor)}
         onAddText={(fontSize, fontFamily, fontWeight, fontStyle, textAlign, textColor) => addText(stageTransform, fontSize, fontFamily, fontWeight, fontStyle, textAlign, textColor)}

@@ -1007,7 +1007,7 @@ function BoardView({
           </button>
           <div className="w-px h-6 bg-gray-300" />
           {boardMetadata && (
-              <span className="flex-1 px-3 text-center text-lg font-bold text-orange-500 truncate">
+              <span className="flex-1 px-3 text-center text-2xl font-bold text-orange-500 truncate">
                 {boardMetadata.name}
               </span>
           )}

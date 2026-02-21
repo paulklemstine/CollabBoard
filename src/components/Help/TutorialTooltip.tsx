@@ -29,11 +29,12 @@ export function TutorialTooltip({
     const el = tooltipRef.current;
     const w = el?.offsetWidth ?? 360;
     const h = el?.offsetHeight ?? 220;
-    const margin = 12;
+    const margin = 16;
+    // Keep tooltip well above the bottom toolbar (toolbar is at bottom:24 + ~50px tall)
+    const bottomClearance = 100;
 
-    // Clamp so the tooltip stays fully on-screen
     const clampedLeft = Math.max(margin + w / 2, Math.min(left, window.innerWidth - margin - w / 2));
-    const clampedTop = Math.max(margin + h, Math.min(top, window.innerHeight - margin));
+    const clampedTop = Math.max(margin + h, Math.min(top, window.innerHeight - bottomClearance));
     return { top: clampedTop, left: clampedLeft };
   }, []);
 

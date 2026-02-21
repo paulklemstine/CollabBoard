@@ -17,6 +17,15 @@ interface UseWebcamReturn {
   stopStreaming: () => void;
 }
 
+// ICE servers for NAT traversal
+const ICE_SERVERS = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun2.l.google.com:19302' },
+  { urls: 'stun:stun3.l.google.com:19302' },
+  { urls: 'stun:stun4.l.google.com:19302' },
+];
+
 export function useWebcam(
   boardId: string,
   userId: string,
@@ -40,22 +49,25 @@ export function useWebcam(
     isStreamingRef.current = isStreaming;
   }, [isStreaming]);
 
-  /** Create PeerJS instance lazily */
+  /**
+   * Create PeerJS instance lazily.
+   * Does NOT write to RTDB — only startStreaming registers the peer for discovery.
+   * This prevents viewers from creating ghost "Anonymous" entries.
+   */
   const ensurePeer = useCallback((): Promise<Peer> => {
     return new Promise((resolve, reject) => {
       if (peerRef.current && !peerRef.current.destroyed) {
         resolve(peerRef.current);
         return;
       }
-      const peer = new Peer();
+      const peer = new Peer({
+        config: {
+          iceServers: ICE_SERVERS,
+        },
+      });
       peerRef.current = peer;
 
-      peer.on('open', (peerId) => {
-        // Write our peerId to RTDB for discovery — label is set separately
-        const peerRef_ = ref(rtdb, `boards/${boardId}/webcamPeers/${userId}/peerId`);
-        set(peerRef_, peerId);
-        const entryRef = ref(rtdb, `boards/${boardId}/webcamPeers/${userId}`);
-        onDisconnect(entryRef).remove();
+      peer.on('open', () => {
         resolve(peer);
       });
 
@@ -70,7 +82,7 @@ export function useWebcam(
         call.answer(stream ?? new MediaStream());
       });
     });
-  }, [boardId, userId]);
+  }, []);
 
   /** Start streaming local camera */
   const startStreaming = useCallback(async (label: string): Promise<MediaStream> => {
@@ -82,12 +94,13 @@ export function useWebcam(
     setLocalStream(stream);
     setIsStreaming(true);
 
-    // Ensure peer is created and registered in RTDB
+    // Ensure peer is created
     const peer = await ensurePeer();
 
-    // Write label to RTDB
-    const labelRef = ref(rtdb, `boards/${boardId}/webcamPeers/${userId}/label`);
-    set(labelRef, label);
+    // Write peerId + label atomically to RTDB so other clients discover us
+    const entryRef = ref(rtdb, `boards/${boardId}/webcamPeers/${userId}`);
+    await set(entryRef, { peerId: peer.id, label });
+    onDisconnect(entryRef).remove();
 
     // Re-register the answer handler with the new stream
     peer.off('call');
@@ -139,14 +152,16 @@ export function useWebcam(
 
       if (data) {
         for (const [streamerId, entry] of Object.entries(data)) {
+          // Skip entries without both peerId and label (incomplete registrations)
+          if (!entry.peerId || !entry.label) continue;
+
           peers.push({
             streamerId,
-            label: entry.label ?? 'Anonymous',
+            label: entry.label,
           });
 
           // Skip our own stream — we don't need to call ourselves
           if (streamerId === userId) continue;
-          if (!entry.peerId) continue;
 
           remoteStreamerIds.add(streamerId);
           const remotePeerId = entry.peerId;
@@ -166,7 +181,7 @@ export function useWebcam(
           // Don't call if we already have an active call to this peer
           if (activeCallsRef.current.has(streamerId) && prevPeerId === remotePeerId) continue;
 
-          // Ensure our peer exists
+          // Ensure our peer exists (does NOT write to RTDB)
           try {
             const peer = await ensurePeer();
             const call = peer.call(remotePeerId, new MediaStream());
@@ -187,6 +202,11 @@ export function useWebcam(
                 next.delete(streamerId);
                 return next;
               });
+            });
+
+            call.on('error', (err) => {
+              console.warn('Call error with', streamerId, err);
+              activeCallsRef.current.delete(streamerId);
             });
           } catch (err) {
             console.warn('Failed to call remote peer:', err);

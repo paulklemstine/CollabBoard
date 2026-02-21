@@ -7,7 +7,7 @@ import {
   batchUpdateObjects,
   type AnyBoardObject,
 } from '../services/boardService';
-import type { StickyNote, Shape, ShapeType, Frame, Sticker, Connector, TextObject } from '../types/board';
+import type { StickyNote, Shape, ShapeType, Frame, Sticker, Connector, TextObject, Webcam } from '../types/board';
 import { findContainingFrame, getChildrenOfFrame, isObjectInsideFrame } from '../utils/containment';
 import { screenToWorld } from '../utils/coordinates';
 import type { StageTransform } from '../components/Board/Board';
@@ -338,6 +338,43 @@ export function useBoard(
           updateObject(boardId, sticker.id, { gifUrl: cachedUrl } as Partial<Sticker>, userId);
         })
         .catch((err) => console.warn('GIF caching failed, keeping original URL:', err));
+    },
+    [boardId, userId, trackNewObject, maybePushUndo]
+  );
+
+  const addWebcam = useCallback(
+    (transform: StageTransform, streamerId: string, label: string, x?: number, y?: number) => {
+      const screenX = window.innerWidth / 2 - 160;
+      const screenY = window.innerHeight - 410;
+      let worldX: number;
+      let worldY: number;
+      if (x !== undefined && y !== undefined) {
+        worldX = x;
+        worldY = y;
+      } else {
+        const world = screenToWorld(screenX, screenY, transform);
+        worldX = world.x;
+        worldY = world.y;
+      }
+      const maxUpdatedAt = Math.max(0, ...objectsRef.current.map(o => o.updatedAt));
+      const webcam: Webcam = {
+        id: crypto.randomUUID(),
+        type: 'webcam',
+        x: worldX,
+        y: worldY,
+        width: 320,
+        height: 240,
+        rotation: 0,
+        createdBy: userId,
+        lastModifiedBy: userId,
+        updatedAt: maxUpdatedAt + 1,
+        streamerId,
+        label,
+      };
+      addObject(boardId, webcam);
+      trackNewObject(webcam.id);
+      maybePushUndo({ changes: [{ objectId: webcam.id, before: null, after: structuredClone(webcam) }] });
+      return webcam.id;
     },
     [boardId, userId, trackNewObject, maybePushUndo]
   );
@@ -976,6 +1013,7 @@ export function useBoard(
     addFrame,
     addSticker,
     addGifSticker,
+    addWebcam,
     addText,
     moveObject,
     resizeObject,

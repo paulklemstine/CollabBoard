@@ -12,7 +12,7 @@ export interface BoardMetadata {
 
 export interface BoardObject {
   id: string;
-  type: 'sticky' | 'shape' | 'frame' | 'sticker' | 'connector' | 'text';
+  type: 'sticky' | 'shape' | 'frame' | 'sticker' | 'connector' | 'text' | 'webcam';
   x: number;
   y: number;
   width: number;
@@ -110,6 +110,12 @@ export interface Connector extends BoardObject {
   endArrow?: boolean;
   strokeWidth?: number;
   color?: string;
+}
+
+export interface Webcam extends BoardObject {
+  type: 'webcam';
+  streamerId: string;
+  label: string;
 }
 
 export interface AIMessage {

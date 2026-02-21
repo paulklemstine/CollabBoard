@@ -10,9 +10,9 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { StickyNote, Shape, Frame, Sticker, Connector, TextObject } from '../types/board';
+import type { StickyNote, Shape, Frame, Sticker, Connector, TextObject, Webcam } from '../types/board';
 
-export type AnyBoardObject = StickyNote | Shape | Frame | Sticker | Connector | TextObject;
+export type AnyBoardObject = StickyNote | Shape | Frame | Sticker | Connector | TextObject | Webcam;
 
 function objectsCollection(boardId: string) {
   return collection(db, 'boards', boardId, 'objects');

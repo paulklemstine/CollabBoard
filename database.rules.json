@@ -17,6 +17,12 @@
         "chat": {
           ".read": "auth != null",
           ".write": "auth != null"
+        },
+        "webcamPeers": {
+          ".read": "auth != null",
+          "$userId": {
+            ".write": "auth != null && auth.uid === $userId"
+          }
         }
       }
     }

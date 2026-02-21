@@ -1,6 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '../../services/firebase';
 
 interface GiphyImage {
   url?: string;
@@ -17,14 +15,14 @@ interface GiphyGif {
   };
 }
 
-const searchGiphyFn = httpsCallable<
-  { query: string; limit?: number },
-  { data: GiphyGif[] }
->(functions, 'searchGiphyCallable');
+const GIPHY_API_KEY = import.meta.env.VITE_GIPHY_API_KEY as string;
 
 async function searchGiphyDirect(query: string, limit = 18): Promise<GiphyGif[]> {
-  const result = await searchGiphyFn({ query, limit });
-  return result.data.data ?? [];
+  const url = `https://api.giphy.com/v1/stickers/search?api_key=${encodeURIComponent(GIPHY_API_KEY)}&q=${encodeURIComponent(query)}&limit=${limit}`;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`GIPHY ${resp.status}`);
+  const json = await resp.json();
+  return json.data ?? [];
 }
 
 // Module-level preload: fires immediately on import, retries until success.

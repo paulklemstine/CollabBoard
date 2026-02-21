@@ -12,14 +12,18 @@ import { findContainingFrame, getChildrenOfFrame, isObjectInsideFrame } from '..
 import { screenToWorld } from '../utils/coordinates';
 import type { StageTransform } from '../components/Board/Board';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { httpsCallable } from 'firebase/functions';
-import { storage, functions } from '../services/firebase';
+import { storage } from '../services/firebase';
 import type { UndoEntry, UndoChange } from './useUndoRedo';
 
-const searchGiphyFn = httpsCallable<
-  { query: string; limit?: number },
-  { data: Array<{ id: string; title?: string; images?: Record<string, { url?: string }> }> }
->(functions, 'searchGiphyCallable');
+const GIPHY_API_KEY = import.meta.env.VITE_GIPHY_API_KEY as string;
+
+async function searchGiphyDirect(query: string, limit = 1): Promise<Array<{ id: string; title?: string; images?: Record<string, { url?: string }> }>> {
+  const url = `https://api.giphy.com/v1/stickers/search?api_key=${encodeURIComponent(GIPHY_API_KEY)}&q=${encodeURIComponent(query)}&limit=${limit}`;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`GIPHY ${resp.status}`);
+  const json = await resp.json();
+  return json.data ?? [];
+}
 
 const STICKY_COLORS = ['#fef9c3', '#fef3c7', '#dcfce7', '#dbeafe', '#f3e8ff', '#ffe4e6', '#fed7aa', '#e0e7ff'];
 
@@ -94,9 +98,9 @@ export function useBoard(
     );
     for (const sticker of stickers) {
       resolvedGifIds.current.add(sticker.id);
-      searchGiphyFn({ query: sticker.gifSearchTerm!, limit: 1 })
-        .then((result) => {
-          const gif = result.data.data?.[0];
+      searchGiphyDirect(sticker.gifSearchTerm!, 1)
+        .then((gifs) => {
+          const gif = gifs[0];
           if (gif) {
             const img = gif.images?.fixed_height ?? gif.images?.original;
             const url = img?.url ?? '';

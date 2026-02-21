@@ -110,12 +110,26 @@ export async function getBoardObjects(boardId: string): Promise<AnyBoardObject[]
   return snapshot.docs.map((d) => ({ ...d.data(), id: d.id }) as AnyBoardObject);
 }
 
+/** Ensure core numeric fields are valid numbers so Konva never receives NaN. */
+function sanitizeObject(obj: AnyBoardObject): AnyBoardObject {
+  const n = (v: unknown, fallback: number) =>
+    typeof v === 'number' && Number.isFinite(v) ? v : fallback;
+  return {
+    ...obj,
+    x: n(obj.x, 0),
+    y: n(obj.y, 0),
+    width: n(obj.width, 150),
+    height: n(obj.height, 150),
+    rotation: n(obj.rotation, 0),
+  };
+}
+
 export function subscribeToBoard(
   boardId: string,
   callback: (objects: AnyBoardObject[]) => void
 ): Unsubscribe {
   return onSnapshot(objectsCollection(boardId), (snapshot) => {
-    const objects = snapshot.docs.map((d) => ({ ...d.data(), id: d.id }) as AnyBoardObject);
+    const objects = snapshot.docs.map((d) => sanitizeObject({ ...d.data(), id: d.id } as AnyBoardObject));
     callback(objects);
   });
 }

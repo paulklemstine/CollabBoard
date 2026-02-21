@@ -76,7 +76,7 @@ const tools = [
             properties: {
               op: { type: 'string', enum: ['createStickyNote', 'createShape', 'createFrame', 'createSticker', 'createGifSticker', 'createText', 'createConnector'] },
               tempId: { type: 'string', description: 'Optional temp ID for cross-referencing between ops' },
-              params: { type: 'object', description: 'Op params — createStickyNote: text,color,textColor,width,height. createShape: shapeType(rect|circle|triangle|diamond|pentagon|hexagon|octagon|star|arrow|cross|line),color,strokeColor,width,height. createFrame: title,width,height,borderless. createSticker: emoji(single Unicode emoji char e.g. "🐱","🦊","🐶"),size. createGifSticker: searchTerm,size. createText: text,fontSize,fontFamily,fontWeight,fontStyle,textAlign,color,bgColor,width,height. createConnector: fromId,toId,color,lineType. All ops accept: x,y,parentId,aiLabel,aiGroupId.' },
+              params: { type: 'object', description: 'Op params — createStickyNote: text(REQUIRED,non-empty),color,textColor,width,height. createShape: shapeType(rect|circle|triangle|diamond|pentagon|hexagon|octagon|star|arrow|cross|line),color,strokeColor,width,height. createFrame: title,width,height,borderless. createSticker: emoji(single Unicode emoji char e.g. "🐱","🦊","🐶"),size. createGifSticker: searchTerm,size. createText: text(REQUIRED,non-empty),fontSize,fontFamily,fontWeight,fontStyle,textAlign,color,bgColor,width,height. createConnector: fromId,toId,color,lineType. All ops accept: x,y,parentId,aiLabel,aiGroupId.' },
             },
             required: ['op'],
           },
@@ -1886,7 +1886,7 @@ function buildObjectData(
       const data: Record<string, unknown> = {
         ...base,
         type: 'sticky',
-        text: params.text ?? '',
+        text: params.text || params.aiLabel || '',
         x: params.x ?? 0,
         y: params.y ?? 0,
         width: params.width ?? 200,
@@ -1996,7 +1996,7 @@ function buildObjectData(
       const data: Record<string, unknown> = {
         ...base,
         type: 'text',
-        text: params.text ?? '',
+        text: params.text || params.aiLabel || '',
         x: params.x ?? 0,
         y: params.y ?? 0,
         width: params.width ?? 300,
@@ -2209,7 +2209,7 @@ async function executeTool(
       const docRef = objectsRef.doc();
       const data: Record<string, unknown> = {
         type: 'sticky',
-        text: input.text ?? '',
+        text: input.text || input.aiLabel || '',
         x: input.x ?? 0,
         y: input.y ?? 0,
         width: input.width ?? 200,
@@ -2338,7 +2338,7 @@ async function executeTool(
       const docRef = objectsRef.doc();
       const data: Record<string, unknown> = {
         type: 'text',
-        text: input.text ?? '',
+        text: input.text || input.aiLabel || '',
         x: input.x ?? 0,
         y: input.y ?? 0,
         width: input.width ?? 300,

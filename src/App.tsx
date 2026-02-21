@@ -5,6 +5,7 @@ import { rtdb, storage } from './services/firebase';
 import { signOutUser } from './services/authService';
 import { subscribeToBoardMetadata, updateBoardMetadata } from './services/boardMetadataService';
 import { addVisitedBoard } from './services/userBoardsService';
+import { setPreviewBlob } from './services/previewCache';
 import { useAuth } from './hooks/useAuth';
 import { useRouter } from './hooks/useRouter';
 import { useCursors } from './hooks/useCursors';
@@ -553,10 +554,15 @@ function BoardView({
     // Wait for fade overlay to become opaque
     await new Promise(r => setTimeout(r, 200));
     const blob = await capturePreviewBlob();
-    // Navigate immediately — upload continues in background
-    if (blob) uploadPreview(blob);
+    if (blob) {
+      // Always cache locally for instant dashboard preview
+      setPreviewBlob(boardId, blob);
+      // Probabilistic upload: ~1 upload expected regardless of user count
+      const shouldUpload = onlineUsers.length <= 1 || Math.random() < 1 / onlineUsers.length;
+      if (shouldUpload) uploadPreview(blob);
+    }
     onNavigateBack();
-  }, [capturePreviewBlob, uploadPreview, onNavigateBack]);
+  }, [capturePreviewBlob, uploadPreview, onNavigateBack, boardId, onlineUsers.length]);
 
   const handleMouseMove = useCallback(
     (x: number, y: number) => {

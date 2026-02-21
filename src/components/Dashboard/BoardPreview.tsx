@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getBoardObjects, type AnyBoardObject } from '../../services/boardService';
+import { getPreviewUrl } from '../../services/previewCache';
 import { getContrastTextColor } from '../../utils/colors';
 import { regularPolygonPoints, starPoints, arrowPoints, crossPoints } from '../../utils/shapePoints';
 import type { Connector } from '../../types/board';
@@ -55,25 +56,27 @@ function getShapePoints(shapeType: string): number[] | null {
 
 export function BoardPreview({ boardId, thumbnailUrl }: BoardPreviewProps) {
   const [objects, setObjects] = useState<AnyBoardObject[] | null>(null);
+  const cachedUrl = getPreviewUrl(boardId);
 
   useEffect(() => {
-    if (thumbnailUrl) return; // Skip fetching objects when we have a screenshot
+    if (cachedUrl || thumbnailUrl) return; // Skip fetching objects when we have an image
     let cancelled = false;
     getBoardObjects(boardId).then((objs) => {
       if (!cancelled) setObjects(objs);
     });
     return () => { cancelled = true; };
-  }, [boardId, thumbnailUrl]);
+  }, [boardId, cachedUrl, thumbnailUrl]);
 
-  // If we have a thumbnail screenshot, render it directly
-  if (thumbnailUrl) {
+  // Priority: cached local preview > uploaded thumbnail > SVG fallback
+  const previewSrc = cachedUrl || thumbnailUrl;
+  if (previewSrc) {
     return (
       <div
         className="w-full relative overflow-hidden"
         style={{ aspectRatio: '1 / 1', background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%)' }}
       >
         <img
-          src={thumbnailUrl}
+          src={previewSrc}
           alt="Board preview"
           className="absolute inset-0 w-full h-full object-cover"
         />

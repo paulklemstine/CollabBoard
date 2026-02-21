@@ -188,6 +188,10 @@ export function BoardPreview({ boardId, thumbnailUrl }: BoardPreviewProps) {
         const w = Math.max(obj.width * scale, 3);
         const h = Math.max(obj.height * scale, 3);
         const color = getColor(obj);
+        const rotation = obj.rotation || 0;
+        const cx = x + w / 2;
+        const cy = y + h / 2;
+        const rotateTransform = rotation ? `rotate(${rotation}, ${cx}, ${cy})` : undefined;
 
         // --- Frame ---
         if (obj.type === 'frame') {
@@ -195,7 +199,7 @@ export function BoardPreview({ boardId, thumbnailUrl }: BoardPreviewProps) {
           if (obj.borderless) return null;
           const titleFontSize = Math.max(3, 12 * scale);
           return (
-            <g key={obj.id}>
+            <g key={obj.id} transform={rotateTransform}>
               <rect
                 x={x} y={y} width={w} height={h}
                 fill="none"
@@ -228,43 +232,46 @@ export function BoardPreview({ boardId, thumbnailUrl }: BoardPreviewProps) {
           if (obj.emoji && !obj.gifUrl) {
             const emojiFontSize = Math.max(4, Math.min(w, h) * 0.7);
             return (
-              <text
-                key={obj.id}
-                x={x + w / 2}
-                y={y + h / 2}
-                fontSize={emojiFontSize}
-                textAnchor="middle"
-                dominantBaseline="central"
-                opacity={0.85}
-              >
-                {obj.emoji}
-              </text>
+              <g key={obj.id} transform={rotateTransform}>
+                <text
+                  x={x + w / 2}
+                  y={y + h / 2}
+                  fontSize={emojiFontSize}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  opacity={0.85}
+                >
+                  {obj.emoji}
+                </text>
+              </g>
             );
           }
           // GIF sticker — render actual image
           if (obj.gifUrl) {
             return (
-              <image
-                key={obj.id}
-                href={obj.gifUrl}
-                x={x}
-                y={y}
-                width={w}
-                height={h}
-                preserveAspectRatio="xMidYMid meet"
-                opacity={0.9}
-              />
+              <g key={obj.id} transform={rotateTransform}>
+                <image
+                  href={obj.gifUrl}
+                  x={x}
+                  y={y}
+                  width={w}
+                  height={h}
+                  preserveAspectRatio="xMidYMid meet"
+                  opacity={0.9}
+                />
+              </g>
             );
           }
           // Fallback for stickers with no emoji and no gif
           return (
-            <circle
-              key={obj.id}
-              cx={x + w / 2} cy={y + h / 2}
-              r={Math.max(Math.min(w, h) / 2, 3)}
-              fill="#c084fc"
-              opacity={0.5}
-            />
+            <g key={obj.id} transform={rotateTransform}>
+              <circle
+                cx={x + w / 2} cy={y + h / 2}
+                r={Math.max(Math.min(w, h) / 2, 3)}
+                fill="#c084fc"
+                opacity={0.5}
+              />
+            </g>
           );
         }
 
@@ -273,7 +280,7 @@ export function BoardPreview({ boardId, thumbnailUrl }: BoardPreviewProps) {
           const fontSize = Math.max(3, obj.fontSize * scale);
           const hasBg = obj.bgColor && obj.bgColor !== 'transparent';
           return (
-            <g key={obj.id}>
+            <g key={obj.id} transform={rotateTransform}>
               {hasBg && (
                 <rect
                   x={x} y={y} width={w} height={h}
@@ -305,28 +312,30 @@ export function BoardPreview({ boardId, thumbnailUrl }: BoardPreviewProps) {
         if (obj.type === 'shape') {
           if (obj.shapeType === 'circle') {
             return (
-              <ellipse
-                key={obj.id}
-                cx={x + w / 2} cy={y + h / 2}
-                rx={w / 2} ry={h / 2}
-                fill={color}
-                stroke={obj.strokeColor || undefined}
-                strokeWidth={obj.strokeColor ? Math.max(0.5, scale) : 0}
-                opacity={0.8}
-              />
+              <g key={obj.id} transform={rotateTransform}>
+                <ellipse
+                  cx={x + w / 2} cy={y + h / 2}
+                  rx={w / 2} ry={h / 2}
+                  fill={color}
+                  stroke={obj.strokeColor || undefined}
+                  strokeWidth={obj.strokeColor ? Math.max(0.5, scale) : 0}
+                  opacity={0.8}
+                />
+              </g>
             );
           }
 
           if (obj.shapeType === 'line') {
             return (
-              <line
-                key={obj.id}
-                x1={x} y1={y + h / 2}
-                x2={x + w} y2={y + h / 2}
-                stroke={color}
-                strokeWidth={Math.max(1, 2 * scale)}
-                opacity={0.8}
-              />
+              <g key={obj.id} transform={rotateTransform}>
+                <line
+                  x1={x} y1={y + h / 2}
+                  x2={x + w} y2={y + h / 2}
+                  stroke={color}
+                  strokeWidth={Math.max(1, 2 * scale)}
+                  opacity={0.8}
+                />
+              </g>
             );
           }
 
@@ -334,28 +343,30 @@ export function BoardPreview({ boardId, thumbnailUrl }: BoardPreviewProps) {
           const pts = getShapePoints(obj.shapeType);
           if (pts) {
             return (
-              <polygon
-                key={obj.id}
-                points={toSvgPoints(pts, x, y, w, h)}
-                fill={color}
-                stroke={obj.strokeColor || undefined}
-                strokeWidth={obj.strokeColor ? Math.max(0.5, scale) : 0}
-                opacity={0.8}
-              />
+              <g key={obj.id} transform={rotateTransform}>
+                <polygon
+                  points={toSvgPoints(pts, x, y, w, h)}
+                  fill={color}
+                  stroke={obj.strokeColor || undefined}
+                  strokeWidth={obj.strokeColor ? Math.max(0.5, scale) : 0}
+                  opacity={0.8}
+                />
+              </g>
             );
           }
 
           // Fallback rect for unknown shapes
           return (
-            <rect
-              key={obj.id}
-              x={x} y={y} width={w} height={h}
-              fill={color}
-              stroke={obj.strokeColor || undefined}
-              strokeWidth={obj.strokeColor ? Math.max(0.5, scale) : 0}
-              rx={1}
-              opacity={0.8}
-            />
+            <g key={obj.id} transform={rotateTransform}>
+              <rect
+                x={x} y={y} width={w} height={h}
+                fill={color}
+                stroke={obj.strokeColor || undefined}
+                strokeWidth={obj.strokeColor ? Math.max(0.5, scale) : 0}
+                rx={1}
+                opacity={0.8}
+              />
+            </g>
           );
         }
 
@@ -364,7 +375,7 @@ export function BoardPreview({ boardId, thumbnailUrl }: BoardPreviewProps) {
           const textFontSize = Math.max(3, 14 * scale);
           const textColor = obj.textColor || getContrastTextColor(obj.color || '#fef08a');
           return (
-            <g key={obj.id}>
+            <g key={obj.id} transform={rotateTransform}>
               <rect
                 x={x} y={y} width={w} height={h}
                 fill={color}

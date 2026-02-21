@@ -6,6 +6,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import type { GoogleGenAI as GoogleGenAIType } from '@google/genai';
 import type Anthropic from '@anthropic-ai/sdk';
 
+// Force redeploy — CORS fix
 initializeApp();
 const db = getFirestore();
 
@@ -1061,15 +1062,23 @@ function detectTemplate(prompt: string): TemplateMatch | null {
     return { type: 'bulk-create', count: rawCount, objectType };
   }
 
-  // Structural templates + aliases
-  if (/\bswot\b/i.test(prompt)) return { type: 'template', templateType: 'swot' };
-  if (/\bkanban\b|\bsprint\s*board\b/i.test(prompt)) return { type: 'template', templateType: 'kanban' };
-  if (/\bretro(?:spective)?\b/i.test(prompt)) return { type: 'template', templateType: 'retrospective' };
-  if (/\beisenhower\b|\bpriority\s*matrix\b|\burgent\s*important\b/i.test(prompt)) return { type: 'template', templateType: 'eisenhower' };
-  if (/\bmind\s*map\b|\bbrainstorm(?:ing)?\s+(?:board|session|template)\b/i.test(prompt)) return { type: 'template', templateType: 'mind-map' };
-  if (/\bpros?\s*(?:and|&|\/)\s*cons?\b/i.test(prompt)) return { type: 'template', templateType: 'pros-cons' };
-  if (/\btimeline\b/i.test(prompt)) return { type: 'template', templateType: 'timeline' };
-  if (/\b(?:user\s*)?journey\s*map\b/i.test(prompt)) return { type: 'template', templateType: 'journey' };
+  // Structural templates — skip when a topic phrase follows the keyword (let LLM handle it)
+  // e.g. "create a swot" → fast scaffold; "create a swot about puppies" → falls through to LLM
+  function hasTopicAfterKeyword(keywordRegex: RegExp): boolean {
+    const match = lower.match(keywordRegex);
+    if (!match) return false;
+    const afterMatch = lower.slice(match.index! + match[0].length).trim();
+    return /^(?:about|for|showing|on|of|to|that|with|describing|explaining|regarding|related\s+to|involving|covering|analyzing|analysing)\s/i.test(afterMatch);
+  }
+
+  if (/\bswot\b/i.test(prompt) && !hasTopicAfterKeyword(/\bswot\b/i)) return { type: 'template', templateType: 'swot' };
+  if (/\bkanban\b|\bsprint\s*board\b/i.test(prompt) && !hasTopicAfterKeyword(/\bkanban\b|\bsprint\s*board\b/i)) return { type: 'template', templateType: 'kanban' };
+  if (/\bretro(?:spective)?\b/i.test(prompt) && !hasTopicAfterKeyword(/\bretro(?:spective)?\b/i)) return { type: 'template', templateType: 'retrospective' };
+  if (/\beisenhower\b|\bpriority\s*matrix\b|\burgent\s*important\b/i.test(prompt) && !hasTopicAfterKeyword(/\beisenhower\b|\bpriority\s*matrix\b|\burgent\s*important\b/i)) return { type: 'template', templateType: 'eisenhower' };
+  if (/\bmind\s*map\b|\bbrainstorm(?:ing)?\s+(?:board|session|template)\b/i.test(prompt) && !hasTopicAfterKeyword(/\bmind\s*map\b|\bbrainstorm(?:ing)?\s+(?:board|session|template)\b/i)) return { type: 'template', templateType: 'mind-map' };
+  if (/\bpros?\s*(?:and|&|\/)\s*cons?\b/i.test(prompt) && !hasTopicAfterKeyword(/\bpros?\s*(?:and|&|\/)\s*cons?\b/i)) return { type: 'template', templateType: 'pros-cons' };
+  if (/\btimeline\b/i.test(prompt) && !hasTopicAfterKeyword(/\btimeline\b/i)) return { type: 'template', templateType: 'timeline' };
+  if (/\b(?:user\s*)?journey\s*map\b/i.test(prompt) && !hasTopicAfterKeyword(/\b(?:user\s*)?journey\s*map\b/i)) return { type: 'template', templateType: 'journey' };
 
   // "2x2 matrix" alias → grid
   const matrixMatch = lower.match(/(\d+)\s*[x×]\s*(\d+)\s*matrix/);
@@ -3608,6 +3617,7 @@ export const processAIRequestCallable = onCall(
     timeoutSeconds: 300,
     memory: '512MiB',
     maxInstances: 10,
+    cors: true,
   },
   async (request) => {
     const userId = request.auth?.uid;
@@ -3647,6 +3657,7 @@ export const searchGiphyCallable = onCall(
     timeoutSeconds: 15,
     memory: '128MiB',
     maxInstances: 10,
+    cors: true,
   },
   async (request) => {
     const { query, limit } = request.data as { query?: string; limit?: number };

@@ -59,17 +59,17 @@ export function BoardPreview({ boardId, thumbnailUrl }: BoardPreviewProps) {
   const cachedUrl = getPreviewUrl(boardId);
 
   useEffect(() => {
-    if (cachedUrl || thumbnailUrl) return; // Skip fetching objects when we have an image
     let cancelled = false;
     getBoardObjects(boardId).then((objs) => {
       if (!cancelled) setObjects(objs);
     });
     return () => { cancelled = true; };
-  }, [boardId, cachedUrl, thumbnailUrl]);
+  }, [boardId]);
 
-  // Priority: cached local preview > uploaded thumbnail > SVG fallback
+  // Use static preview only while objects are loading; once loaded always
+  // render the live SVG so GIF stickers stay animated.
   const previewSrc = cachedUrl || thumbnailUrl;
-  if (previewSrc) {
+  if (objects === null && previewSrc) {
     return (
       <div
         className="w-full relative overflow-hidden"
@@ -263,20 +263,16 @@ export function BoardPreview({ boardId, thumbnailUrl }: BoardPreviewProps) {
               </g>
             );
           }
-          // GIF sticker — render actual image
+          // GIF sticker — use foreignObject with HTML <img> so the GIF animates
           if (obj.gifUrl) {
             return (
-              <g key={obj.id} transform={rotateTransform}>
-                <image
-                  href={obj.gifUrl}
-                  x={x}
-                  y={y}
-                  width={w}
-                  height={h}
-                  preserveAspectRatio="xMidYMid meet"
-                  opacity={0.9}
+              <foreignObject key={obj.id} x={x} y={y} width={w} height={h} transform={rotateTransform ? `rotate(${rotation}, ${cx}, ${cy})` : undefined}>
+                <img
+                  src={obj.gifUrl}
+                  alt=""
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.9 }}
                 />
-              </g>
+              </foreignObject>
             );
           }
           // Fallback for stickers with no emoji and no gif

@@ -534,11 +534,15 @@ function BoardView({
 
       ctx.fillStyle = '#f8f7f6';
       ctx.fillRect(0, 0, WIDTH, HEIGHT);
-      ctx.drawImage(sourceCanvas, 0, 0, WIDTH, HEIGHT);
+
+      // Crop a centered square from the source to avoid aspect-ratio distortion
+      const srcSize = Math.min(sourceCanvas.width, sourceCanvas.height);
+      const srcX = (sourceCanvas.width - srcSize) / 2;
+      const srcY = (sourceCanvas.height - srcSize) / 2;
+      ctx.drawImage(sourceCanvas, srcX, srcY, srcSize, srcSize, 0, 0, WIDTH, HEIGHT);
 
       // Composite GIF overlay <img> elements (marked crossOrigin=anonymous)
-      const sx = WIDTH / sourceCanvas.width;
-      const sy = HEIGHT / sourceCanvas.height;
+      const s = WIDTH / srcSize; // uniform scale from cropped region to output
       const imgs = el.querySelectorAll('img');
       for (const img of imgs) {
         const match = img.style.transform.match(/matrix\(([^)]+)\)/);
@@ -547,7 +551,7 @@ function BoardView({
         const w = parseFloat(img.style.width) || img.naturalWidth;
         const h = parseFloat(img.style.height) || img.naturalHeight;
         ctx.save();
-        ctx.setTransform(a * sx, b * sy, c * sx, d * sy, e * sx, f * sy);
+        ctx.setTransform(a * s, b * s, c * s, d * s, (e - srcX) * s, (f - srcY) * s);
         try { ctx.drawImage(img, 0, 0, w, h); } catch { /* skip cross-origin */ }
         ctx.restore();
       }

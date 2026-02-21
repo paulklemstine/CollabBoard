@@ -291,7 +291,7 @@ export function useBoard(
   );
 
   const addGifSticker = useCallback(
-    (transform: StageTransform, gifUrl: string, x?: number, y?: number) => {
+    async (transform: StageTransform, gifUrl: string, x?: number, y?: number) => {
       const screenX = window.innerWidth / 2 - 75;
       const screenY = window.innerHeight - 300;
       let worldX: number;
@@ -304,9 +304,24 @@ export function useBoard(
         worldX = world.x;
         worldY = world.y;
       }
+      const id = crypto.randomUUID();
+
+      // Upload GIF to Firebase Storage first — clients never load from Giphy
+      let cachedUrl = gifUrl;
+      try {
+        const res = await fetch(gifUrl);
+        if (!res.ok) throw new Error(`Failed to fetch GIF: ${res.status}`);
+        const blob = await res.blob();
+        const sRef = storageRef(storage, `boards/${boardId}/gifs/${id}.gif`);
+        const snapshot = await uploadBytes(sRef, blob, { contentType: 'image/gif' });
+        cachedUrl = await getDownloadURL(snapshot.ref);
+      } catch (err) {
+        console.warn('GIF caching failed, using original URL:', err);
+      }
+
       const maxUpdatedAt = Math.max(0, ...objectsRef.current.map(o => o.updatedAt));
       const sticker: Sticker = {
-        id: crypto.randomUUID(),
+        id,
         type: 'sticker',
         x: worldX,
         y: worldY,
@@ -317,27 +332,11 @@ export function useBoard(
         lastModifiedBy: userId,
         updatedAt: maxUpdatedAt + 1,
         emoji: '',
-        gifUrl,
+        gifUrl: cachedUrl,
       };
       addObject(boardId, sticker);
       trackNewObject(sticker.id);
       maybePushUndo({ changes: [{ objectId: sticker.id, before: null, after: structuredClone(sticker) }] });
-
-      // Cache GIF in Firebase Storage in the background
-      fetch(gifUrl)
-        .then((res) => {
-          if (!res.ok) throw new Error(`Failed to fetch GIF: ${res.status}`);
-          return res.blob();
-        })
-        .then((blob) => {
-          const sRef = storageRef(storage, `boards/${boardId}/gifs/${sticker.id}.gif`);
-          return uploadBytes(sRef, blob, { contentType: 'image/gif' });
-        })
-        .then((snapshot) => getDownloadURL(snapshot.ref))
-        .then((cachedUrl) => {
-          updateObject(boardId, sticker.id, { gifUrl: cachedUrl } as Partial<Sticker>, userId);
-        })
-        .catch((err) => console.warn('GIF caching failed, keeping original URL:', err));
     },
     [boardId, userId, trackNewObject, maybePushUndo]
   );

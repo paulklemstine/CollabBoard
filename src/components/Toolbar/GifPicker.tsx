@@ -30,8 +30,8 @@ function getGifUrl(gif: GiphyGif): string {
 }
 
 function getPreviewUrl(gif: GiphyGif): string {
-  const img = gif.images?.fixed_height_small ?? gif.images?.fixed_height ?? gif.images?.original;
-  return img?.url || getGifUrl(gif);
+  // Use the full animated URL — fixed_height_small can be a still frame
+  return getGifUrl(gif);
 }
 
 interface GifPickerProps {

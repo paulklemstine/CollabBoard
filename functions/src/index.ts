@@ -3061,7 +3061,7 @@ async function processAICore(
             return { name, result };
           } catch (toolErr: unknown) {
             const errMsg = toolErr instanceof Error ? toolErr.message : 'Tool execution failed';
-            console.error(`Tool ${name} error:`, toolErr);
+            console.error('Tool error:', name, toolErr);
             return { name, result: JSON.stringify({ error: errMsg }) };
           }
         }),

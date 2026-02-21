@@ -239,13 +239,28 @@ export function ConnectorComponent({ connector, objects, onDelete }: ConnectorCo
     ? { x: to.x - cpX, y: to.y - cpY }
     : { x: to.x - from.x, y: to.y - from.y };
 
+  // Invisible wide hit area so hover triggers when the mouse gets near the connector
+  const hitArea = (
+    <Line
+      points={points}
+      tension={isCurved ? 0.5 : undefined}
+      stroke="transparent"
+      strokeWidth={Math.max(30, sw * 8)}
+      lineCap="round"
+      lineJoin="round"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    />
+  );
+
   // If only endArrow and no startArrow, use the built-in Arrow for simplicity
   if (endArrow && !startArrow) {
     return (
       <Group>
+        {hitArea}
         <Arrow
           points={points}
-          tension={connector.style === 'curved' ? 0.5 : undefined}
+          tension={isCurved ? 0.5 : undefined}
           stroke={color}
           strokeWidth={isHovered ? hoverSw : sw}
           fill={color}
@@ -257,8 +272,7 @@ export function ConnectorComponent({ connector, objects, onDelete }: ConnectorCo
           lineCap="round"
           lineJoin="round"
           dash={dash}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
+          listening={false}
         />
         {renderDeleteButton()}
       </Group>
@@ -268,9 +282,10 @@ export function ConnectorComponent({ connector, objects, onDelete }: ConnectorCo
   // For all other cases, use Line + manual arrowheads
   return (
     <Group>
+      {hitArea}
       <Line
         points={points}
-        tension={connector.style === 'curved' ? 0.5 : undefined}
+        tension={isCurved ? 0.5 : undefined}
         stroke={color}
         strokeWidth={isHovered ? hoverSw : sw}
         shadowColor={shadowColor}
@@ -279,8 +294,7 @@ export function ConnectorComponent({ connector, objects, onDelete }: ConnectorCo
         lineCap="round"
         lineJoin="round"
         dash={dash}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        listening={false}
       />
       {startArrow && renderArrowhead(from.x, from.y, startDir.x, startDir.y)}
       {endArrow && renderArrowhead(to.x, to.y, endDir.x, endDir.y)}

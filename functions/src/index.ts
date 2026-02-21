@@ -4,11 +4,13 @@ import { defineSecret } from 'firebase-functions/params';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import type { GoogleGenAI as GoogleGenAIType } from '@google/genai';
+import type Anthropic from '@anthropic-ai/sdk';
 
 initializeApp();
 const db = getFirestore();
 
 const googleAiApiKey = defineSecret('GOOGLE_AI_API_KEY');
+const anthropicApiKey = defineSecret('ANTHROPIC_API_KEY');
 const giphyApiKey = defineSecret('GIPHY_API_KEY');
 
 // ---- Cached Gemini client singleton (import once per function instance, reuse across warm invocations) ----
@@ -22,33 +24,69 @@ async function getGeminiClient(): Promise<GoogleGenAIType> {
   return _geminiClient;
 }
 
-// Primary and fallback models — if the primary is overloaded (503), retry with fallback
-// Models in priority order — try each until one succeeds on 503
-const MODELS = [
-  'gemini-3-flash-experimental',
-  'gemini-2.5-flash-preview-05-20',
-  'gemini-2.5-flash-preview-04-17',
+// ---- Cached Anthropic client singleton ----
+let _anthropicClient: Anthropic | null = null;
+
+async function getAnthropicClient(): Promise<Anthropic> {
+  if (!_anthropicClient) {
+    const AnthropicSDK = (await import('@anthropic-ai/sdk')).default;
+    _anthropicClient = new AnthropicSDK({ apiKey: anthropicApiKey.value() });
+  }
+  return _anthropicClient;
+}
+
+// Gemini models in priority order — try each until one succeeds on 503/429
+const GEMINI_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.5-pro',
 ];
 
-/** Call generateContent, cascading through models on 503 UNAVAILABLE. */
-async function generateWithFallback(
+const ANTHROPIC_MODEL = 'claude-sonnet-4-20250514';
+
+/** Call Gemini generateContent, cascading through models on 503/429 errors. */
+async function generateWithGeminiFallback(
   ai: GoogleGenAIType,
   params: { contents: unknown; config: unknown },
 ): Promise<any> {
-  for (let i = 0; i < MODELS.length; i++) {
+  for (let i = 0; i < GEMINI_MODELS.length; i++) {
     try {
       return await (ai.models as any).generateContent({
-        model: MODELS[i],
+        model: GEMINI_MODELS[i],
         ...params,
       });
     } catch (err: unknown) {
-      const is503 =
-        err instanceof Error &&
-        (err.message.includes('503') || err.message.includes('UNAVAILABLE') || err.message.includes('high demand'));
-      if (!is503 || i === MODELS.length - 1) throw err;
-      console.warn(`Model ${MODELS[i]} unavailable, trying ${MODELS[i + 1]}`);
+      const msg = err instanceof Error ? err.message : '';
+      const isRetryable =
+        msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('high demand') ||
+        msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('rate') || msg.includes('quota') ||
+        msg.includes('404') || msg.includes('not found');
+      if (!isRetryable || i === GEMINI_MODELS.length - 1) throw err;
+      console.warn(`Gemini ${GEMINI_MODELS[i]} failed (${msg.slice(0, 80)}), trying ${GEMINI_MODELS[i + 1]}`);
     }
   }
+}
+
+/** Convert our tool definitions to Anthropic format. */
+function toolsToAnthropic(toolDefs: typeof tools): Anthropic.Tool[] {
+  return toolDefs.map(t => ({
+    name: t.name,
+    description: t.description,
+    input_schema: t.input_schema as Anthropic.Tool['input_schema'],
+  }));
+}
+
+/** Normalize an Anthropic response into the Gemini-like shape { text, functionCalls }. */
+function normalizeAnthropicResponse(response: Anthropic.Message): { text?: string; functionCalls: any[] } {
+  let text: string | undefined;
+  const functionCalls: any[] = [];
+  for (const block of response.content) {
+    if (block.type === 'text') {
+      text = block.text;
+    } else if (block.type === 'tool_use') {
+      functionCalls.push({ name: block.name, args: block.input, _toolUseId: block.id });
+    }
+  }
+  return { text, functionCalls };
 }
 
 // ---- Helpers ----
@@ -964,10 +1002,10 @@ function detectTemplate(prompt: string): TemplateMatch | null {
 
   // Bulk creation: "create 10 stickies", "add 50 random objects", "generate 20 cards"
   const bulkMatch = prompt.match(
-    /(?:create|add|make|generate|put|place)\s+(\d+)\s+(sticky|stickies|note|notes|card|cards|shape|shapes|text|texts|sticker|stickers|frame|frames|random|object|objects|thing|things|item|items)/i,
+    /(?:create|add|make|generate|put|place)\s+(\d+)\s+(?:random\s+)?(sticky|stickies|note|notes|card|cards|shape|shapes|text|texts|sticker|stickers|emoji|emojis|frame|frames|random|object|objects|thing|things|item|items)/i,
   );
   const bulkMatchReversed = !bulkMatch
-    ? prompt.match(/(\d+)\s+(?:random\s+)?(?:sticky|stickies|note|notes|card|cards|shape|shapes|text|texts|sticker|stickers|frame|frames|object|objects|thing|things|item|items)/i)
+    ? prompt.match(/(\d+)\s+(?:random\s+)?(?:sticky|stickies|note|notes|card|cards|shape|shapes|text|texts|sticker|stickers|emoji|emojis|frame|frames|object|objects|thing|things|item|items)/i)
     : null;
 
   const rawCount = bulkMatch ? parseInt(bulkMatch[1], 10) : bulkMatchReversed ? parseInt(bulkMatchReversed[1], 10) : 0;
@@ -981,7 +1019,7 @@ function detectTemplate(prompt: string): TemplateMatch | null {
     if (/sticky|stickies|note|notes|card|cards/.test(rawType)) objectType = 'sticky';
     else if (/shape|shapes/.test(rawType)) objectType = 'shape';
     else if (/text|texts/.test(rawType)) objectType = 'text';
-    else if (/sticker|stickers/.test(rawType)) objectType = 'sticker';
+    else if (/sticker|stickers|emoji|emojis/.test(rawType)) objectType = 'sticker';
     else if (/frame|frames/.test(rawType)) objectType = 'frame';
     else objectType = 'random';
 
@@ -1434,7 +1472,14 @@ async function executeBulkCreate(
 
   const colors = ['#fef9c3', '#dbeafe', '#dcfce7', '#fce7f3', '#f3e8ff', '#ffedd5'];
   const randomTypes: Array<'sticky' | 'shape' | 'text' | 'sticker'> = ['sticky', 'shape', 'text', 'sticker'];
-  const emojis = ['😊', '🎯', '💡', '🔥', '⭐', '🚀', '✨', '🎨', '📌', '🏆'];
+  const emojis = [
+    '😊', '😎', '🤔', '🤣', '🤩', '🥰', '😍', '🥳', '😘', '🙂',
+    '🎯', '💡', '🔥', '🚀', '🎨', '📌', '🏆', '💪', '🏀', '🎸',
+    '⭐', '✨', '🌟', '🌈', '🌎', '⚡', '❤️', '💜', '💙', '💚',
+    '🐶', '🐱', '🦊', '🐻', '🦄', '🦅', '🐢', '🐝', '🐙', '🐳',
+    '🍒', '🍎', '🍊', '🍓', '🥑', '🍕', '🍔', '🍰', '🎂', '☕',
+    '🌲', '🌻', '🌵', '🍀', '🌺', '🌳', '💐', '🌷', '🌸', '🌹',
+  ];
   const shapeTypes = ['rect', 'circle', 'triangle', 'diamond'];
   const objSize = objectType === 'text' ? { w: 200, h: 40 } : { w: 200, h: 200 };
   const padding = 20;
@@ -2896,7 +2941,7 @@ async function executeTool(
 }
 
 // ---- Shared secrets config for both trigger and callable ----
-const functionSecrets = [googleAiApiKey, giphyApiKey];
+const functionSecrets = [googleAiApiKey, anthropicApiKey, giphyApiKey];
 
 // Read-only tools that return data but don't modify the board
 const READ_ONLY_TOOLS = new Set([
@@ -2971,9 +3016,6 @@ async function processAICore(
     }
   }
 
-  // Gemini client (cached singleton, lazy import)
-  const ai = await getGeminiClient();
-
   try {
     // Build context — single board state read, reused for both context and selection
     const hasSelection = selectedIds && selectedIds.length > 0;
@@ -3015,48 +3057,13 @@ async function processAICore(
       }
     }
 
-    // Gemini tool definitions — convert input_schema to parametersJsonSchema
-    const geminiTools = [{
-      functionDeclarations: tools.map(t => ({
-        name: t.name,
-        description: t.description,
-        parametersJsonSchema: t.input_schema,
-      })),
-    }];
-
-    const messages: Array<{ role: string; parts: Array<Record<string, unknown>> }> = [
-      { role: 'user', parts: [{ text: userMessage }] },
-    ];
-
-    await requestRef.update({ progress: 'Thinking...' });
-
-    // Tool execution loop — max 3 rounds to keep latency bounded
-    const allToolCalls: { name: string; args: ToolInput }[] = [];
-    let lastResponseText: string | undefined;
-
-    for (let round = 0; round < 3; round++) {
-      const response = await generateWithFallback(ai, {
-        contents: messages,
-        config: {
-          systemInstruction: SYSTEM_PROMPT,
-          tools: geminiTools,
-        },
-      });
-
-      const fnCalls = response.functionCalls ?? [];
-      if (fnCalls.length === 0) {
-        lastResponseText = response.text;
-        break;
-      }
-
-      await requestRef.update({
-        progress: `Executing ${fnCalls.length} action${fnCalls.length > 1 ? 's' : ''}...`,
-      });
-
-      const allReadOnly = fnCalls.every(fc => READ_ONLY_TOOLS.has(fc.name!));
-
+    // Shared tool execution helper (provider-agnostic)
+    async function executeToolCalls(
+      fnCalls: any[],
+      allToolCalls: { name: string; args: ToolInput }[],
+    ): Promise<{ name: string; result: string }[]> {
       const results = await Promise.all(
-        fnCalls.map(async (fc) => {
+        fnCalls.map(async (fc: any) => {
           const name = fc.name!;
           try {
             const args = (fc.args && typeof fc.args === 'object') ? fc.args as ToolInput : {} as ToolInput;
@@ -3075,16 +3082,7 @@ async function processAICore(
                 viewport,
               );
             } else {
-              result = await executeTool(
-                name,
-                args,
-                boardId,
-                userId,
-                objectsCreated,
-                groupLabels,
-                selectedIds,
-                viewport,
-              );
+              result = await executeTool(name, args, boardId, userId, objectsCreated, groupLabels, selectedIds, viewport);
             }
             return { name, result };
           } catch (toolErr: unknown) {
@@ -3094,40 +3092,53 @@ async function processAICore(
           }
         }),
       );
-
-      allToolCalls.push(...fnCalls.map(fc => ({ name: fc.name!, args: (fc.args ?? {}) as ToolInput })));
-
-      if (allReadOnly && round < 2) {
-        // Feed model response + tool results back for next round
-        messages.push({
-          role: 'model',
-          parts: fnCalls.map(fc => ({ functionCall: { name: fc.name, args: fc.args } })),
-        });
-        messages.push({
-          role: 'user',
-          parts: results.map(r => ({
-            functionResponse: { name: r.name, response: safeJsonParse(r.result) },
-          })),
-        });
-        await requestRef.update({ progress: 'Planning actions...' });
-        continue;
-      }
-
-      break;
+      allToolCalls.push(...fnCalls.map((fc: any) => ({ name: fc.name!, args: (fc.args ?? {}) as ToolInput })));
+      return results;
     }
 
-    // LLM count validation: if user requested N objects but fewer were created, ask for more
-    const countMatch = prompt.match(/(?:create|add|make|generate)\s+(\d+)/i)
-      || prompt.match(/(\d+)\s+(?:random|new)\b/i);
-    if (countMatch && objectsCreated.length > 0) {
-      const requestedCount = parseInt(countMatch[1], 10);
-      const deficit = requestedCount - objectsCreated.length;
-      if (deficit > 0 && deficit <= 500) {
-        await requestRef.update({ progress: `Created ${objectsCreated.length}/${requestedCount}, creating ${deficit} more...` });
-        const correctionMsg = `You created ${objectsCreated.length} objects but the user requested ${requestedCount}. Please create ${deficit} more to reach the exact count.`;
-        messages.push({ role: 'user', parts: [{ text: correctionMsg }] });
+    // Build summary from tool calls
+    function buildSummary(allToolCalls: { name: string; args: ToolInput }[], lastText?: string): string {
+      const actionCalls = allToolCalls.filter(tc => !READ_ONLY_TOOLS.has(tc.name));
+      if (actionCalls.length > 0) {
+        const counts: Record<string, number> = {};
+        for (const tc of actionCalls) {
+          const label = TOOL_LABELS[tc.name] || tc.name;
+          counts[label] = (counts[label] || 0) + 1;
+        }
+        const parts = Object.entries(counts).map(([label, count]) =>
+          count > 1 ? `${label} x${count}` : label,
+        );
+        return `Done! ${parts.join(', ')}.`;
+      }
+      return lastText || 'Done!';
+    }
 
-        const correctionResponse = await generateWithFallback(ai, {
+    await requestRef.update({ progress: 'Thinking...' });
+
+    // ---- Try Gemini first ----
+    let geminiError: Error | null = null;
+    try {
+      const ai = await getGeminiClient();
+
+      // Gemini tool definitions — convert input_schema to parametersJsonSchema
+      const geminiTools = [{
+        functionDeclarations: tools.map(t => ({
+          name: t.name,
+          description: t.description,
+          parametersJsonSchema: t.input_schema,
+        })),
+      }];
+
+      const messages: Array<{ role: string; parts: Array<Record<string, unknown>> }> = [
+        { role: 'user', parts: [{ text: userMessage }] },
+      ];
+
+      // Tool execution loop — max 3 rounds to keep latency bounded
+      const allToolCalls: { name: string; args: ToolInput }[] = [];
+      let lastResponseText: string | undefined;
+
+      for (let round = 0; round < 3; round++) {
+        const response = await generateWithGeminiFallback(ai, {
           contents: messages,
           config: {
             systemInstruction: SYSTEM_PROMPT,
@@ -3135,55 +3146,146 @@ async function processAICore(
           },
         });
 
-        const corrFnCalls = correctionResponse.functionCalls ?? [];
-        if (corrFnCalls.length > 0) {
-          await Promise.all(
-            corrFnCalls.map(async (fc) => {
-              const name = fc.name!;
-              try {
-                const args = (fc.args && typeof fc.args === 'object') ? fc.args as ToolInput : {} as ToolInput;
-                if (name === 'executePlan') {
-                  const planArgs = fc.args as any;
-                  await executeExecutePlan(planArgs.operations ?? [], boardId, userId, objectsCreated, groupLabels, undefined, undefined, viewport);
-                } else {
-                  await executeTool(name, args, boardId, userId, objectsCreated, groupLabels, selectedIds, viewport);
-                }
-              } catch (toolErr: unknown) {
-                console.error(`Correction tool ${name} error:`, toolErr);
-              }
-            }),
-          );
-          allToolCalls.push(...corrFnCalls.map(fc => ({ name: fc.name!, args: (fc.args ?? {}) as ToolInput })));
+        const fnCalls = response.functionCalls ?? [];
+        if (fnCalls.length === 0) {
+          lastResponseText = response.text;
+          break;
+        }
+
+        await requestRef.update({
+          progress: `Executing ${fnCalls.length} action${fnCalls.length > 1 ? 's' : ''}...`,
+        });
+
+        const allReadOnly = fnCalls.every((fc: any) => READ_ONLY_TOOLS.has(fc.name!));
+        const results = await executeToolCalls(fnCalls, allToolCalls);
+
+        if (allReadOnly && round < 2) {
+          messages.push({
+            role: 'model',
+            parts: fnCalls.map((fc: any) => ({ functionCall: { name: fc.name, args: fc.args } })),
+          });
+          messages.push({
+            role: 'user',
+            parts: results.map(r => ({
+              functionResponse: { name: r.name, response: safeJsonParse(r.result) },
+            })),
+          });
+          await requestRef.update({ progress: 'Planning actions...' });
+          continue;
+        }
+
+        break;
+      }
+
+      // LLM count validation: if user requested N objects but fewer were created, ask for more
+      const countMatch = prompt.match(/(?:create|add|make|generate)\s+(\d+)/i)
+        || prompt.match(/(\d+)\s+(?:random|new)\b/i);
+      if (countMatch && objectsCreated.length > 0) {
+        const requestedCount = parseInt(countMatch[1], 10);
+        const deficit = requestedCount - objectsCreated.length;
+        if (deficit > 0 && deficit <= 500) {
+          await requestRef.update({ progress: `Created ${objectsCreated.length}/${requestedCount}, creating ${deficit} more...` });
+          const correctionMsg = `You created ${objectsCreated.length} objects but the user requested ${requestedCount}. Please create ${deficit} more to reach the exact count.`;
+          messages.push({ role: 'user', parts: [{ text: correctionMsg }] });
+
+          const correctionResponse = await generateWithGeminiFallback(ai, {
+            contents: messages,
+            config: {
+              systemInstruction: SYSTEM_PROMPT,
+              tools: geminiTools,
+            },
+          });
+
+          const corrFnCalls = correctionResponse.functionCalls ?? [];
+          if (corrFnCalls.length > 0) {
+            await executeToolCalls(corrFnCalls, allToolCalls);
+          }
         }
       }
+
+      const responseText = buildSummary(allToolCalls, lastResponseText);
+      await requestRef.update({
+        status: 'completed',
+        response: responseText,
+        objectsCreated,
+        completedAt: Date.now(),
+      });
+      return { response: responseText, objectsCreated };
+    } catch (err: unknown) {
+      geminiError = err instanceof Error ? err : new Error(String(err));
+      console.warn(`All Gemini models failed (${geminiError.message.slice(0, 100)}), falling back to Anthropic...`);
+      await requestRef.update({ progress: 'Switching to backup AI...' });
     }
 
-    // Build deterministic summary from executed tool names (skip read-only tools)
-    const actionCalls = allToolCalls.filter(tc => !READ_ONLY_TOOLS.has(tc.name));
-    let responseText: string;
-    if (actionCalls.length > 0) {
-      const counts: Record<string, number> = {};
-      for (const tc of actionCalls) {
-        const label = TOOL_LABELS[tc.name] || tc.name;
-        counts[label] = (counts[label] || 0) + 1;
+    // ---- Anthropic fallback ----
+    const anthropic = await getAnthropicClient();
+    const anthropicTools = toolsToAnthropic(tools);
+
+    const claudeMessages: Anthropic.MessageParam[] = [
+      { role: 'user', content: userMessage },
+    ];
+
+    const allToolCalls: { name: string; args: ToolInput }[] = [];
+    let lastResponseText: string | undefined;
+
+    for (let round = 0; round < 3; round++) {
+      const response = await anthropic.messages.create({
+        model: ANTHROPIC_MODEL,
+        max_tokens: 4096,
+        system: SYSTEM_PROMPT,
+        tools: anthropicTools,
+        messages: claudeMessages,
+      });
+
+      const normalized = normalizeAnthropicResponse(response);
+      if (normalized.functionCalls.length === 0) {
+        lastResponseText = normalized.text;
+        break;
       }
-      const parts = Object.entries(counts).map(([label, count]) =>
-        count > 1 ? `${label} x${count}` : label,
-      );
-      responseText = `Done! ${parts.join(', ')}.`;
-    } else if (lastResponseText) {
-      responseText = lastResponseText;
-    } else {
-      responseText = 'Done!';
+
+      await requestRef.update({
+        progress: `Executing ${normalized.functionCalls.length} action${normalized.functionCalls.length > 1 ? 's' : ''}...`,
+      });
+
+      const allReadOnly = normalized.functionCalls.every((fc: any) => READ_ONLY_TOOLS.has(fc.name));
+      const results = await executeToolCalls(normalized.functionCalls, allToolCalls);
+
+      if (allReadOnly && round < 2) {
+        // Build Claude-format assistant + tool_result turn
+        const assistantContent: Anthropic.ContentBlockParam[] = [];
+        if (normalized.text) {
+          assistantContent.push({ type: 'text', text: normalized.text });
+        }
+        for (const fc of normalized.functionCalls) {
+          assistantContent.push({
+            type: 'tool_use',
+            id: fc._toolUseId,
+            name: fc.name,
+            input: fc.args ?? {},
+          });
+        }
+        claudeMessages.push({ role: 'assistant', content: assistantContent });
+
+        const toolResults: Anthropic.ToolResultBlockParam[] = results.map((r, i) => ({
+          type: 'tool_result' as const,
+          tool_use_id: normalized.functionCalls[i]._toolUseId,
+          content: r.result,
+        }));
+        claudeMessages.push({ role: 'user', content: toolResults });
+        await requestRef.update({ progress: 'Planning actions...' });
+        continue;
+      }
+
+      break;
     }
 
+    const responseText = buildSummary(allToolCalls, lastResponseText);
     await requestRef.update({
       status: 'completed',
       response: responseText,
       objectsCreated,
       completedAt: Date.now(),
     });
-
     return { response: responseText, objectsCreated };
   } catch (err: unknown) {
     console.error('AI command error:', err);

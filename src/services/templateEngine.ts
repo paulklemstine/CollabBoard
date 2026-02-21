@@ -184,10 +184,10 @@ export function detectTemplate(prompt: string): TemplateMatch | null {
 
   // Bulk creation
   const bulkMatch = prompt.match(
-    /(?:create|add|make|generate|put|place)\s+(\d+)\s+(sticky|stickies|note|notes|card|cards|shape|shapes|text|texts|sticker|stickers|frame|frames|random|object|objects|thing|things|item|items)/i,
+    /(?:create|add|make|generate|put|place)\s+(\d+)\s+(?:random\s+)?(sticky|stickies|note|notes|card|cards|shape|shapes|text|texts|sticker|stickers|emoji|emojis|frame|frames|random|object|objects|thing|things|item|items)/i,
   );
   const bulkMatchReversed = !bulkMatch
-    ? prompt.match(/(\d+)\s+(?:random\s+)?(?:sticky|stickies|note|notes|card|cards|shape|shapes|text|texts|sticker|stickers|frame|frames|object|objects|thing|things|item|items)/i)
+    ? prompt.match(/(\d+)\s+(?:random\s+)?(?:sticky|stickies|note|notes|card|cards|shape|shapes|text|texts|sticker|stickers|emoji|emojis|frame|frames|object|objects|thing|things|item|items)/i)
     : null;
 
   const rawCount = bulkMatch ? parseInt(bulkMatch[1], 10) : bulkMatchReversed ? parseInt(bulkMatchReversed[1], 10) : 0;
@@ -201,7 +201,7 @@ export function detectTemplate(prompt: string): TemplateMatch | null {
     if (/sticky|stickies|note|notes|card|cards/.test(rawType)) objectType = 'sticky';
     else if (/shape|shapes/.test(rawType)) objectType = 'shape';
     else if (/text|texts/.test(rawType)) objectType = 'text';
-    else if (/sticker|stickers/.test(rawType)) objectType = 'sticker';
+    else if (/sticker|stickers|emoji|emojis/.test(rawType)) objectType = 'sticker';
     else if (/frame|frames/.test(rawType)) objectType = 'frame';
     else objectType = 'random';
 
@@ -592,7 +592,14 @@ async function executeBulkCreateClient(
   const now = Date.now();
   const colors = ['#fef9c3', '#dbeafe', '#dcfce7', '#fce7f3', '#f3e8ff', '#ffedd5'];
   const randomTypes: Array<'sticky' | 'shape' | 'text' | 'sticker'> = ['sticky', 'shape', 'text', 'sticker'];
-  const emojis = ['\u{1F60A}', '\u{1F3AF}', '\u{1F4A1}', '\u{1F525}', '\u2B50', '\u{1F680}', '\u2728', '\u{1F3A8}', '\u{1F4CC}', '\u{1F3C6}'];
+  const emojis = [
+    '\u{1F60A}', '\u{1F60E}', '\u{1F914}', '\u{1F923}', '\u{1F929}', '\u{1F970}', '\u{1F60D}', '\u{1F973}', '\u{1F618}', '\u{1F642}',
+    '\u{1F3AF}', '\u{1F4A1}', '\u{1F525}', '\u{1F680}', '\u{1F3A8}', '\u{1F4CC}', '\u{1F3C6}', '\u{1F4AA}', '\u{1F3C0}', '\u{1F3B8}',
+    '\u2B50', '\u2728', '\u{1F31F}', '\u{1F308}', '\u{1F30E}', '\u26A1', '\u2764\uFE0F', '\u{1F49C}', '\u{1F499}', '\u{1F49A}',
+    '\u{1F436}', '\u{1F431}', '\u{1F98A}', '\u{1F43B}', '\u{1F984}', '\u{1F985}', '\u{1F422}', '\u{1F41D}', '\u{1F419}', '\u{1F433}',
+    '\u{1F352}', '\u{1F34E}', '\u{1F34A}', '\u{1F353}', '\u{1F951}', '\u{1F355}', '\u{1F354}', '\u{1F370}', '\u{1F382}', '\u{2615}',
+    '\u{1F332}', '\u{1F33B}', '\u{1F335}', '\u{1F340}', '\u{1F33A}', '\u{1F333}', '\u{1F490}', '\u{1F337}', '\u{1F338}', '\u{1F339}',
+  ];
   const shapeTypes = ['rect', 'circle', 'triangle', 'diamond'];
   const objSize = objectType === 'text' ? { w: 200, h: 40 } : { w: 200, h: 200 };
   const padding = 20;

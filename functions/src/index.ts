@@ -3131,13 +3131,25 @@ async function processAICore(
       }];
 
       // Build Gemini messages — prepend conversation history for context
+      // Gemini requires strictly alternating user/model roles, starting with user.
       const messages: Array<{ role: string; parts: Array<Record<string, unknown>> }> = [];
-      const safeHistory = (conversationHistory ?? []).slice(-10); // cap at 10 entries (5 pairs)
-      for (const entry of safeHistory) {
-        messages.push({
-          role: entry.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: entry.content }],
-        });
+      if (conversationHistory && conversationHistory.length > 0) {
+        let history = conversationHistory.slice(-10); // cap at 10 entries (5 pairs)
+        // Ensure history starts with 'user' — trim leading assistant entries
+        while (history.length > 0 && history[0].role === 'assistant') {
+          history = history.slice(1);
+        }
+        // Ensure history ends with 'assistant' — trim trailing user entries
+        // (otherwise we'd have two consecutive user messages with our appended userMessage)
+        while (history.length > 0 && history[history.length - 1].role !== 'assistant') {
+          history = history.slice(0, -1);
+        }
+        for (const entry of history) {
+          messages.push({
+            role: entry.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: entry.content }],
+          });
+        }
       }
       messages.push({ role: 'user', parts: [{ text: userMessage }] });
 
@@ -3236,13 +3248,22 @@ async function processAICore(
     const anthropicTools = toolsToAnthropic(tools);
 
     // Build Anthropic messages — prepend conversation history for context
+    // Anthropic requires alternating user/assistant roles, starting with user.
     const claudeMessages: Anthropic.MessageParam[] = [];
-    const safeHistoryAnthropic = (conversationHistory ?? []).slice(-10);
-    for (const entry of safeHistoryAnthropic) {
-      claudeMessages.push({
-        role: entry.role === 'assistant' ? 'assistant' : 'user',
-        content: entry.content,
-      });
+    if (conversationHistory && conversationHistory.length > 0) {
+      let history = conversationHistory.slice(-10);
+      while (history.length > 0 && history[0].role === 'assistant') {
+        history = history.slice(1);
+      }
+      while (history.length > 0 && history[history.length - 1].role !== 'assistant') {
+        history = history.slice(0, -1);
+      }
+      for (const entry of history) {
+        claudeMessages.push({
+          role: entry.role === 'assistant' ? 'assistant' : 'user',
+          content: entry.content,
+        });
+      }
     }
     claudeMessages.push({ role: 'user', content: userMessage });
 

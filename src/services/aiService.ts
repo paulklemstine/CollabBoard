@@ -1,6 +1,7 @@
 import { collection, addDoc, onSnapshot, doc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, auth, functions } from './firebase';
+import type { ViewportCenter } from '../components/AIChat/AIChat';
 
 export interface AICommandOutput {
   response: string;
@@ -9,7 +10,7 @@ export interface AICommandOutput {
 
 // Callable function reference (reused across calls)
 const processAICallable = httpsCallable<
-  { boardId: string; requestId: string; prompt: string; selectedIds?: string[] },
+  { boardId: string; requestId: string; prompt: string; selectedIds?: string[]; viewport?: ViewportCenter },
   AICommandOutput
 >(functions, 'processAIRequestCallable', { timeout: 300_000 });
 
@@ -18,6 +19,7 @@ export async function sendAICommand(
   prompt: string,
   onProgress?: (progress: string) => void,
   selectedIds?: string[],
+  viewport?: ViewportCenter,
 ): Promise<AICommandOutput> {
   const user = auth.currentUser;
   if (!user) {
@@ -32,6 +34,7 @@ export async function sendAICommand(
     status: 'pending',
     createdAt: Date.now(),
     ...(selectedIds && selectedIds.length > 0 ? { selectedIds } : {}),
+    ...(viewport ? { viewport } : {}),
   });
 
   const requestDocRef = doc(db, `boards/${boardId}/aiRequests/${docRef.id}`);
@@ -54,6 +57,7 @@ export async function sendAICommand(
       requestId: docRef.id,
       prompt,
       selectedIds,
+      viewport,
     });
 
     unsubscribe?.();

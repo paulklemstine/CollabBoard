@@ -62,18 +62,29 @@ async function ensureOtel() {
 // ---- GIPHY search (server-side, no SDK needed) ----
 
 async function searchGiphy(query: string): Promise<string | null> {
-  const key = giphyApiKey.value();
-  if (!key) return null;
+  const key = giphyApiKey.value().trim();
+  if (!key) {
+    console.warn('searchGiphy: GIPHY_API_KEY secret is empty');
+    return null;
+  }
   try {
-    const url = `https://api.giphy.com/v1/stickers/search?api_key=${encodeURIComponent(key)}&q=${encodeURIComponent(query)}&limit=1`;
+    const url = `https://api.giphy.com/v1/stickers/search?api_key=${encodeURIComponent(key)}&q=${encodeURIComponent(query)}&limit=10`;
     const res = await fetch(url);
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(`searchGiphy: GIPHY API returned ${res.status} for query "${query}"`);
+      return null;
+    }
     const json = await res.json();
-    const gif = json.data?.[0];
-    if (!gif) return null;
+    const gifs = json.data;
+    if (!gifs?.length) {
+      console.warn(`searchGiphy: no results for query "${query}"`);
+      return null;
+    }
+    const gif = gifs[Math.floor(Math.random() * gifs.length)];
     const img = gif.images?.fixed_height ?? gif.images?.original;
     return img?.url || null;
-  } catch {
+  } catch (err) {
+    console.warn('searchGiphy: fetch error:', err);
     return null;
   }
 }
@@ -764,6 +775,8 @@ type TemplateMatch = {
   label?: string;
   color?: string;
   shapeType?: string;
+  x?: number;
+  y?: number;
 } | {
   type: 'grid-create';
   rows: number;
@@ -775,10 +788,35 @@ type TemplateMatch = {
   type: 'numbered-flowchart';
   stepCount: number;
   topic?: string;
+} | {
+  type: 'arrange-grid';
+} | {
+  type: 'selective-delete';
+  targetType: 'sticky' | 'shape' | 'text' | 'sticker' | 'frame' | 'connector';
+} | {
+  type: 'bulk-color';
+  targetType?: 'sticky' | 'shape' | 'text' | 'frame' | 'all';
+  color: string;
+} | {
+  type: 'row-create';
+  count: number;
+  direction: 'row' | 'column';
+  objectType: 'sticky' | 'shape' | 'text' | 'sticker' | 'frame';
+} | {
+  type: 'canned-response';
+  response: string;
 }
 
 function detectTemplate(prompt: string): TemplateMatch | null {
   const lower = prompt.toLowerCase().trim();
+
+  // Canned responses: "undo", "help", "what can you do"
+  if (/^(?:undo|undo\s+(?:last|that|it))$/i.test(lower)) {
+    return { type: 'canned-response', response: 'Use Ctrl+Z (Cmd+Z on Mac) to undo. The AI cannot undo actions.' };
+  }
+  if (/^(?:help|what\s+can\s+you\s+do|commands|what\s+are\s+your\s+(?:commands|capabilities))\??$/i.test(lower)) {
+    return { type: 'canned-response', response: 'I can create objects (stickies, shapes, frames, text, connectors), move/resize/delete them, arrange layouts (grids, rows, columns), build templates (SWOT, kanban, retro, timeline, journey map, flowchart, mind map), and manipulate colors. Try: "create a SWOT analysis", "add 10 stickies", "arrange in a grid", or "A -> B -> C" for a flowchart.' };
+  }
 
   // Flowchart arrow syntax: "A -> B -> C" or "A --> B" or "A → B"
   const arrowParts = prompt.split(/\s*(?:->|-->|→)\s*/);
@@ -788,8 +826,67 @@ function detectTemplate(prompt: string): TemplateMatch | null {
 
   // Clear / delete all: "clear the board", "delete everything", "remove all objects"
   if (/^(?:clear|clean|wipe)\s+(?:the\s+)?(?:board|canvas|everything|all)/i.test(lower)
-    || /^(?:delete|remove)\s+(?:everything|all\b)/i.test(lower)) {
+    || /^(?:delete|remove)\s+everything/i.test(lower)
+    || /^(?:delete|remove)\s+all\s*$/i.test(lower)
+    || /^(?:delete|remove)\s+all\s+(?:objects?|things?|items?|of\s+(?:them|it))/i.test(lower)) {
     return { type: 'clear-board' };
+  }
+
+  // Selective delete: "delete all stickies", "remove all shapes", "delete all frames"
+  const selectiveDeleteMatch = lower.match(/^(?:delete|remove)\s+(?:all\s+)?(?:the\s+)?(sticky\s*notes?|stickies|notes?|cards?|shapes?|texts?|stickers?|frames?|connectors?|lines?|arrows?)/);
+  if (selectiveDeleteMatch) {
+    const typeStr = selectiveDeleteMatch[1];
+    let targetType: 'sticky' | 'shape' | 'text' | 'sticker' | 'frame' | 'connector';
+    if (/sticky|stickies|note|card/.test(typeStr)) targetType = 'sticky';
+    else if (/shape|line|arrow/.test(typeStr)) targetType = 'shape';
+    else if (/text/.test(typeStr)) targetType = 'text';
+    else if (/sticker/.test(typeStr)) targetType = 'sticker';
+    else if (/frame/.test(typeStr)) targetType = 'frame';
+    else if (/connector/.test(typeStr)) targetType = 'connector';
+    else targetType = 'sticky';
+    return { type: 'selective-delete', targetType };
+  }
+
+  // Bulk color change: "color all stickies blue", "make everything red", "change all shapes to green"
+  const COLOR_NAME_MAP: Record<string, string> = {
+    yellow: '#fef9c3', blue: '#dbeafe', green: '#dcfce7', pink: '#fce7f3',
+    purple: '#f3e8ff', orange: '#ffedd5', red: '#fecaca', cyan: '#cffafe', teal: '#ccfbf1',
+    white: '#ffffff', black: '#1e293b',
+  };
+  const colorNames = Object.keys(COLOR_NAME_MAP).join('|');
+  const bulkColorMatch = lower.match(new RegExp(
+    `(?:color|change|make|set|turn)\\s+(?:all\\s+)?(?:the\\s+)?(stickies|sticky\\s*notes?|notes?|shapes?|texts?|frames?|everything|objects?)\\s+(?:to\\s+)?(?:color\\s+)?(${colorNames})` +
+    `|(?:color|change|make|set|turn)\\s+(?:all\\s+)?(?:the\\s+)?(stickies|sticky\\s*notes?|notes?|shapes?|texts?|frames?|everything|objects?)\\s+(?:to\\s+)?(?:color\\s+)?(${colorNames})`,
+  ));
+  // Also try reversed: "make blue all stickies" or simpler "color everything blue"
+  const bulkColorMatch2 = !bulkColorMatch ? lower.match(new RegExp(
+    `(?:color|change|make|set|turn)\\s+(?:all\\s+)?(?:the\\s+)?(?:everything|objects?|stickies|sticky\\s*notes?|notes?|shapes?|texts?|frames?)\\s+(?:to\\s+)?(${colorNames})`,
+  )) : null;
+
+  if (bulkColorMatch || bulkColorMatch2) {
+    const m = bulkColorMatch || bulkColorMatch2;
+    if (m) {
+      // Find the color name in the match
+      let foundColor: string | undefined;
+      let targetStr = '';
+      for (const group of m.slice(1)) {
+        if (group && COLOR_NAME_MAP[group]) foundColor = COLOR_NAME_MAP[group];
+        else if (group) targetStr = group;
+      }
+      if (foundColor) {
+        let targetType: 'sticky' | 'shape' | 'text' | 'frame' | 'all' = 'all';
+        if (/sticky|stickies|note|card/.test(targetStr)) targetType = 'sticky';
+        else if (/shape/.test(targetStr)) targetType = 'shape';
+        else if (/text/.test(targetStr)) targetType = 'text';
+        else if (/frame/.test(targetStr)) targetType = 'frame';
+        return { type: 'bulk-color', targetType, color: foundColor };
+      }
+    }
+  }
+
+  // Arrange in a grid: "arrange in a grid", "organize in a grid", "lay out in a grid"
+  if (/(?:arrange|organize|layout|lay\s+out|sort|align)\s+(?:them\s+|these\s+|objects?\s+|everything\s+)?(?:in(?:to)?\s+)?(?:a\s+)?grid/i.test(lower)) {
+    return { type: 'arrange-grid' };
   }
 
   // Grid pattern: "create a 3x4 grid of stickies", "make a 2x3 grid"
@@ -798,13 +895,30 @@ function detectTemplate(prompt: string): TemplateMatch | null {
     const rows = parseInt(gridMatch[1], 10);
     const cols = parseInt(gridMatch[2], 10);
     if (rows >= 1 && rows <= 50 && cols >= 1 && cols <= 50 && rows * cols <= 500) {
-      // Check for labels like "for pros and cons" — match "for X and Y" at end
       const labelMatch = prompt.match(/\bfor\s+(.+)$/i);
       let labels: string[] | undefined;
       if (labelMatch) {
         labels = labelMatch[1].split(/\s+and\s+|,\s*/i).map(s => s.trim()).filter(Boolean);
       }
       return { type: 'grid-create', rows, cols, labels };
+    }
+  }
+
+  // Row/column layout: "add 5 stickies in a row", "create 3 shapes in a column"
+  const rowColMatch = lower.match(/(?:create|add|make|place)\s+(\d+)\s+(sticky|stickies|note|notes|card|cards|shape|shapes|text|texts|sticker|stickers|frame|frames)\s+in\s+a\s+(row|column|line|horizontal|vertical)/i);
+  if (rowColMatch) {
+    const count = parseInt(rowColMatch[1], 10);
+    const typeStr = rowColMatch[2];
+    const dirStr = rowColMatch[3];
+    if (count >= 1 && count <= 500) {
+      let objectType: 'sticky' | 'shape' | 'text' | 'sticker' | 'frame';
+      if (/sticky|stickies|note|card/.test(typeStr)) objectType = 'sticky';
+      else if (/shape/.test(typeStr)) objectType = 'shape';
+      else if (/text/.test(typeStr)) objectType = 'text';
+      else if (/sticker/.test(typeStr)) objectType = 'sticker';
+      else objectType = 'frame';
+      const direction = /column|vertical/.test(dirStr) ? 'column' as const : 'row' as const;
+      return { type: 'row-create', count, direction, objectType };
     }
   }
 
@@ -829,7 +943,6 @@ function detectTemplate(prompt: string): TemplateMatch | null {
   const rawType = bulkMatch ? bulkMatch[2].toLowerCase() : bulkMatchReversed ? bulkMatchReversed[0].toLowerCase() : '';
 
   if (rawCount >= 1 && rawCount <= 500 && rawType) {
-    // Guard: if prompt has content qualifiers after the type, let LLM handle it
     const contentWords = /\b(?:about|with|for|titled|saying|containing|regarding|related|labeled|named|called)\b/i;
     if (contentWords.test(prompt)) return null;
 
@@ -844,57 +957,81 @@ function detectTemplate(prompt: string): TemplateMatch | null {
     return { type: 'bulk-create', count: rawCount, objectType };
   }
 
-  // Structural templates
+  // Structural templates + aliases
   if (/\bswot\b/i.test(prompt)) return { type: 'template', templateType: 'swot' };
-  if (/\bkanban\b/i.test(prompt)) return { type: 'template', templateType: 'kanban' };
+  if (/\bkanban\b|\bsprint\s*board\b/i.test(prompt)) return { type: 'template', templateType: 'kanban' };
   if (/\bretro(?:spective)?\b/i.test(prompt)) return { type: 'template', templateType: 'retrospective' };
-  if (/\beisenhower\b/i.test(prompt)) return { type: 'template', templateType: 'eisenhower' };
-  if (/\bmind\s*map\b/i.test(prompt)) return { type: 'template', templateType: 'mind-map' };
+  if (/\beisenhower\b|\bpriority\s*matrix\b|\burgent\s*important\b/i.test(prompt)) return { type: 'template', templateType: 'eisenhower' };
+  if (/\bmind\s*map\b|\bbrainstorm(?:ing)?\s+(?:board|session|template)\b/i.test(prompt)) return { type: 'template', templateType: 'mind-map' };
   if (/\bpros?\s*(?:and|&|\/)\s*cons?\b/i.test(prompt)) return { type: 'template', templateType: 'pros-cons' };
-  if (/\btimeline\b/i.test(prompt)) {
-    const stageMatch = prompt.match(/(\d+)\s*(?:stage|step|phase|point)s?/i);
-    return { type: 'template', templateType: 'timeline' };
-  }
+  if (/\btimeline\b/i.test(prompt)) return { type: 'template', templateType: 'timeline' };
   if (/\b(?:user\s*)?journey\s*map\b/i.test(prompt)) return { type: 'template', templateType: 'journey' };
 
-  // Single object creation: "add a sticky note", "create a rectangle", "add a frame called Sprint Planning"
+  // "2x2 matrix" alias → grid
+  const matrixMatch = lower.match(/(\d+)\s*[x×]\s*(\d+)\s*matrix/);
+  if (matrixMatch) {
+    const rows = parseInt(matrixMatch[1], 10);
+    const cols = parseInt(matrixMatch[2], 10);
+    if (rows >= 1 && rows <= 50 && cols >= 1 && cols <= 50) {
+      return { type: 'grid-create', rows, cols };
+    }
+  }
+
+  // Single object creation: "add a sticky note", "create a rectangle", "add a star", etc.
   const singleMatch = lower.match(
-    /^(?:create|add|make|place|put)\s+(?:a\s+|an\s+)?(?:(yellow|blue|green|pink|purple|orange|red)\s+)?(sticky\s*note|sticky|note|card|rectangle|rect|circle|ellipse|triangle|diamond|shape|line|frame|text\s*(?:box|element)?|text)\b/,
+    /^(?:create|add|make|place|put)\s+(?:a\s+|an\s+)?(?:(yellow|blue|green|pink|purple|orange|red|cyan|teal)\s+)?(sticky\s*note|sticky|note|card|rectangle|rect|square|circle|ellipse|oval|triangle|diamond|pentagon|hexagon|octagon|star|arrow\s*shape|arrow|cross|plus|line|shape|frame|text\s*(?:box|element)?|text)\b/,
   );
   if (singleMatch) {
     const colorName = singleMatch[1];
     const typeStr = singleMatch[2];
 
-    // Parse optional label: "called X", "that says X", "titled X", or quoted text
+    // Parse optional label
     const labelMatch = prompt.match(/(?:called|titled|named|saying|that\s+says|labeled)\s+['"]?(.+?)['"]?\s*$/i)
       || prompt.match(/'([^']+)'/)
       || prompt.match(/"([^"]+)"/);
     const label = labelMatch ? labelMatch[1].trim() : undefined;
 
-    const COLOR_MAP: Record<string, string> = {
+    // Parse optional coordinates: "at 100, 200" or "at position 100, 200" or "at (100, 200)"
+    const coordMatch = prompt.match(/at\s+(?:position\s+)?\(?(\d+)\s*[,\s]\s*(\d+)\)?/i);
+    const x = coordMatch ? parseInt(coordMatch[1], 10) : undefined;
+    const y = coordMatch ? parseInt(coordMatch[2], 10) : undefined;
+
+    const SINGLE_COLOR_MAP: Record<string, string> = {
       yellow: '#fef9c3', blue: '#dbeafe', green: '#dcfce7', pink: '#fce7f3',
-      purple: '#f3e8ff', orange: '#ffedd5', red: '#fecaca',
+      purple: '#f3e8ff', orange: '#ffedd5', red: '#fecaca', cyan: '#cffafe', teal: '#ccfbf1',
     };
-    const color = colorName ? COLOR_MAP[colorName] : undefined;
+    const color = colorName ? SINGLE_COLOR_MAP[colorName] : undefined;
 
     if (/sticky|note|card/.test(typeStr)) {
-      return { type: 'single-create', objectType: 'sticky', label, color };
+      return { type: 'single-create', objectType: 'sticky', label, color, x, y };
     } else if (/frame/.test(typeStr)) {
-      return { type: 'single-create', objectType: 'frame', label };
-    } else if (/text/.test(typeStr)) {
-      return { type: 'single-create', objectType: 'text', label };
-    } else if (/rect/.test(typeStr)) {
-      return { type: 'single-create', objectType: 'shape', shapeType: 'rect', color };
-    } else if (/circle|ellipse/.test(typeStr)) {
-      return { type: 'single-create', objectType: 'shape', shapeType: 'circle', color };
+      return { type: 'single-create', objectType: 'frame', label, x, y };
+    } else if (/^text/.test(typeStr)) {
+      return { type: 'single-create', objectType: 'text', label, x, y };
+    } else if (/rect|square/.test(typeStr)) {
+      return { type: 'single-create', objectType: 'shape', shapeType: 'rect', color, x, y };
+    } else if (/circle|ellipse|oval/.test(typeStr)) {
+      return { type: 'single-create', objectType: 'shape', shapeType: 'circle', color, x, y };
     } else if (/triangle/.test(typeStr)) {
-      return { type: 'single-create', objectType: 'shape', shapeType: 'triangle', color };
+      return { type: 'single-create', objectType: 'shape', shapeType: 'triangle', color, x, y };
     } else if (/diamond/.test(typeStr)) {
-      return { type: 'single-create', objectType: 'shape', shapeType: 'diamond', color };
+      return { type: 'single-create', objectType: 'shape', shapeType: 'diamond', color, x, y };
+    } else if (/pentagon/.test(typeStr)) {
+      return { type: 'single-create', objectType: 'shape', shapeType: 'pentagon', color, x, y };
+    } else if (/hexagon/.test(typeStr)) {
+      return { type: 'single-create', objectType: 'shape', shapeType: 'hexagon', color, x, y };
+    } else if (/octagon/.test(typeStr)) {
+      return { type: 'single-create', objectType: 'shape', shapeType: 'octagon', color, x, y };
+    } else if (/star/.test(typeStr)) {
+      return { type: 'single-create', objectType: 'shape', shapeType: 'star', color, x, y };
+    } else if (/arrow/.test(typeStr)) {
+      return { type: 'single-create', objectType: 'shape', shapeType: 'arrow', color, x, y };
+    } else if (/cross|plus/.test(typeStr)) {
+      return { type: 'single-create', objectType: 'shape', shapeType: 'cross', color, x, y };
     } else if (/line/.test(typeStr)) {
-      return { type: 'single-create', objectType: 'shape', shapeType: 'line', color };
+      return { type: 'single-create', objectType: 'shape', shapeType: 'line', color, x, y };
     } else {
-      return { type: 'single-create', objectType: 'shape', shapeType: 'rect', color };
+      return { type: 'single-create', objectType: 'shape', shapeType: 'rect', color, x, y };
     }
   }
 
@@ -1369,11 +1506,13 @@ async function executeSingleCreate(
   label?: string,
   color?: string,
   shapeType?: string,
+  posX?: number,
+  posY?: number,
 ): Promise<string> {
   const objectsRef = db.collection(`boards/${boardId}/objects`);
   const now = Date.now();
-  const x = viewport ? Math.round(viewport.x - 100) : 200;
-  const y = viewport ? Math.round(viewport.y - 100) : 200;
+  const x = posX ?? (viewport ? Math.round(viewport.x - 100) : 200);
+  const y = posY ?? (viewport ? Math.round(viewport.y - 100) : 200);
   const docRef = objectsRef.doc();
 
   let data: Record<string, unknown>;
@@ -1510,6 +1649,216 @@ async function executeNumberedFlowchart(
 ): Promise<string> {
   const nodes = Array.from({ length: stepCount }, (_, i) => `Step ${i + 1}`);
   return executeFlowchart(nodes, boardId, userId, objectsCreated, viewport);
+}
+
+async function executeArrangeGrid(
+  boardId: string,
+  objectsCreated: string[],
+): Promise<string> {
+  const snapshot = await db.collection(`boards/${boardId}/objects`).get();
+  if (snapshot.empty) return 'Board is empty — nothing to arrange.';
+
+  const docs = snapshot.docs
+    .map(doc => ({ id: doc.id, ref: doc.ref, data: doc.data() }))
+    .filter(d => d.data.type !== 'connector')
+    .sort((a, b) => (a.data.updatedAt || 0) - (b.data.updatedAt || 0));
+
+  if (docs.length === 0) return 'No objects to arrange.';
+
+  const cols = Math.ceil(Math.sqrt(docs.length));
+  const padding = 30;
+  const cellW = 240;
+  const cellH = 240;
+  const startX = 100;
+  const startY = 100;
+
+  const batchSize = 450;
+  let updated = 0;
+
+  for (let i = 0; i < docs.length; i += batchSize) {
+    const batch = db.batch();
+    const chunk = docs.slice(i, i + batchSize);
+    for (let j = 0; j < chunk.length; j++) {
+      const idx = i + j;
+      const col = idx % cols;
+      const row = Math.floor(idx / cols);
+      batch.update(chunk[j].ref, {
+        x: startX + col * (cellW + padding),
+        y: startY + row * (cellH + padding),
+        updatedAt: Date.now(),
+      });
+      updated++;
+    }
+    await batch.commit();
+  }
+
+  return `Done! Arranged ${updated} objects in a ${cols}-column grid.`;
+}
+
+async function executeSelectiveDelete(
+  targetType: 'sticky' | 'shape' | 'text' | 'sticker' | 'frame' | 'connector',
+  boardId: string,
+  objectsCreated: string[],
+): Promise<string> {
+  const snapshot = await db.collection(`boards/${boardId}/objects`).get();
+  const targets = snapshot.docs.filter(doc => doc.data().type === targetType);
+
+  if (targets.length === 0) return `No ${targetType} objects found on the board.`;
+
+  const batchSize = 450;
+  let deleted = 0;
+
+  for (let i = 0; i < targets.length; i += batchSize) {
+    const batch = db.batch();
+    const chunk = targets.slice(i, i + batchSize);
+    for (const doc of chunk) {
+      batch.delete(doc.ref);
+      deleted++;
+    }
+    await batch.commit();
+  }
+
+  return `Done! Deleted ${deleted} ${targetType}${deleted !== 1 ? 's' : ''}.`;
+}
+
+async function executeBulkColor(
+  targetType: 'sticky' | 'shape' | 'text' | 'frame' | 'all',
+  color: string,
+  boardId: string,
+): Promise<string> {
+  const snapshot = await db.collection(`boards/${boardId}/objects`).get();
+  const targets = targetType === 'all'
+    ? snapshot.docs.filter(doc => {
+        const t = doc.data().type;
+        return t === 'sticky' || t === 'shape' || t === 'text' || t === 'frame';
+      })
+    : snapshot.docs.filter(doc => doc.data().type === targetType);
+
+  if (targets.length === 0) return `No ${targetType === 'all' ? '' : targetType + ' '}objects found to recolor.`;
+
+  const batchSize = 450;
+  let updated = 0;
+
+  for (let i = 0; i < targets.length; i += batchSize) {
+    const batch = db.batch();
+    const chunk = targets.slice(i, i + batchSize);
+    for (const doc of chunk) {
+      const data = doc.data();
+      const updateData: { [x: string]: any } = { updatedAt: Date.now() };
+      if (data.type === 'sticky') {
+        updateData.color = color;
+      } else if (data.type === 'shape') {
+        updateData.color = color;
+      } else if (data.type === 'text') {
+        updateData.color = color;
+      } else if (data.type === 'frame') {
+        // Frames don't have a color field the same way, skip
+      }
+      batch.update(doc.ref, updateData);
+      updated++;
+    }
+    await batch.commit();
+  }
+
+  return `Done! Changed color of ${updated} ${targetType === 'all' ? 'object' : targetType}${updated !== 1 ? 's' : ''} to the new color.`;
+}
+
+async function executeRowCreate(
+  count: number,
+  direction: 'row' | 'column',
+  objectType: 'sticky' | 'shape' | 'text' | 'sticker' | 'frame',
+  boardId: string,
+  userId: string,
+  objectsCreated: string[],
+  viewport?: { x: number; y: number; width: number; height: number },
+): Promise<string> {
+  const objectsRef = db.collection(`boards/${boardId}/objects`);
+  const now = Date.now();
+  const colors = ['#fef9c3', '#dbeafe', '#dcfce7', '#fce7f3', '#f3e8ff', '#ffedd5'];
+  const emojis = ['😊', '🎯', '💡', '🔥', '⭐', '🚀', '✨', '🎨', '📌', '🏆'];
+  const objSize = objectType === 'text' ? { w: 200, h: 40 } : { w: 200, h: 200 };
+  const padding = 20;
+
+  const totalSpan = direction === 'row'
+    ? count * (objSize.w + padding)
+    : count * (objSize.h + padding);
+
+  const baseX = viewport
+    ? Math.round(viewport.x - (direction === 'row' ? totalSpan / 2 : objSize.w / 2))
+    : 100;
+  const baseY = viewport
+    ? Math.round(viewport.y - (direction === 'column' ? totalSpan / 2 : objSize.h / 2))
+    : 100;
+
+  const batchSize = 450;
+  for (let batchStart = 0; batchStart < count; batchStart += batchSize) {
+    const batchEnd = Math.min(batchStart + batchSize, count);
+    const batch = db.batch();
+
+    for (let i = batchStart; i < batchEnd; i++) {
+      const x = direction === 'row' ? baseX + i * (objSize.w + padding) : baseX;
+      const y = direction === 'column' ? baseY + i * (objSize.h + padding) : baseY;
+      const docRef = objectsRef.doc();
+
+      let data: Record<string, unknown>;
+      switch (objectType) {
+        case 'sticky':
+          data = {
+            type: 'sticky', text: '', x, y,
+            width: 200, height: 200, color: colors[i % colors.length], textColor: '#1e293b',
+            rotation: 0, createdBy: userId, updatedAt: now, parentId: '',
+          };
+          break;
+        case 'shape':
+          data = {
+            type: 'shape', shapeType: 'rect', x, y,
+            width: 120, height: 120, color: '#dbeafe',
+            strokeColor: '#4f46e5', rotation: 0,
+            createdBy: userId, updatedAt: now, parentId: '',
+          };
+          break;
+        case 'text':
+          data = {
+            type: 'text', text: `Text ${i + 1}`, x, y,
+            width: 200, height: 40, fontSize: 24,
+            fontFamily: "'Inter', sans-serif", fontWeight: 'normal',
+            fontStyle: 'normal', textAlign: 'left',
+            color: '#1e293b', bgColor: 'transparent',
+            rotation: 0, createdBy: userId, updatedAt: now, parentId: '',
+          };
+          break;
+        case 'sticker':
+          data = {
+            type: 'sticker', emoji: emojis[i % emojis.length], x, y,
+            width: 150, height: 150,
+            rotation: 0, createdBy: userId, updatedAt: now, parentId: '',
+          };
+          break;
+        case 'frame':
+          data = {
+            type: 'frame', title: `Frame ${i + 1}`, x, y,
+            width: 400, height: 300,
+            rotation: 0, createdBy: userId, updatedAt: now, parentId: '',
+            sentToBack: true,
+          };
+          break;
+        default:
+          data = {
+            type: 'sticky', text: '', x, y,
+            width: 200, height: 200, color: colors[i % colors.length], textColor: '#1e293b',
+            rotation: 0, createdBy: userId, updatedAt: now, parentId: '',
+          };
+      }
+
+      batch.set(docRef, data);
+      objectsCreated.push(docRef.id);
+    }
+
+    await batch.commit();
+  }
+
+  const typeLabel = `${objectType}${count !== 1 ? 's' : ''}`;
+  return `Done! Created ${count} ${typeLabel} in a ${direction}.`;
 }
 
 function buildObjectData(
@@ -2487,15 +2836,27 @@ async function processAICore(
       } else if (templateMatch.type === 'bulk-create') {
         responseText = await executeBulkCreate(templateMatch.count, templateMatch.objectType, boardId, userId, objectsCreated, viewport);
       } else if (templateMatch.type === 'single-create') {
-        responseText = await executeSingleCreate(templateMatch.objectType, boardId, userId, objectsCreated, viewport, templateMatch.label, templateMatch.color, templateMatch.shapeType);
+        responseText = await executeSingleCreate(templateMatch.objectType, boardId, userId, objectsCreated, viewport, templateMatch.label, templateMatch.color, templateMatch.shapeType, templateMatch.x, templateMatch.y);
       } else if (templateMatch.type === 'grid-create') {
         responseText = await executeGridCreate(templateMatch.rows, templateMatch.cols, boardId, userId, objectsCreated, viewport, templateMatch.labels);
       } else if (templateMatch.type === 'clear-board') {
         responseText = await executeClearBoard(boardId, objectsCreated);
       } else if (templateMatch.type === 'numbered-flowchart') {
         responseText = await executeNumberedFlowchart(templateMatch.stepCount, boardId, userId, objectsCreated, viewport, templateMatch.topic);
-      } else {
+      } else if (templateMatch.type === 'arrange-grid') {
+        responseText = await executeArrangeGrid(boardId, objectsCreated);
+      } else if (templateMatch.type === 'selective-delete') {
+        responseText = await executeSelectiveDelete(templateMatch.targetType, boardId, objectsCreated);
+      } else if (templateMatch.type === 'bulk-color') {
+        responseText = await executeBulkColor(templateMatch.targetType ?? 'all', templateMatch.color, boardId);
+      } else if (templateMatch.type === 'row-create') {
+        responseText = await executeRowCreate(templateMatch.count, templateMatch.direction, templateMatch.objectType, boardId, userId, objectsCreated, viewport);
+      } else if (templateMatch.type === 'canned-response') {
+        responseText = templateMatch.response;
+      } else if (templateMatch.type === 'template') {
         responseText = await executeTemplate(templateMatch.templateType, boardId, userId, objectsCreated, viewport);
+      } else {
+        throw new Error('unhandled-template');
       }
       await requestRef.update({
         status: 'completed',
@@ -2862,5 +3223,5 @@ export const searchGiphyCallable = onCall(
 );
 
 // ---- Exports for testing ----
-export { detectTemplate, buildObjectData, requestNeedsContext, resolveFontFamily, computeAutoOrigin, executeBulkCreate, executeSingleCreate, executeGridCreate, executeClearBoard, executeNumberedFlowchart };
+export { detectTemplate, buildObjectData, requestNeedsContext, resolveFontFamily, computeAutoOrigin, executeBulkCreate, executeSingleCreate, executeGridCreate, executeClearBoard, executeNumberedFlowchart, executeArrangeGrid, executeSelectiveDelete, executeBulkColor, executeRowCreate };
 export type { TemplateMatch };

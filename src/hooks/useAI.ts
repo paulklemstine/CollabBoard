@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { sendAICommand } from '../services/aiService';
 import type { AIMessage } from '../types/board';
+import type { ViewportCenter } from '../components/AIChat/AIChat';
 
 export function useAI(boardId: string, onObjectsCreated?: (ids: string[]) => void, selectedIds?: string[]) {
   const [messages, setMessages] = useState<AIMessage[]>([]);
@@ -13,7 +14,7 @@ export function useAI(boardId: string, onObjectsCreated?: (ids: string[]) => voi
   selectedIdsRef.current = selectedIds;
 
   const sendCommand = useCallback(
-    async (prompt: string) => {
+    async (prompt: string, viewport?: ViewportCenter) => {
       const trimmed = prompt.trim();
       if (!trimmed || isLoading) return;
 
@@ -30,7 +31,7 @@ export function useAI(boardId: string, onObjectsCreated?: (ids: string[]) => voi
       setError(null);
 
       try {
-        const result = await sendAICommand(boardId, trimmed, (p) => setProgress(p), selectedIdsRef.current);
+        const result = await sendAICommand(boardId, trimmed, (p) => setProgress(p), selectedIdsRef.current, viewport);
 
         const assistantMessage: AIMessage = {
           id: `assistant-${Date.now()}`,

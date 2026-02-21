@@ -339,6 +339,61 @@ describe('detectTemplate', () => {
       const result = detectTemplate("add a sticky note that says 'Hello World'");
       expect(result).toMatchObject({ type: 'single-create', objectType: 'sticky', label: 'Hello World' });
     });
+
+    // All 11 shape types
+    it('detects pentagon', () => {
+      expect(detectTemplate('create a pentagon')).toMatchObject({ type: 'single-create', objectType: 'shape', shapeType: 'pentagon' });
+    });
+
+    it('detects hexagon', () => {
+      expect(detectTemplate('add a hexagon')).toMatchObject({ type: 'single-create', objectType: 'shape', shapeType: 'hexagon' });
+    });
+
+    it('detects octagon', () => {
+      expect(detectTemplate('create an octagon')).toMatchObject({ type: 'single-create', objectType: 'shape', shapeType: 'octagon' });
+    });
+
+    it('detects star', () => {
+      expect(detectTemplate('add a star')).toMatchObject({ type: 'single-create', objectType: 'shape', shapeType: 'star' });
+    });
+
+    it('detects arrow shape', () => {
+      expect(detectTemplate('create an arrow')).toMatchObject({ type: 'single-create', objectType: 'shape', shapeType: 'arrow' });
+    });
+
+    it('detects cross', () => {
+      expect(detectTemplate('add a cross')).toMatchObject({ type: 'single-create', objectType: 'shape', shapeType: 'cross' });
+    });
+
+    it('detects line', () => {
+      expect(detectTemplate('create a line')).toMatchObject({ type: 'single-create', objectType: 'shape', shapeType: 'line' });
+    });
+
+    // Aliases
+    it('detects square as rect', () => {
+      expect(detectTemplate('add a square')).toMatchObject({ type: 'single-create', objectType: 'shape', shapeType: 'rect' });
+    });
+
+    it('detects oval as circle', () => {
+      expect(detectTemplate('create an oval')).toMatchObject({ type: 'single-create', objectType: 'shape', shapeType: 'circle' });
+    });
+
+    it('detects ellipse as circle', () => {
+      expect(detectTemplate('add an ellipse')).toMatchObject({ type: 'single-create', objectType: 'shape', shapeType: 'circle' });
+    });
+
+    it('detects plus as cross', () => {
+      expect(detectTemplate('create a plus')).toMatchObject({ type: 'single-create', objectType: 'shape', shapeType: 'cross' });
+    });
+
+    // Colors with new shapes
+    it('detects "create a red star"', () => {
+      expect(detectTemplate('create a red star')).toMatchObject({ type: 'single-create', objectType: 'shape', shapeType: 'star', color: '#fecaca' });
+    });
+
+    it('detects "add a green hexagon"', () => {
+      expect(detectTemplate('add a green hexagon')).toMatchObject({ type: 'single-create', objectType: 'shape', shapeType: 'hexagon', color: '#dcfce7' });
+    });
   });
 
   describe('non-matches', () => {
@@ -377,6 +432,139 @@ describe('detectTemplate', () => {
     it('grid takes priority over bulk-create for NxM pattern', () => {
       const result = detectTemplate('create a 3x4 grid of stickies');
       expect(result?.type).toBe('grid-create');
+    });
+  });
+
+  describe('canned responses', () => {
+    it('detects undo', () => {
+      expect(detectTemplate('undo')).toEqual({ type: 'canned-response', response: expect.stringContaining('Ctrl+Z') });
+    });
+
+    it('detects undo last', () => {
+      expect(detectTemplate('undo last')).toEqual({ type: 'canned-response', response: expect.stringContaining('undo') });
+    });
+
+    it('detects help', () => {
+      expect(detectTemplate('help')).toEqual({ type: 'canned-response', response: expect.stringContaining('create objects') });
+    });
+
+    it('detects what can you do', () => {
+      expect(detectTemplate('what can you do')).toEqual({ type: 'canned-response', response: expect.stringContaining('create objects') });
+    });
+
+    it('detects commands', () => {
+      expect(detectTemplate('commands')).toEqual({ type: 'canned-response', response: expect.stringContaining('create objects') });
+    });
+  });
+
+  describe('selective delete', () => {
+    it('detects delete all stickies', () => {
+      expect(detectTemplate('delete all stickies')).toEqual({ type: 'selective-delete', targetType: 'sticky' });
+    });
+
+    it('detects remove all shapes', () => {
+      expect(detectTemplate('remove all shapes')).toEqual({ type: 'selective-delete', targetType: 'shape' });
+    });
+
+    it('detects delete all connectors', () => {
+      expect(detectTemplate('delete all connectors')).toEqual({ type: 'selective-delete', targetType: 'connector' });
+    });
+
+    it('detects delete all frames', () => {
+      expect(detectTemplate('delete all frames')).toEqual({ type: 'selective-delete', targetType: 'frame' });
+    });
+
+    it('detects delete sticky notes', () => {
+      expect(detectTemplate('delete sticky notes')).toEqual({ type: 'selective-delete', targetType: 'sticky' });
+    });
+
+    it('detects remove all text', () => {
+      expect(detectTemplate('remove all text')).toEqual({ type: 'selective-delete', targetType: 'text' });
+    });
+  });
+
+  describe('arrange grid', () => {
+    it('detects arrange in a grid', () => {
+      expect(detectTemplate('arrange in a grid')).toEqual({ type: 'arrange-grid' });
+    });
+
+    it('detects organize in grid', () => {
+      expect(detectTemplate('organize in grid')).toEqual({ type: 'arrange-grid' });
+    });
+
+    it('detects lay out in a grid', () => {
+      expect(detectTemplate('lay out in a grid')).toEqual({ type: 'arrange-grid' });
+    });
+
+    it('detects arrange objects into a grid', () => {
+      expect(detectTemplate('arrange objects into a grid')).toEqual({ type: 'arrange-grid' });
+    });
+  });
+
+  describe('row/column layouts', () => {
+    it('detects add 5 stickies in a row', () => {
+      expect(detectTemplate('add 5 stickies in a row')).toEqual({
+        type: 'row-create', count: 5, direction: 'row', objectType: 'sticky',
+      });
+    });
+
+    it('detects create 3 shapes in a column', () => {
+      expect(detectTemplate('create 3 shapes in a column')).toEqual({
+        type: 'row-create', count: 3, direction: 'column', objectType: 'shape',
+      });
+    });
+
+    it('detects make 4 frames in a horizontal', () => {
+      expect(detectTemplate('make 4 frames in a horizontal')).toEqual({
+        type: 'row-create', count: 4, direction: 'row', objectType: 'frame',
+      });
+    });
+
+    it('detects create 2 text in a vertical', () => {
+      expect(detectTemplate('create 2 texts in a vertical')).toEqual({
+        type: 'row-create', count: 2, direction: 'column', objectType: 'text',
+      });
+    });
+  });
+
+  describe('template aliases', () => {
+    it('detects sprint board as kanban', () => {
+      expect(detectTemplate('create a sprint board')).toEqual({ type: 'template', templateType: 'kanban' });
+    });
+
+    it('detects priority matrix as eisenhower', () => {
+      expect(detectTemplate('make a priority matrix')).toEqual({ type: 'template', templateType: 'eisenhower' });
+    });
+
+    it('detects urgent important as eisenhower', () => {
+      expect(detectTemplate('create an urgent important matrix')).toEqual({ type: 'template', templateType: 'eisenhower' });
+    });
+  });
+
+  describe('2x2 matrix alias', () => {
+    it('detects 2x2 matrix as grid', () => {
+      expect(detectTemplate('create a 2x2 matrix')).toEqual({ type: 'grid-create', rows: 2, cols: 2 });
+    });
+
+    it('detects 3x3 matrix as grid', () => {
+      expect(detectTemplate('make a 3x3 matrix')).toEqual({ type: 'grid-create', rows: 3, cols: 3 });
+    });
+  });
+
+  describe('single create with coordinates', () => {
+    it('detects sticky at position', () => {
+      const result = detectTemplate('add a sticky note at 100, 200');
+      expect(result).toMatchObject({ type: 'single-create', objectType: 'sticky', x: 100, y: 200 });
+    });
+
+    it('detects shape at position with parens', () => {
+      const result = detectTemplate('create a circle at (300, 400)');
+      expect(result).toMatchObject({ type: 'single-create', objectType: 'shape', shapeType: 'circle', x: 300, y: 400 });
+    });
+
+    it('detects with position keyword', () => {
+      const result = detectTemplate('add a rectangle at position 50, 75');
+      expect(result).toMatchObject({ type: 'single-create', x: 50, y: 75 });
     });
   });
 });

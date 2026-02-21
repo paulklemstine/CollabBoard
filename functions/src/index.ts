@@ -23,30 +23,31 @@ async function getGeminiClient(): Promise<GoogleGenAIType> {
 }
 
 // Primary and fallback models — if the primary is overloaded (503), retry with fallback
-const PRIMARY_MODEL = 'gemini-2.5-flash-preview-05-20';
-const FALLBACK_MODEL = 'gemini-2.5-flash-preview-04-17';
+// Models in priority order — try each until one succeeds on 503
+const MODELS = [
+  'gemini-3-flash-experimental',
+  'gemini-2.5-flash-preview-05-20',
+  'gemini-2.5-flash-preview-04-17',
+];
 
-/** Call generateContent with automatic fallback on 503 UNAVAILABLE. */
+/** Call generateContent, cascading through models on 503 UNAVAILABLE. */
 async function generateWithFallback(
   ai: GoogleGenAIType,
   params: { contents: unknown; config: unknown },
 ): Promise<any> {
-  try {
-    return await (ai.models as any).generateContent({
-      model: PRIMARY_MODEL,
-      ...params,
-    });
-  } catch (err: unknown) {
-    const is503 =
-      err instanceof Error &&
-      (err.message.includes('503') || err.message.includes('UNAVAILABLE') || err.message.includes('high demand'));
-    if (!is503) throw err;
-
-    console.warn(`Primary model ${PRIMARY_MODEL} unavailable, falling back to ${FALLBACK_MODEL}`);
-    return await (ai.models as any).generateContent({
-      model: FALLBACK_MODEL,
-      ...params,
-    });
+  for (let i = 0; i < MODELS.length; i++) {
+    try {
+      return await (ai.models as any).generateContent({
+        model: MODELS[i],
+        ...params,
+      });
+    } catch (err: unknown) {
+      const is503 =
+        err instanceof Error &&
+        (err.message.includes('503') || err.message.includes('UNAVAILABLE') || err.message.includes('high demand'));
+      if (!is503 || i === MODELS.length - 1) throw err;
+      console.warn(`Model ${MODELS[i]} unavailable, trying ${MODELS[i + 1]}`);
+    }
   }
 }
 

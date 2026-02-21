@@ -11,6 +11,8 @@ interface BoardDashboardProps {
 
 export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboardProps) {
   const [refreshKey, setRefreshKey] = useState(0);
+  const [openSpacesPage, setOpenSpacesPage] = useState(0);
+  const PAGE_SIZE = 12;
   const { myBoards, sharedWithMe, publicBoards, loading, addBoard, removeBoard, toggleBoardVisibility } = useUserBoards(
     user.uid,
     user.isAnonymous,
@@ -70,7 +72,7 @@ export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboar
 
         {/* Create Board */}
         <div className="glass-playful rounded-2xl p-6 mb-8 shadow-lg">
-          <h2 className="text-lg font-bold text-gray-800 mb-4">New Board</h2>
+          <h2 className="text-lg font-bold text-gray-800 mb-4">New Space</h2>
           <CreateBoardForm onCreateBoard={handleCreateBoard} />
         </div>
 
@@ -122,24 +124,60 @@ export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboar
             )}
 
             {/* Public Boards */}
-            <h2 className="text-lg font-bold text-white/90 mb-4">Open Spaces</h2>
-            {publicBoards.length === 0 ? (
-              <div className="glass-playful rounded-2xl p-8 text-center shadow-lg">
-                <p className="text-gray-500 font-medium">No public boards yet — be the first</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {publicBoards.map((board) => (
-                  <BoardCard
-                    key={board.id}
-                    board={board}
-                    onSelect={onSelectBoard}
-                    onDelete={removeBoard}
-                    canDelete={false}
-                  />
-                ))}
-              </div>
-            )}
+            {(() => {
+              const totalPages = Math.ceil(publicBoards.length / PAGE_SIZE);
+              const page = Math.min(openSpacesPage, Math.max(0, totalPages - 1));
+              const paged = publicBoards.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+              return (
+                <>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-bold text-white/90">Open Spaces</h2>
+                    {totalPages > 1 && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setOpenSpacesPage(p => Math.max(0, p - 1))}
+                          disabled={page === 0}
+                          className="p-1 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Previous page"
+                        >
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="15 18 9 12 15 6" />
+                          </svg>
+                        </button>
+                        <span className="text-sm text-white/60 font-medium">{page + 1}/{totalPages}</span>
+                        <button
+                          onClick={() => setOpenSpacesPage(p => Math.min(totalPages - 1, p + 1))}
+                          disabled={page >= totalPages - 1}
+                          className="p-1 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Next page"
+                        >
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="9 6 15 12 9 18" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {paged.length === 0 ? (
+                    <div className="glass-playful rounded-2xl p-8 text-center shadow-lg">
+                      <p className="text-gray-500 font-medium">No public boards yet — be the first</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {paged.map((board) => (
+                        <BoardCard
+                          key={board.id}
+                          board={board}
+                          onSelect={onSelectBoard}
+                          onDelete={removeBoard}
+                          canDelete={false}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </>
         )}
 

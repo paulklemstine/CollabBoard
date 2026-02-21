@@ -23,7 +23,7 @@ function getColor(obj: AnyBoardObject): string {
     case 'sticky': return obj.color || '#fef08a';
     case 'shape': return obj.color || '#818cf8';
     case 'text': return obj.bgColor && obj.bgColor !== 'transparent' ? obj.bgColor : 'transparent';
-    case 'frame': return 'none';
+    case 'frame': return obj.color || 'rgba(250, 245, 255, 0.12)';
     case 'sticker': return '#c084fc';
     default: return '#94a3b8';
   }
@@ -198,26 +198,27 @@ export function BoardPreview({ boardId, thumbnailUrl }: BoardPreviewProps) {
           // Borderless frames are invisible grouping containers — skip in preview
           if (obj.borderless) return null;
           const titleFontSize = Math.max(3, 12 * scale);
+          const frameFill = obj.color || 'rgba(250, 245, 255, 0.12)';
+          const frameStroke = obj.borderColor || '#a78bfa';
           return (
             <g key={obj.id} transform={rotateTransform}>
               <rect
                 x={x} y={y} width={w} height={h}
-                fill="none"
-                stroke="#94a3b8"
-                strokeWidth={1}
-                strokeDasharray="4 2"
-                rx={2}
-                opacity={0.4}
+                fill={frameFill}
+                stroke={frameStroke}
+                strokeWidth={Math.max(1, 2.5 * scale)}
+                rx={Math.max(2, 16 * scale)}
+                opacity={0.85}
               />
               {obj.title && w > 20 && (
                 <text
                   x={x + 3}
                   y={y + titleFontSize + 2}
                   fontSize={titleFontSize}
-                  fill="#581c87"
+                  fill={obj.textColor || '#581c87'}
                   fontFamily="Inter, sans-serif"
                   fontWeight="bold"
-                  opacity={0.6}
+                  opacity={0.8}
                   clipPath={`url(#clip-${obj.id})`}
                 >
                   {truncateText(obj.title, 30)}

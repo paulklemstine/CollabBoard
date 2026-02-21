@@ -8,8 +8,7 @@ interface TutorialOverlayProps {
   totalSteps: number;
   onNext: () => void;
   onSkip: () => void;
-  onKeep: () => void;
-  onCleanup: () => void;
+  onFinish: () => void;
 }
 
 export function TutorialOverlay({
@@ -18,8 +17,7 @@ export function TutorialOverlay({
   totalSteps,
   onNext,
   onSkip,
-  onKeep,
-  onCleanup,
+  onFinish,
 }: TutorialOverlayProps) {
   return (
     <>
@@ -30,8 +28,7 @@ export function TutorialOverlay({
         totalSteps={totalSteps}
         onNext={onNext}
         onSkip={onSkip}
-        onKeep={onKeep}
-        onCleanup={onCleanup}
+        onFinish={onFinish}
       />
     </>
   );

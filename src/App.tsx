@@ -1184,8 +1184,7 @@ function BoardView({
           totalSteps={tutorial.totalSteps}
           onNext={tutorial.nextStep}
           onSkip={tutorial.skipTutorial}
-          onKeep={() => tutorial.cleanupAndClose(true)}
-          onCleanup={() => tutorial.cleanupAndClose(false)}
+          onFinish={tutorial.finishTutorial}
         />
       )}
     </div>

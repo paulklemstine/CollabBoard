@@ -2,116 +2,95 @@ export interface TutorialStep {
   id: string;
   title: string;
   description: string;
-  /** CSS selector using data-tutorial-id to find the spotlight target. Null = center tooltip only. */
+  /** CSS selector using data-tutorial-id to find the spotlight target. Null = no spotlight. */
   targetSelector: string | null;
-  tooltipPosition: 'top' | 'bottom' | 'left' | 'right';
   /** Action to auto-execute when entering this step */
-  action: 'none' | 'create-sticky' | 'create-shape' | 'create-connector' | 'open-ai' | 'close-ai';
-  /** If set, auto-advance to next step after this many ms */
-  autoAdvanceMs: number | null;
-  /** If true, wait for user to click Next before advancing */
-  waitForUser: boolean;
+  action: 'none' | 'create-sticky' | 'create-text' | 'create-shape' | 'create-frame' | 'create-sticker' | 'create-connector';
 }
 
 export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'welcome',
     title: 'Welcome to FlowSpace!',
-    description: 'This quick tour will show you how to create, connect, and collaborate on your board. Ready?',
+    description: 'Let\'s take a quick tour of your collaboration board. We\'ll create some objects so you can see what\'s possible.',
     targetSelector: null,
-    tooltipPosition: 'bottom',
     action: 'none',
-    autoAdvanceMs: null,
-    waitForUser: true,
   },
   {
     id: 'toolbar',
     title: 'Your Toolbar',
-    description: 'This is your main toolbar. It has everything you need: text, shapes, stickers, connectors, and AI.',
+    description: 'This is your main toolbar. It has everything you need: text, shapes, stickers, connectors, chat, and AI.',
     targetSelector: '[data-tutorial-id="toolbar"]',
-    tooltipPosition: 'top',
     action: 'none',
-    autoAdvanceMs: null,
-    waitForUser: true,
   },
   {
     id: 'create-sticky',
     title: 'Sticky Notes',
-    description: 'We just created a sticky note for you! Sticky notes are perfect for quick ideas and brainstorming.',
+    description: 'Here\'s a sticky note! Perfect for quick ideas and brainstorming. Click to edit, drag to move, and pull corners to resize.',
     targetSelector: '[data-tutorial-id="toolbar"]',
-    tooltipPosition: 'top',
     action: 'create-sticky',
-    autoAdvanceMs: null,
-    waitForUser: true,
+  },
+  {
+    id: 'create-text',
+    title: 'Text Objects',
+    description: 'Rich text with custom fonts, sizes, and colors. Great for titles, labels, and annotations on your board.',
+    targetSelector: '[data-tutorial-id="toolbar"]',
+    action: 'create-text',
   },
   {
     id: 'create-shape',
-    title: 'Shapes & Frames',
-    description: 'And here\'s a shape! Use the Shapes menu to add circles, rectangles, stars, frames, and more.',
+    title: 'Shapes',
+    description: 'Circles, rectangles, stars, diamonds, arrows, and more. Use the Shapes menu to pick from 12 different shape types.',
     targetSelector: '[data-tutorial-id="shape-tool"]',
-    tooltipPosition: 'top',
     action: 'create-shape',
-    autoAdvanceMs: null,
-    waitForUser: true,
+  },
+  {
+    id: 'create-frame',
+    title: 'Frames',
+    description: 'Frames group objects together. Drag a frame and everything inside moves with it. Great for organizing sections of your board.',
+    targetSelector: '[data-tutorial-id="shape-tool"]',
+    action: 'create-frame',
+  },
+  {
+    id: 'create-sticker',
+    title: 'Stickers & GIFs',
+    description: 'Add emoji stickers or search for animated GIFs to make your board expressive and fun!',
+    targetSelector: '[data-tutorial-id="toolbar"]',
+    action: 'create-sticker',
   },
   {
     id: 'create-connector',
-    title: 'Connect Objects',
-    description: 'We connected the sticky and the shape! Use the Link tool to draw lines between any objects.',
+    title: 'Connectors',
+    description: 'We just linked two objects with a connector! Use the Link tool to draw straight or curved lines between any objects.',
     targetSelector: '[data-tutorial-id="connector-tool"]',
-    tooltipPosition: 'top',
     action: 'create-connector',
-    autoAdvanceMs: null,
-    waitForUser: true,
-  },
-  {
-    id: 'interact',
-    title: 'Drag, Resize & Rotate',
-    description: 'Click any object to select it. Then drag to move, pull corners to resize, or use the rotation handle.',
-    targetSelector: '[data-tutorial-id="toolbar"]',
-    tooltipPosition: 'top',
-    action: 'none',
-    autoAdvanceMs: null,
-    waitForUser: true,
   },
   {
     id: 'ai-assistant',
     title: 'Flow AI',
-    description: 'Ask AI to generate entire board layouts, brainstorm ideas, or organize your notes. Try it!',
+    description: 'The real magic! Ask AI to generate entire layouts: "Create a project roadmap", "Brainstorm marketing ideas", or "Organize these notes into categories".',
     targetSelector: '[data-tutorial-id="ai-button"]',
-    tooltipPosition: 'top',
     action: 'none',
-    autoAdvanceMs: null,
-    waitForUser: true,
   },
   {
     id: 'collaboration',
     title: 'Real-time Collaboration',
-    description: 'Share your board link and collaborate live! You\'ll see other users\' cursors and changes in real time.',
+    description: 'Share your board link and collaborate live! You\'ll see other users\' cursors, edits, and presence in real time.',
     targetSelector: '[data-tutorial-id="presence-panel"]',
-    tooltipPosition: 'left',
     action: 'none',
-    autoAdvanceMs: null,
-    waitForUser: true,
   },
   {
     id: 'shortcuts',
     title: 'Keyboard Shortcuts',
-    description: 'Speed up your workflow: Ctrl+Z to undo, Ctrl+C/V to copy/paste, Delete to remove, Scroll to zoom.',
+    description: 'Ctrl+Z undo, Ctrl+Shift+Z redo, Ctrl+C/V copy/paste, Ctrl+D duplicate, Delete to remove, Scroll to zoom, L to toggle AI labels.',
     targetSelector: '[data-tutorial-id="undo-redo"]',
-    tooltipPosition: 'top',
     action: 'none',
-    autoAdvanceMs: null,
-    waitForUser: true,
   },
   {
     id: 'complete',
     title: 'You\'re all set!',
-    description: 'That\'s the basics! Would you like to keep the tutorial objects on your board or clean them up?',
+    description: 'That\'s the tour! We\'ll clean up these demo objects now. Click "?" in the top bar anytime to see shortcuts or retake the tour.',
     targetSelector: null,
-    tooltipPosition: 'bottom',
     action: 'none',
-    autoAdvanceMs: null,
-    waitForUser: true,
   },
 ];

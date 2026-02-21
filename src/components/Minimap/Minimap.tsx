@@ -133,7 +133,7 @@ export function Minimap({ transform, objects = [], onPanTo }: MinimapProps) {
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        style={{ cursor: onPanTo ? 'grab' : 'default' }}
+        style={{ cursor: 'default' }}
       >
         <Layer>
           {/* Render simplified objects with actual colors */}

@@ -6,6 +6,7 @@ import { calculateGroupObjectTransform } from '../../utils/groupTransform';
 import type { GroupTransformPreview, SelectionBox } from '../../hooks/useMultiSelect';
 import { regularPolygonPoints, starPoints, arrowPoints, crossPoints } from '../../utils/shapePoints';
 import { useMarchingAnts } from '../../hooks/useMarchingAnts';
+import { getHandleLayout, MAX_HANDLE_SIZE } from '../../utils/handleLayout';
 
 const DRAG_THROTTLE_MS = 50;
 const MIN_WIDTH = 40;
@@ -60,6 +61,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
   const [liveLineRotation, setLiveLineRotation] = useState<number | null>(null);
   const flashOverlayRef = useRef<Konva.Rect>(null);
   const groupRef = useRef<Konva.Group>(null);
+  const resizeHandleSizeRef = useRef(MAX_HANDLE_SIZE);
   const rotateStartRef = useRef<{ angle: number; rotation: number } | null>(null);
   const prevSelectedRef = useRef(false);
   const selectionRectRef = useRef<Konva.Rect>(null);
@@ -391,7 +393,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
 
   const handleResizeDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
     e.cancelBubble = true;
-    let newWidth = Math.max(MIN_WIDTH, e.target.x() + 20);
+    let newWidth = Math.max(MIN_WIDTH, e.target.x() + resizeHandleSizeRef.current);
     let newHeight: number;
 
     if (shape.shapeType === 'circle') {
@@ -399,7 +401,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
     } else if (shape.shapeType === 'line') {
       newHeight = localHeight; // lock height for lines
     } else {
-      newHeight = Math.max(MIN_HEIGHT, e.target.y() + 20);
+      newHeight = Math.max(MIN_HEIGHT, e.target.y() + resizeHandleSizeRef.current);
     }
 
     setLocalWidth(newWidth);
@@ -414,7 +416,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
 
   const handleResizeDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
     e.cancelBubble = true;
-    let newWidth = Math.max(MIN_WIDTH, e.target.x() + 20);
+    let newWidth = Math.max(MIN_WIDTH, e.target.x() + resizeHandleSizeRef.current);
     let newHeight: number;
 
     if (shape.shapeType === 'circle') {
@@ -422,7 +424,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
     } else if (shape.shapeType === 'line') {
       newHeight = localHeight;
     } else {
-      newHeight = Math.max(MIN_HEIGHT, e.target.y() + 20);
+      newHeight = Math.max(MIN_HEIGHT, e.target.y() + resizeHandleSizeRef.current);
     }
 
     setLocalWidth(newWidth);
@@ -434,13 +436,16 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
     if (shape.shapeType === 'line') {
       e.target.position({ x: newWidth - 20, y: localHeight / 2 - 20 });
     } else {
-      e.target.position({ x: newWidth - 20, y: newHeight - 20 });
+      const newHl = getHandleLayout(newWidth, newHeight);
+      e.target.position({ x: newWidth - newHl.size, y: newHeight - newHl.size });
     }
   };
 
+  const hl = getHandleLayout(localWidth, localHeight);
+
   // Handle position for line shapes: right edge, vertically centered, with 20px offset
-  const handleX = localWidth - 20;
-  const handleY = isLine ? localHeight / 2 - 20 : localHeight - 20;
+  const handleX = isLine ? localWidth - 20 : localWidth - hl.size;
+  const handleY = isLine ? localHeight / 2 - 20 : localHeight - hl.size;
 
   // Use live line position during endpoint drag for immediate visual feedback
   const effectiveX = liveLineX ?? shape.x;
@@ -731,8 +736,8 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
       {/* Duplicate button (top-left, non-line) */}
       {!isLine && onDuplicate && isMouseHovered && (
         <Group
-          x={-20}
-          y={-20}
+          x={0}
+          y={0}
           onClick={(e) => {
             e.cancelBubble = true;
             onDuplicate(shape.id);
@@ -756,17 +761,17 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
           }}
         >
           <Rect
-            width={40}
-            height={40}
+            width={hl.size}
+            height={hl.size}
             fill={isDuplicateHovered ? '#22c55e' : '#94a3b8'}
             opacity={isDuplicateHovered ? 1 : 0.4}
-            cornerRadius={8}
+            cornerRadius={hl.cornerRadius}
           />
           <Text
             text={"\uD83D\uDCCB"}
-            fontSize={24}
-            width={40}
-            height={40}
+            fontSize={hl.fontSize}
+            width={hl.size}
+            height={hl.size}
             align="center"
             verticalAlign="middle"
             listening={false}
@@ -776,8 +781,8 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
       {/* Delete button (non-line) */}
       {!isLine && onDelete && isMouseHovered && (
         <Group
-          x={localWidth - 20}
-          y={-20}
+          x={localWidth - hl.size}
+          y={0}
           onClick={(e) => {
             e.cancelBubble = true;
             onDelete(shape.id);
@@ -801,17 +806,17 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
           }}
         >
           <Rect
-            width={40}
-            height={40}
+            width={hl.size}
+            height={hl.size}
             fill={isDeleteHovered ? '#ef4444' : '#94a3b8'}
             opacity={isDeleteHovered ? 1 : 0.4}
-            cornerRadius={8}
+            cornerRadius={hl.cornerRadius}
           />
           <Text
             text="❌"
-            fontSize={24}
-            width={40}
-            height={40}
+            fontSize={hl.fontSize}
+            width={hl.size}
+            height={hl.size}
             align="center"
             verticalAlign="middle"
             listening={false}
@@ -821,8 +826,8 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
       {/* Rotate handle (bottom-left, non-line only) */}
       {!isLine && onRotate && isMouseHovered && (
         <Group
-          x={-20}
-          y={localHeight - 20}
+          x={0}
+          y={localHeight - hl.size}
           draggable
           onMouseEnter={(e) => {
             setIsMouseHovered(true);
@@ -860,7 +865,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
             const currentAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
             const delta = currentAngle - rotateStartRef.current.angle;
             onRotate(shape.id, rotateStartRef.current.rotation + delta);
-            e.target.position({ x: -20, y: localHeight - 20 });
+            e.target.position({ x: 0, y: localHeight - hl.size });
           }}
           onDragEnd={(e) => {
             e.cancelBubble = true;
@@ -879,21 +884,21 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
               }
             }
             rotateStartRef.current = null;
-            e.target.position({ x: -20, y: localHeight - 20 });
+            e.target.position({ x: 0, y: localHeight - hl.size });
           }}
         >
           <Rect
-            width={40}
-            height={40}
+            width={hl.size}
+            height={hl.size}
             fill={isRotateHovered ? '#8b5cf6' : '#94a3b8'}
             opacity={isRotateHovered ? 1 : 0.4}
-            cornerRadius={8}
+            cornerRadius={hl.cornerRadius}
           />
           <Text
             text="🔄"
-            fontSize={24}
-            width={40}
-            height={40}
+            fontSize={hl.fontSize}
+            width={hl.size}
+            height={hl.size}
             align="center"
             verticalAlign="middle"
             listening={false}
@@ -922,22 +927,23 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
           onDragStart={(e) => {
             e.cancelBubble = true;
             setIsResizing(true);
+            resizeHandleSizeRef.current = hl.size;
           }}
           onDragMove={handleResizeDragMove}
           onDragEnd={handleResizeDragEnd}
         >
           <Rect
-            width={40}
-            height={40}
+            width={hl.size}
+            height={hl.size}
             fill={isResizeHovered ? '#3b82f6' : '#94a3b8'}
             opacity={isResizeHovered ? 1 : 0.4}
-            cornerRadius={8}
+            cornerRadius={hl.cornerRadius}
           />
           <Text
             text="↔️"
-            fontSize={24}
-            width={40}
-            height={40}
+            fontSize={hl.fontSize}
+            width={hl.size}
+            height={hl.size}
             align="center"
             verticalAlign="middle"
             listening={false}

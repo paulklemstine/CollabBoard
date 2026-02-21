@@ -2,8 +2,8 @@ import { useRef, useCallback, useState, useEffect } from 'react';
 import { Group, Rect, Text } from 'react-konva';
 import Konva from 'konva';
 import type { Marquee, GroupDragOffset, SelectionBox, GroupTransformPreview } from '../../hooks/useMultiSelect';
+import { getHandleLayout } from '../../utils/handleLayout';
 
-const HANDLE_SIZE = 40;
 const SELECTION_PADDING = 8;
 
 interface SelectionOverlayProps {
@@ -68,6 +68,7 @@ export function SelectionOverlay({
   const displayWidth = box ? box.width * (transformPreview?.scaleX ?? 1) + P * 2 : 0;
   const displayHeight = box ? box.height * (transformPreview?.scaleY ?? 1) + P * 2 : 0;
   const displayRotation = (box?.rotation ?? 0) + (transformPreview?.rotation ?? 0);
+  const hl = getHandleLayout(displayWidth, displayHeight);
 
   const handleBBoxDragStart = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -146,8 +147,12 @@ export function SelectionOverlay({
       const scaleX = Math.max(0.1, (resizeStartRef.current.width + dx) / resizeStartRef.current.width);
       const scaleY = Math.max(0.1, (resizeStartRef.current.height + dy) / resizeStartRef.current.height);
 
-      // Reset handle position
-      e.target.position({ x: box.width - HANDLE_SIZE / 2, y: box.height - HANDLE_SIZE / 2 });
+      // Reset handle position (compute layout from box + padding)
+      const P = SELECTION_PADDING;
+      const resetW = box.width + P * 2;
+      const resetH = box.height + P * 2;
+      const resetHl = getHandleLayout(resetW, resetH);
+      e.target.position({ x: resetW - resetHl.size, y: resetH - resetHl.size });
       resizeStartRef.current = null;
 
       onGroupResize(scaleX, scaleY);
@@ -194,7 +199,12 @@ export function SelectionOverlay({
       const delta = currentAngle - rotateStartRef.current.angle;
 
       onGroupRotateMove(delta);
-      if (box) e.target.position({ x: -HANDLE_SIZE / 2, y: box.height - HANDLE_SIZE / 2 });
+      if (box) {
+        const P = SELECTION_PADDING;
+        const resetH = box.height + P * 2;
+        const resetHl = getHandleLayout(box.width + P * 2, resetH);
+        e.target.position({ x: 0, y: resetH - resetHl.size });
+      }
     },
     [box, onGroupRotateMove]
   );
@@ -216,8 +226,11 @@ export function SelectionOverlay({
       const currentAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
       const delta = currentAngle - rotateStartRef.current.angle;
 
-      // Reset handle position
-      e.target.position({ x: -HANDLE_SIZE / 2, y: box.height - HANDLE_SIZE / 2 });
+      // Reset handle position (compute layout from box + padding)
+      const P = SELECTION_PADDING;
+      const resetH = box.height + P * 2;
+      const resetHl = getHandleLayout(box.width + P * 2, resetH);
+      e.target.position({ x: 0, y: resetH - resetHl.size });
       rotateStartRef.current = null;
 
       onGroupRotate(delta);
@@ -276,8 +289,8 @@ export function SelectionOverlay({
 
           {/* Resize handle (bottom-right) */}
           <Group
-            x={displayWidth - 20}
-            y={displayHeight - 20}
+            x={displayWidth - hl.size}
+            y={displayHeight - hl.size}
             draggable
             onMouseEnter={(e) => {
               const stage = e.target.getStage();
@@ -292,17 +305,17 @@ export function SelectionOverlay({
             onDragEnd={handleResizeDragEnd}
           >
             <Rect
-              width={HANDLE_SIZE}
-              height={HANDLE_SIZE}
+              width={hl.size}
+              height={hl.size}
               fill="#3b82f6"
               opacity={0.6}
-              cornerRadius={8}
+              cornerRadius={hl.cornerRadius}
             />
             <Text
               text="↔️"
-              fontSize={24}
-              width={HANDLE_SIZE}
-              height={HANDLE_SIZE}
+              fontSize={hl.fontSize}
+              width={hl.size}
+              height={hl.size}
               align="center"
               verticalAlign="middle"
               listening={false}
@@ -311,8 +324,8 @@ export function SelectionOverlay({
 
           {/* Rotate handle (bottom-left) */}
           <Group
-            x={-20}
-            y={displayHeight - 20}
+            x={0}
+            y={displayHeight - hl.size}
             draggable
             onMouseEnter={(e) => {
               const stage = e.target.getStage();
@@ -327,17 +340,17 @@ export function SelectionOverlay({
             onDragEnd={handleRotateDragEnd}
           >
             <Rect
-              width={HANDLE_SIZE}
-              height={HANDLE_SIZE}
+              width={hl.size}
+              height={hl.size}
               fill="#8b5cf6"
               opacity={0.6}
-              cornerRadius={8}
+              cornerRadius={hl.cornerRadius}
             />
             <Text
               text="🔄"
-              fontSize={24}
-              width={HANDLE_SIZE}
-              height={HANDLE_SIZE}
+              fontSize={hl.fontSize}
+              width={hl.size}
+              height={hl.size}
               align="center"
               verticalAlign="middle"
               listening={false}
@@ -347,8 +360,8 @@ export function SelectionOverlay({
           {/* Duplicate button (top-left) */}
           {onDuplicateSelected && (
             <Group
-              x={-20}
-              y={-20}
+              x={0}
+              y={0}
               onClick={(e) => {
                 e.cancelBubble = true;
                 onDuplicateSelected();
@@ -369,17 +382,17 @@ export function SelectionOverlay({
               }}
             >
               <Rect
-                width={HANDLE_SIZE}
-                height={HANDLE_SIZE}
+                width={hl.size}
+                height={hl.size}
                 fill={isDuplicateHovered ? '#22c55e' : '#94a3b8'}
                 opacity={isDuplicateHovered ? 1 : 0.4}
-                cornerRadius={8}
+                cornerRadius={hl.cornerRadius}
               />
               <Text
                 text={"\uD83D\uDCCB"}
-                fontSize={24}
-                width={HANDLE_SIZE}
-                height={HANDLE_SIZE}
+                fontSize={hl.fontSize}
+                width={hl.size}
+                height={hl.size}
                 align="center"
                 verticalAlign="middle"
                 listening={false}
@@ -389,8 +402,8 @@ export function SelectionOverlay({
 
           {/* Delete button (top-right) */}
           <Group
-            x={displayWidth - 20}
-            y={-20}
+            x={displayWidth - hl.size}
+            y={0}
             onClick={(e) => {
               e.cancelBubble = true;
               onDeleteSelected();
@@ -411,17 +424,17 @@ export function SelectionOverlay({
             }}
           >
             <Rect
-              width={HANDLE_SIZE}
-              height={HANDLE_SIZE}
+              width={hl.size}
+              height={hl.size}
               fill={isDeleteHovered ? '#ef4444' : '#94a3b8'}
               opacity={isDeleteHovered ? 1 : 0.4}
-              cornerRadius={8}
+              cornerRadius={hl.cornerRadius}
             />
             <Text
               text="❌"
-              fontSize={24}
-              width={HANDLE_SIZE}
-              height={HANDLE_SIZE}
+              fontSize={hl.fontSize}
+              width={hl.size}
+              height={hl.size}
               align="center"
               verticalAlign="middle"
               listening={false}

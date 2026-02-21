@@ -6,6 +6,7 @@ import { hexToRgba } from '../../utils/colors';
 import { calculateGroupObjectTransform } from '../../utils/groupTransform';
 import type { GroupTransformPreview, SelectionBox } from '../../hooks/useMultiSelect';
 import { useMarchingAnts } from '../../hooks/useMarchingAnts';
+import { getHandleLayout, MAX_HANDLE_SIZE } from '../../utils/handleLayout';
 
 const DRAG_THROTTLE_MS = 50;
 const MIN_WIDTH = 200;
@@ -57,6 +58,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
   const flashOverlayRef = useRef<Konva.Rect>(null);
   const groupRef = useRef<Konva.Group>(null);
   const rotateStartRef = useRef<{ angle: number; rotation: number } | null>(null);
+  const resizeHandleSizeRef = useRef(MAX_HANDLE_SIZE);
   const prevSelectedRef = useRef(false);
   const selectionRectRef = useRef<Konva.Rect>(null);
   useMarchingAnts(selectionRectRef, !!isSelected && !selectionBox);
@@ -283,6 +285,8 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
   // Title bar height (only used for bordered frames, but computed here so border rect can use it)
   const titleFontSize = frame.fontSize ?? 14;
   const titleBarH = frame.borderless ? 0 : Math.max(36, titleFontSize + 20);
+
+  const hl = getHandleLayout(localWidth, localHeight + titleBarH);
 
   // Calculate live transform when part of a multi-select group
   const liveTransform = groupTransformPreview && selectionBox
@@ -523,8 +527,8 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
       {/* Dissolve frame button (center-top) — removes frame, keeps children */}
       {onDissolve && isMouseHovered && (
         <Group
-          x={localWidth / 2 - 20}
-          y={-titleBarH - 20}
+          x={(localWidth - hl.size) / 2}
+          y={-titleBarH}
           onClick={(e) => {
             e.cancelBubble = true;
             onDissolve(frame.id);
@@ -548,19 +552,19 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
           }}
         >
           <Rect
-            width={40}
-            height={40}
+            width={hl.size}
+            height={hl.size}
             fill={isDissolveHovered ? '#f59e0b' : '#94a3b8'}
             opacity={isDissolveHovered ? 1 : 0.4}
-            cornerRadius={8}
+            cornerRadius={hl.cornerRadius}
           />
           <Text
             x={0}
             y={0}
-            width={40}
-            height={40}
+            width={hl.size}
+            height={hl.size}
             text="📤"
-            fontSize={24}
+            fontSize={hl.fontSize}
             align="center"
             verticalAlign="middle"
             listening={false}
@@ -570,8 +574,8 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
       {/* Duplicate button (top-left) */}
       {onDuplicate && isMouseHovered && (
         <Group
-          x={-20}
-          y={-titleBarH - 20}
+          x={0}
+          y={-titleBarH}
           onClick={(e) => {
             e.cancelBubble = true;
             onDuplicate(frame.id);
@@ -595,19 +599,19 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
           }}
         >
           <Rect
-            width={40}
-            height={40}
+            width={hl.size}
+            height={hl.size}
             fill={isDuplicateHovered ? '#22c55e' : '#94a3b8'}
             opacity={isDuplicateHovered ? 1 : 0.4}
-            cornerRadius={8}
+            cornerRadius={hl.cornerRadius}
           />
           <Text
             x={0}
             y={0}
-            width={40}
-            height={40}
+            width={hl.size}
+            height={hl.size}
             text={"\uD83D\uDCCB"}
-            fontSize={24}
+            fontSize={hl.fontSize}
             align="center"
             verticalAlign="middle"
             listening={false}
@@ -617,8 +621,8 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
       {/* Delete button */}
       {onDelete && isMouseHovered && (
         <Group
-          x={localWidth - 20}
-          y={-titleBarH - 20}
+          x={localWidth - hl.size}
+          y={-titleBarH}
           onClick={(e) => {
             e.cancelBubble = true;
             onDelete(frame.id);
@@ -642,19 +646,19 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
           }}
         >
           <Rect
-            width={40}
-            height={40}
+            width={hl.size}
+            height={hl.size}
             fill={isDeleteHovered ? '#ef4444' : '#94a3b8'}
             opacity={isDeleteHovered ? 1 : 0.4}
-            cornerRadius={8}
+            cornerRadius={hl.cornerRadius}
           />
           <Text
             x={0}
             y={0}
-            width={40}
-            height={40}
+            width={hl.size}
+            height={hl.size}
             text="❌"
-            fontSize={24}
+            fontSize={hl.fontSize}
             align="center"
             verticalAlign="middle"
             listening={false}
@@ -664,8 +668,8 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
       {/* Rotate handle (bottom-left) */}
       {!isEditing && onRotate && isMouseHovered && (
         <Group
-          x={-20}
-          y={localHeight - 20}
+          x={0}
+          y={localHeight - hl.size}
           draggable
           onMouseEnter={(e) => {
             setIsMouseHovered(true);
@@ -703,7 +707,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
             const currentAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
             const delta = currentAngle - rotateStartRef.current.angle;
             onRotate(frame.id, rotateStartRef.current.rotation + delta);
-            e.target.position({ x: -20, y: localHeight - 20 });
+            e.target.position({ x: 0, y: localHeight - hl.size });
           }}
           onDragEnd={(e) => {
             e.cancelBubble = true;
@@ -722,23 +726,23 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
               }
             }
             rotateStartRef.current = null;
-            e.target.position({ x: -20, y: localHeight - 20 });
+            e.target.position({ x: 0, y: localHeight - hl.size });
           }}
         >
           <Rect
-            width={40}
-            height={40}
+            width={hl.size}
+            height={hl.size}
             fill={isRotateHovered ? '#8b5cf6' : '#94a3b8'}
             opacity={isRotateHovered ? 1 : 0.4}
-            cornerRadius={8}
+            cornerRadius={hl.cornerRadius}
           />
           <Text
             x={0}
             y={0}
-            width={40}
-            height={40}
+            width={hl.size}
+            height={hl.size}
             text="🔄"
-            fontSize={24}
+            fontSize={hl.fontSize}
             align="center"
             verticalAlign="middle"
             listening={false}
@@ -748,8 +752,8 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
       {/* Resize handle */}
       {!isEditing && onResize && isMouseHovered && (
         <Group
-          x={localWidth - 20}
-          y={localHeight - 20}
+          x={localWidth - hl.size}
+          y={localHeight - hl.size}
           draggable
           onMouseEnter={(e) => {
             setIsMouseHovered(true);
@@ -767,11 +771,12 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
           onDragStart={(e) => {
             e.cancelBubble = true;
             setIsResizing(true);
+            resizeHandleSizeRef.current = hl.size;
           }}
           onDragMove={(e) => {
             e.cancelBubble = true;
-            const newWidth = Math.max(MIN_WIDTH, minChildBounds?.width ?? 0, e.target.x() + 20);
-            const newHeight = Math.max(MIN_HEIGHT, minChildBounds?.height ?? 0, e.target.y() + 20);
+            const newWidth = Math.max(MIN_WIDTH, minChildBounds?.width ?? 0, e.target.x() + resizeHandleSizeRef.current);
+            const newHeight = Math.max(MIN_HEIGHT, minChildBounds?.height ?? 0, e.target.y() + resizeHandleSizeRef.current);
             setLocalWidth(newWidth);
             setLocalHeight(newHeight);
             const now = Date.now();
@@ -782,29 +787,30 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
           }}
           onDragEnd={(e) => {
             e.cancelBubble = true;
-            const newWidth = Math.max(MIN_WIDTH, minChildBounds?.width ?? 0, e.target.x() + 20);
-            const newHeight = Math.max(MIN_HEIGHT, minChildBounds?.height ?? 0, e.target.y() + 20);
+            const newWidth = Math.max(MIN_WIDTH, minChildBounds?.width ?? 0, e.target.x() + resizeHandleSizeRef.current);
+            const newHeight = Math.max(MIN_HEIGHT, minChildBounds?.height ?? 0, e.target.y() + resizeHandleSizeRef.current);
             setLocalWidth(newWidth);
             setLocalHeight(newHeight);
             (onResizeEnd ?? onResize)(frame.id, newWidth, newHeight);
             setIsResizing(false);
-            e.target.position({ x: newWidth - 20, y: newHeight - 20 });
+            const newHl = getHandleLayout(newWidth, newHeight + titleBarH);
+            e.target.position({ x: newWidth - newHl.size, y: newHeight - newHl.size });
           }}
         >
           <Rect
-            width={40}
-            height={40}
+            width={hl.size}
+            height={hl.size}
             fill={isResizeHovered ? '#3b82f6' : '#94a3b8'}
             opacity={isResizeHovered ? 1 : 0.4}
-            cornerRadius={8}
+            cornerRadius={hl.cornerRadius}
           />
           <Text
             x={0}
             y={0}
-            width={40}
-            height={40}
+            width={hl.size}
+            height={hl.size}
             text="↔️"
-            fontSize={24}
+            fontSize={hl.fontSize}
             align="center"
             verticalAlign="middle"
             listening={false}

@@ -5,6 +5,7 @@ import type { TextObject } from '../../types/board';
 import { calculateGroupObjectTransform } from '../../utils/groupTransform';
 import type { GroupTransformPreview, SelectionBox } from '../../hooks/useMultiSelect';
 import { useMarchingAnts } from '../../hooks/useMarchingAnts';
+import { getHandleLayout, MAX_HANDLE_SIZE } from '../../utils/handleLayout';
 
 const DRAG_THROTTLE_MS = 50;
 const MIN_WIDTH = 100;
@@ -59,6 +60,7 @@ export function TextComponent({
   const flashOverlayRef = useRef<Konva.Rect>(null);
   const groupRef = useRef<Konva.Group>(null);
   const rotateStartRef = useRef<{ angle: number; rotation: number } | null>(null);
+  const resizeHandleSizeRef = useRef(MAX_HANDLE_SIZE);
   const prevSelectedRef = useRef(false);
   const selectionRectRef = useRef<Konva.Rect>(null);
   useMarchingAnts(selectionRectRef, !!isSelected && !selectionBox);
@@ -258,6 +260,8 @@ export function TextComponent({
   const hasBg = textObj.bgColor && textObj.bgColor !== 'transparent';
   const hasBorder = textObj.borderColor && textObj.borderColor !== 'transparent';
 
+  const hl = getHandleLayout(localWidth, localHeight);
+
   return (
     <Group
       ref={groupRef}
@@ -426,8 +430,8 @@ export function TextComponent({
       {/* Duplicate button (top-left) */}
       {onDuplicate && isMouseHovered && (
         <Group
-          x={-20}
-          y={-20}
+          x={0}
+          y={0}
           onClick={(e) => {
             e.cancelBubble = true;
             onDuplicate(textObj.id);
@@ -449,15 +453,15 @@ export function TextComponent({
               stage.container().style.cursor = 'grab';
           }}
         >
-          <Rect width={40} height={40} fill={isDuplicateHovered ? '#22c55e' : '#94a3b8'} opacity={isDuplicateHovered ? 1 : 0.4} cornerRadius={8} />
-          <Text x={0} y={0} width={40} height={40} text={"\uD83D\uDCCB"} fontSize={24} align="center" verticalAlign="middle" listening={false} />
+          <Rect width={hl.size} height={hl.size} fill={isDuplicateHovered ? '#22c55e' : '#94a3b8'} opacity={isDuplicateHovered ? 1 : 0.4} cornerRadius={hl.cornerRadius} />
+          <Text x={0} y={0} width={hl.size} height={hl.size} text={"\uD83D\uDCCB"} fontSize={hl.fontSize} align="center" verticalAlign="middle" listening={false} />
         </Group>
       )}
       {/* Delete button */}
       {onDelete && isMouseHovered && (
         <Group
-          x={localWidth - 20}
-          y={-20}
+          x={localWidth - hl.size}
+          y={0}
           onClick={() => onDelete(textObj.id)}
           onTap={() => onDelete(textObj.id)}
           onMouseEnter={(e) => {
@@ -473,15 +477,15 @@ export function TextComponent({
               stage.container().style.cursor = 'grab';
           }}
         >
-          <Rect width={40} height={40} fill={isDeleteHovered ? '#ef4444' : '#94a3b8'} opacity={isDeleteHovered ? 1 : 0.4} cornerRadius={8} />
-          <Text x={0} y={0} width={40} height={40} text="❌" fontSize={24} align="center" verticalAlign="middle" listening={false} />
+          <Rect width={hl.size} height={hl.size} fill={isDeleteHovered ? '#ef4444' : '#94a3b8'} opacity={isDeleteHovered ? 1 : 0.4} cornerRadius={hl.cornerRadius} />
+          <Text x={0} y={0} width={hl.size} height={hl.size} text="❌" fontSize={hl.fontSize} align="center" verticalAlign="middle" listening={false} />
         </Group>
       )}
       {/* Rotate handle */}
       {!isEditing && onRotate && isMouseHovered && (
         <Group
-          x={-20}
-          y={localHeight - 20}
+          x={0}
+          y={localHeight - hl.size}
           draggable
           onMouseEnter={(e) => {
             setIsMouseHovered(true);
@@ -519,7 +523,7 @@ export function TextComponent({
             const currentAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
             const delta = currentAngle - rotateStartRef.current.angle;
             onRotate(textObj.id, rotateStartRef.current.rotation + delta);
-            e.target.position({ x: -20, y: localHeight - 20 });
+            e.target.position({ x: 0, y: localHeight - hl.size });
           }}
           onDragEnd={(e) => {
             e.cancelBubble = true;
@@ -538,18 +542,18 @@ export function TextComponent({
               }
             }
             rotateStartRef.current = null;
-            e.target.position({ x: -20, y: localHeight - 20 });
+            e.target.position({ x: 0, y: localHeight - hl.size });
           }}
         >
-          <Rect width={40} height={40} fill={isRotateHovered ? '#8b5cf6' : '#94a3b8'} opacity={isRotateHovered ? 1 : 0.4} cornerRadius={8} />
-          <Text x={0} y={0} width={40} height={40} text="🔄" fontSize={24} align="center" verticalAlign="middle" listening={false} />
+          <Rect width={hl.size} height={hl.size} fill={isRotateHovered ? '#8b5cf6' : '#94a3b8'} opacity={isRotateHovered ? 1 : 0.4} cornerRadius={hl.cornerRadius} />
+          <Text x={0} y={0} width={hl.size} height={hl.size} text="🔄" fontSize={hl.fontSize} align="center" verticalAlign="middle" listening={false} />
         </Group>
       )}
       {/* Resize handle */}
       {!isEditing && onResize && isMouseHovered && (
         <Group
-          x={localWidth - 20}
-          y={localHeight - 20}
+          x={localWidth - hl.size}
+          y={localHeight - hl.size}
           draggable
           onMouseEnter={(e) => {
             setIsMouseHovered(true);
@@ -566,11 +570,12 @@ export function TextComponent({
           onDragStart={(e) => {
             e.cancelBubble = true;
             setIsResizing(true);
+            resizeHandleSizeRef.current = hl.size;
           }}
           onDragMove={(e) => {
             e.cancelBubble = true;
-            const newWidth = Math.max(MIN_WIDTH, e.target.x() + 20);
-            const newHeight = Math.max(minHeight, e.target.y() + 20);
+            const newWidth = Math.max(MIN_WIDTH, e.target.x() + resizeHandleSizeRef.current);
+            const newHeight = Math.max(minHeight, e.target.y() + resizeHandleSizeRef.current);
             setLocalWidth(newWidth);
             setLocalHeight(newHeight);
             const now = Date.now();
@@ -581,17 +586,18 @@ export function TextComponent({
           }}
           onDragEnd={(e) => {
             e.cancelBubble = true;
-            const newWidth = Math.max(MIN_WIDTH, e.target.x() + 20);
-            const newHeight = Math.max(minHeight, e.target.y() + 20);
+            const newWidth = Math.max(MIN_WIDTH, e.target.x() + resizeHandleSizeRef.current);
+            const newHeight = Math.max(minHeight, e.target.y() + resizeHandleSizeRef.current);
             setLocalWidth(newWidth);
             setLocalHeight(newHeight);
             (onResizeEnd ?? onResize)(textObj.id, newWidth, newHeight);
             setIsResizing(false);
-            e.target.position({ x: newWidth - 20, y: newHeight - 20 });
+            const newHl = getHandleLayout(newWidth, newHeight);
+            e.target.position({ x: newWidth - newHl.size, y: newHeight - newHl.size });
           }}
         >
-          <Rect width={40} height={40} fill={isResizeHovered ? '#3b82f6' : '#94a3b8'} opacity={isResizeHovered ? 1 : 0.4} cornerRadius={8} />
-          <Text x={0} y={0} width={40} height={40} text="↔️" fontSize={24} align="center" verticalAlign="middle" listening={false} />
+          <Rect width={hl.size} height={hl.size} fill={isResizeHovered ? '#3b82f6' : '#94a3b8'} opacity={isResizeHovered ? 1 : 0.4} cornerRadius={hl.cornerRadius} />
+          <Text x={0} y={0} width={hl.size} height={hl.size} text="↔️" fontSize={hl.fontSize} align="center" verticalAlign="middle" listening={false} />
         </Group>
       )}
     </Group>

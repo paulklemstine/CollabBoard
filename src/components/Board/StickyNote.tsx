@@ -6,6 +6,7 @@ import { getContrastTextColor, getComplementaryColor } from '../../utils/colors'
 import { calculateGroupObjectTransform } from '../../utils/groupTransform';
 import type { GroupTransformPreview, SelectionBox } from '../../hooks/useMultiSelect';
 import { useMarchingAnts } from '../../hooks/useMarchingAnts';
+import { getHandleLayout, MAX_HANDLE_SIZE } from '../../utils/handleLayout';
 
 const DRAG_THROTTLE_MS = 50;
 const MIN_WIDTH = 100;
@@ -52,6 +53,7 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
   const flashOverlayRef = useRef<Konva.Rect>(null);
   const groupRef = useRef<Konva.Group>(null);
   const rotateStartRef = useRef<{ angle: number; rotation: number } | null>(null);
+  const resizeHandleSizeRef = useRef(MAX_HANDLE_SIZE);
   const prevSelectedRef = useRef(false);
   const selectionRectRef = useRef<Konva.Rect>(null);
   useMarchingAnts(selectionRectRef, !!isSelected && !selectionBox);
@@ -245,6 +247,8 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditing]);
 
+  const hl = getHandleLayout(localWidth, localHeight);
+
   return (
     <Group
       ref={groupRef}
@@ -355,8 +359,8 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
       {/* Duplicate button (top-left) */}
       {onDuplicate && isMouseHovered && (
         <Group
-          x={-20}
-          y={-20}
+          x={0}
+          y={0}
           onClick={(e) => {
             e.cancelBubble = true;
             onDuplicate(note.id);
@@ -380,19 +384,19 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
           }}
         >
           <Rect
-            width={40}
-            height={40}
+            width={hl.size}
+            height={hl.size}
             fill={isDuplicateHovered ? '#22c55e' : '#94a3b8'}
             opacity={isDuplicateHovered ? 1 : 0.4}
-            cornerRadius={8}
+            cornerRadius={hl.cornerRadius}
           />
           <Text
             x={0}
             y={0}
-            width={40}
-            height={40}
+            width={hl.size}
+            height={hl.size}
             text={"\uD83D\uDCCB"}
-            fontSize={24}
+            fontSize={hl.fontSize}
             align="center"
             verticalAlign="middle"
             listening={false}
@@ -402,8 +406,8 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
       {/* Delete button area (top-right corner) */}
       {onDelete && isMouseHovered && (
         <Group
-          x={localWidth - 20}
-          y={-20}
+          x={localWidth - hl.size}
+          y={0}
           onClick={() => onDelete(note.id)}
           onTap={() => onDelete(note.id)}
           onMouseEnter={(e) => {
@@ -421,19 +425,19 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
           }}
         >
           <Rect
-            width={40}
-            height={40}
+            width={hl.size}
+            height={hl.size}
             fill={isDeleteHovered ? '#ef4444' : '#94a3b8'}
             opacity={isDeleteHovered ? 1 : 0.4}
-            cornerRadius={8}
+            cornerRadius={hl.cornerRadius}
           />
           <Text
             x={0}
             y={0}
-            width={40}
-            height={40}
+            width={hl.size}
+            height={hl.size}
             text="❌"
-            fontSize={24}
+            fontSize={hl.fontSize}
             align="center"
             verticalAlign="middle"
             listening={false}
@@ -472,8 +476,8 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
       {/* Rotate handle (bottom-left) */}
       {!isEditing && onRotate && isMouseHovered && (
         <Group
-          x={-20}
-          y={localHeight - 20}
+          x={0}
+          y={localHeight - hl.size}
           draggable
           onMouseEnter={(e) => {
             setIsMouseHovered(true);
@@ -511,7 +515,7 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
             const currentAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
             const delta = currentAngle - rotateStartRef.current.angle;
             onRotate(note.id, rotateStartRef.current.rotation + delta);
-            e.target.position({ x: -20, y: localHeight - 20 });
+            e.target.position({ x: 0, y: localHeight - hl.size });
           }}
           onDragEnd={(e) => {
             e.cancelBubble = true;
@@ -530,23 +534,23 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
               }
             }
             rotateStartRef.current = null;
-            e.target.position({ x: -20, y: localHeight - 20 });
+            e.target.position({ x: 0, y: localHeight - hl.size });
           }}
         >
           <Rect
-            width={40}
-            height={40}
+            width={hl.size}
+            height={hl.size}
             fill={isRotateHovered ? '#8b5cf6' : '#94a3b8'}
             opacity={isRotateHovered ? 1 : 0.4}
-            cornerRadius={8}
+            cornerRadius={hl.cornerRadius}
           />
           <Text
             x={0}
             y={0}
-            width={40}
-            height={40}
+            width={hl.size}
+            height={hl.size}
             text="🔄"
-            fontSize={24}
+            fontSize={hl.fontSize}
             align="center"
             verticalAlign="middle"
             listening={false}
@@ -556,8 +560,8 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
       {/* Resize handle */}
       {!isEditing && onResize && isMouseHovered && (
         <Group
-          x={localWidth - 20}
-          y={localHeight - 20}
+          x={localWidth - hl.size}
+          y={localHeight - hl.size}
           draggable
           onMouseEnter={(e) => {
             setIsMouseHovered(true);
@@ -575,11 +579,12 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
           onDragStart={(e) => {
             e.cancelBubble = true;
             setIsResizing(true);
+            resizeHandleSizeRef.current = hl.size;
           }}
           onDragMove={(e) => {
             e.cancelBubble = true;
-            const newWidth = Math.max(MIN_WIDTH, e.target.x() + 20);
-            const newHeight = Math.max(MIN_HEIGHT, e.target.y() + 20);
+            const newWidth = Math.max(MIN_WIDTH, e.target.x() + resizeHandleSizeRef.current);
+            const newHeight = Math.max(MIN_HEIGHT, e.target.y() + resizeHandleSizeRef.current);
             setLocalWidth(newWidth);
             setLocalHeight(newHeight);
             const now = Date.now();
@@ -590,30 +595,31 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
           }}
           onDragEnd={(e) => {
             e.cancelBubble = true;
-            const newWidth = Math.max(MIN_WIDTH, e.target.x() + 20);
-            const newHeight = Math.max(MIN_HEIGHT, e.target.y() + 20);
+            const newWidth = Math.max(MIN_WIDTH, e.target.x() + resizeHandleSizeRef.current);
+            const newHeight = Math.max(MIN_HEIGHT, e.target.y() + resizeHandleSizeRef.current);
             setLocalWidth(newWidth);
             setLocalHeight(newHeight);
             (onResizeEnd ?? onResize)(note.id, newWidth, newHeight);
             setIsResizing(false);
             // Reset handle position to bottom-right of new size
-            e.target.position({ x: newWidth - 20, y: newHeight - 20 });
+            const newHl = getHandleLayout(newWidth, newHeight);
+            e.target.position({ x: newWidth - newHl.size, y: newHeight - newHl.size });
           }}
         >
           <Rect
-            width={40}
-            height={40}
+            width={hl.size}
+            height={hl.size}
             fill={isResizeHovered ? '#3b82f6' : '#94a3b8'}
             opacity={isResizeHovered ? 1 : 0.4}
-            cornerRadius={8}
+            cornerRadius={hl.cornerRadius}
           />
           <Text
             x={0}
             y={0}
-            width={40}
-            height={40}
+            width={hl.size}
+            height={hl.size}
             text="↔️"
-            fontSize={24}
+            fontSize={hl.fontSize}
             align="center"
             verticalAlign="middle"
             listening={false}

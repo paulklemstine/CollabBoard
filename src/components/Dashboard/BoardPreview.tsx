@@ -119,11 +119,16 @@ export function BoardPreview({ boardId, thumbnailUrl }: BoardPreviewProps) {
     );
   }
 
-  // Compute bounding box
+  // Compute bounding box (frames extend above obj.y by their title bar height)
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const obj of visible) {
+    let topY = obj.y;
+    if (obj.type === 'frame' && !obj.borderless) {
+      const titleBarH = Math.max(36, (obj.fontSize ?? 14) + 20);
+      topY -= titleBarH;
+    }
     minX = Math.min(minX, obj.x);
-    minY = Math.min(minY, obj.y);
+    minY = Math.min(minY, topY);
     maxX = Math.max(maxX, obj.x + obj.width);
     maxY = Math.max(maxY, obj.y + obj.height);
   }
@@ -197,13 +202,21 @@ export function BoardPreview({ boardId, thumbnailUrl }: BoardPreviewProps) {
         if (obj.type === 'frame') {
           // Borderless frames are invisible grouping containers — skip in preview
           if (obj.borderless) return null;
+          const titleBarH = Math.max(36, (obj.fontSize ?? 14) + 20);
+          const scaledTitleBarH = titleBarH * scale;
           const titleFontSize = Math.max(3, 12 * scale);
           const frameFill = obj.color || 'rgba(250, 245, 255, 0.12)';
           const frameStroke = obj.borderColor || '#a78bfa';
+          // Frame rect includes the title bar above obj.y
+          const frameY = y - scaledTitleBarH;
+          const frameH = h + scaledTitleBarH;
+          const frameCx = x + w / 2;
+          const frameCy = frameY + frameH / 2;
+          const frameRotate = rotation ? `rotate(${rotation}, ${frameCx}, ${frameCy})` : undefined;
           return (
-            <g key={obj.id} transform={rotateTransform}>
+            <g key={obj.id} transform={frameRotate}>
               <rect
-                x={x} y={y} width={w} height={h}
+                x={x} y={frameY} width={w} height={frameH}
                 fill={frameFill}
                 stroke={frameStroke}
                 strokeWidth={Math.max(1, 2.5 * scale)}
@@ -212,14 +225,14 @@ export function BoardPreview({ boardId, thumbnailUrl }: BoardPreviewProps) {
               />
               {obj.title && w > 20 && (
                 <text
-                  x={x + 3}
-                  y={y + titleFontSize + 2}
+                  x={x + 4 * scale}
+                  y={frameY + scaledTitleBarH / 2}
                   fontSize={titleFontSize}
                   fill={obj.textColor || '#581c87'}
                   fontFamily="Inter, sans-serif"
                   fontWeight="bold"
+                  dominantBaseline="central"
                   opacity={0.8}
-                  clipPath={`url(#clip-${obj.id})`}
                 >
                   {truncateText(obj.title, 30)}
                 </text>

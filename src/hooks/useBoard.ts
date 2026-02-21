@@ -12,10 +12,14 @@ import { findContainingFrame, getChildrenOfFrame, isObjectInsideFrame } from '..
 import { screenToWorld } from '../utils/coordinates';
 import type { StageTransform } from '../components/Board/Board';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '../services/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { storage, functions } from '../services/firebase';
 import type { UndoEntry, UndoChange } from './useUndoRedo';
 
-const GIPHY_API_KEY = import.meta.env.VITE_GIPHY_API_KEY ?? '';
+const searchGiphyFn = httpsCallable<
+  { query: string; limit?: number },
+  { data: Array<{ id: string; title?: string; images?: Record<string, { url?: string }> }> }
+>(functions, 'searchGiphyCallable');
 
 const STICKY_COLORS = ['#fef9c3', '#fef3c7', '#dcfce7', '#dbeafe', '#f3e8ff', '#ffe4e6', '#fed7aa', '#e0e7ff'];
 
@@ -81,20 +85,18 @@ export function useBoard(
   }, [boardId]);
 
   // Auto-resolve GIF stickers: when a sticker has gifSearchTerm but no gifUrl,
-  // search GIPHY directly and update the sticker with the first result.
+  // search GIPHY via Cloud Function and update the sticker with the first result.
   const resolvedGifIds = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (!GIPHY_API_KEY) return;
     const stickers = objects.filter(
       (o): o is Sticker =>
         o.type === 'sticker' && !!o.gifSearchTerm && !o.gifUrl && !resolvedGifIds.current.has(o.id)
     );
     for (const sticker of stickers) {
       resolvedGifIds.current.add(sticker.id);
-      fetch(`https://api.giphy.com/v1/stickers/search?api_key=${encodeURIComponent(GIPHY_API_KEY)}&q=${encodeURIComponent(sticker.gifSearchTerm!)}&limit=1`)
-        .then((res) => res.json())
-        .then((json) => {
-          const gif = json.data?.[0];
+      searchGiphyFn({ query: sticker.gifSearchTerm!, limit: 1 })
+        .then((result) => {
+          const gif = result.data.data?.[0];
           if (gif) {
             const img = gif.images?.fixed_height ?? gif.images?.original;
             const url = img?.url ?? '';

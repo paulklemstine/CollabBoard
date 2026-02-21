@@ -1,25 +1,47 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { GiphyFetch } from '@giphy/js-fetch-api';
-import type { IGif } from '@giphy/js-types';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '../../services/firebase';
 
-const apiKey = import.meta.env.VITE_GIPHY_API_KEY ?? '';
-const gf = apiKey ? new GiphyFetch(apiKey) : null;
+interface GiphyImage {
+  url?: string;
+}
+
+interface GiphyGif {
+  id: string;
+  title?: string;
+  images?: {
+    fixed_height?: GiphyImage;
+    fixed_height_small?: GiphyImage;
+    fixed_width?: GiphyImage;
+    original?: GiphyImage;
+  };
+}
+
+const searchGiphyFn = httpsCallable<
+  { query: string; limit?: number },
+  { data: GiphyGif[] }
+>(functions, 'searchGiphyCallable');
+
+async function searchGiphyDirect(query: string, limit = 18): Promise<GiphyGif[]> {
+  const result = await searchGiphyFn({ query, limit });
+  return result.data.data ?? [];
+}
 
 // Module-level preload: fires immediately on import, retries until success.
 // By the time a user opens the GIF drawer, results are already cached.
 const DEFAULT_QUERY = 'kittens';
-let preloadedGifs: IGif[] | null = null;
-let preloadPromise: Promise<IGif[]> | null = null;
+let preloadedGifs: GiphyGif[] | null = null;
+let preloadPromise: Promise<GiphyGif[]> | null = null;
 
-function preloadDefaultGifs(): Promise<IGif[]> {
+function preloadDefaultGifs(): Promise<GiphyGif[]> {
   if (preloadedGifs) return Promise.resolve(preloadedGifs);
   if (preloadPromise) return preloadPromise;
   preloadPromise = (async () => {
     for (let attempt = 0; attempt < 5; attempt++) {
       try {
-        const res = await gf!.search(DEFAULT_QUERY, { limit: 18, type: 'stickers' });
-        preloadedGifs = res.data;
-        return res.data;
+        const data = await searchGiphyDirect(DEFAULT_QUERY);
+        preloadedGifs = data;
+        return data;
       } catch {
         await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
       }
@@ -31,16 +53,16 @@ function preloadDefaultGifs(): Promise<IGif[]> {
 }
 
 // Kick off preload immediately
-if (gf) preloadDefaultGifs();
+preloadDefaultGifs();
 
-function getGifUrl(gif: IGif): string {
+function getGifUrl(gif: GiphyGif): string {
   const img = gif.images?.fixed_height ?? gif.images?.fixed_width ?? gif.images?.original;
-  return (img && 'url' in img ? img.url : (gif.images?.original as { url?: string })?.url) ?? '';
+  return img?.url ?? gif.images?.original?.url ?? '';
 }
 
-function getPreviewUrl(gif: IGif): string {
+function getPreviewUrl(gif: GiphyGif): string {
   const img = gif.images?.fixed_height_small ?? gif.images?.fixed_height ?? gif.images?.original;
-  return (img && 'url' in img ? img.url : '') || getGifUrl(gif);
+  return img?.url || getGifUrl(gif);
 }
 
 interface GifPickerProps {
@@ -50,13 +72,12 @@ interface GifPickerProps {
 
 export function GifPicker({ onSelect, onClose }: GifPickerProps) {
   const [search, setSearch] = useState('');
-  const [gifs, setGifs] = useState<IGif[]>(() => preloadedGifs ?? []);
+  const [gifs, setGifs] = useState<GiphyGif[]>(() => preloadedGifs ?? []);
   const [loading, setLoading] = useState(!preloadedGifs);
   const [error, setError] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchGifs = useCallback(async (query: string, retries = 2) => {
-    if (!gf) return;
     const q = query.trim() || DEFAULT_QUERY;
 
     // If this is the default query and we have preloaded data, use it
@@ -82,8 +103,8 @@ export function GifPicker({ onSelect, onClose }: GifPickerProps) {
 
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        const res = await gf.search(q, { limit: 18, type: 'stickers' });
-        setGifs(res.data);
+        const data = await searchGiphyDirect(q);
+        setGifs(data);
         setLoading(false);
         return;
       } catch {
@@ -137,23 +158,6 @@ export function GifPicker({ onSelect, onClose }: GifPickerProps) {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
-
-  if (!apiKey) {
-    return (
-      <div className="rounded-xl p-6 text-center max-w-sm" style={{ background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.15) 100%)', border: '1.5px solid rgba(16, 185, 129, 0.3)' }}>
-        <p className="text-sm text-gray-700 font-medium mb-2">Spice up your board with animated stickers</p>
-        <p className="text-xs text-gray-600 mb-3">Set <code className="bg-black/10 px-1 rounded">VITE_GIPHY_API_KEY</code> in your <code className="bg-black/10 px-1 rounded">.env</code> file.</p>
-        <a
-          href="https://developers.giphy.com/dashboard/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-sm font-bold text-green-700 hover:underline"
-        >
-          Get a free API key →
-        </a>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col gap-2">
@@ -211,6 +215,19 @@ export function GifPicker({ onSelect, onClose }: GifPickerProps) {
           </div>
         )}
       </div>
+      <a
+        href="https://giphy.com/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center justify-end gap-1 opacity-60 hover:opacity-100 transition-opacity"
+      >
+        <span className="text-[10px] text-gray-500 font-medium">Powered by</span>
+        <img
+          src="https://giphy.com/static/img/giphy_logo_square_social.png"
+          alt="GIPHY"
+          className="h-3.5"
+        />
+      </a>
     </div>
   );
 }

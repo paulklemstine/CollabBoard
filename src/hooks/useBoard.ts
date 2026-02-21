@@ -13,11 +13,9 @@ import { screenToWorld } from '../utils/coordinates';
 import type { StageTransform } from '../components/Board/Board';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../services/firebase';
-import { GiphyFetch } from '@giphy/js-fetch-api';
 import type { UndoEntry, UndoChange } from './useUndoRedo';
 
-const giphyApiKey = import.meta.env.VITE_GIPHY_API_KEY ?? '';
-const gf = giphyApiKey ? new GiphyFetch(giphyApiKey) : null;
+const GIPHY_API_KEY = import.meta.env.VITE_GIPHY_API_KEY ?? '';
 
 const STICKY_COLORS = ['#fef9c3', '#fef3c7', '#dcfce7', '#dbeafe', '#f3e8ff', '#ffe4e6', '#fed7aa', '#e0e7ff'];
 
@@ -39,6 +37,7 @@ export function useBoard(
   const pendingFrameClearRef = useRef(false);
   const frameDragStartRef = useRef<{ x: number; y: number } | null>(null);
   const connectorDragStartRef = useRef<Map<string, { x: number; y: number }>>(new Map());
+  const frameDragFirestoreRef = useRef(0);
 
   // Keep a ref to objects so drag callbacks always see the latest state
   const objectsRef = useRef(objects);
@@ -82,22 +81,23 @@ export function useBoard(
   }, [boardId]);
 
   // Auto-resolve GIF stickers: when a sticker has gifSearchTerm but no gifUrl,
-  // search GIPHY client-side and update the sticker with the first result.
+  // search GIPHY directly and update the sticker with the first result.
   const resolvedGifIds = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (!gf) return;
+    if (!GIPHY_API_KEY) return;
     const stickers = objects.filter(
       (o): o is Sticker =>
         o.type === 'sticker' && !!o.gifSearchTerm && !o.gifUrl && !resolvedGifIds.current.has(o.id)
     );
     for (const sticker of stickers) {
       resolvedGifIds.current.add(sticker.id);
-      gf.search(sticker.gifSearchTerm!, { limit: 1, type: 'stickers' })
-        .then((res) => {
-          const gif = res.data[0];
+      fetch(`https://api.giphy.com/v1/stickers/search?api_key=${encodeURIComponent(GIPHY_API_KEY)}&q=${encodeURIComponent(sticker.gifSearchTerm!)}&limit=1`)
+        .then((res) => res.json())
+        .then((json) => {
+          const gif = json.data?.[0];
           if (gif) {
             const img = gif.images?.fixed_height ?? gif.images?.original;
-            const url = img && 'url' in img ? img.url : '';
+            const url = img?.url ?? '';
             if (url) {
               updateObject(boardId, sticker.id, { gifUrl: url } as Partial<Sticker>, userId);
             }
@@ -578,12 +578,19 @@ export function useBoard(
       const dx = newX - frameDragStartRef.current.x;
       const dy = newY - frameDragStartRef.current.y;
 
-      // Prepare batch updates for frame and connectors
-      const batchUpdates: Array<{ id: string; updates: Partial<AnyBoardObject> }> = [
-        { id: frameId, updates: { x: newX, y: newY } },
-      ];
+      // ALWAYS update visual offset — children need this every frame for smooth dragging
+      setFrameDragOffset({ frameId, dx, dy });
+      setDraggingObjectId(frameId);
 
-      // Move connectors that are attached to the frame or its children
+      // Throttle Firestore writes and heavy computations (connectors, hover detection)
+      const now = Date.now();
+      if (now - frameDragFirestoreRef.current < 50) return;
+      frameDragFirestoreRef.current = now;
+
+      // Don't write the frame's own position during drag — the Firestore optimistic
+      // update would reset the Konva node to a stale position, desyncing from children.
+      // Frame position is written atomically with children on dragEnd.
+      // Only write connector positions for real-time sync during drag.
       const children = getChildrenOfFrame(frameId, objectsRef.current);
       const frameAndChildrenIds = new Set([frameId, ...children.map(c => c.id)]);
       const connectors = objectsRef.current.filter(
@@ -591,6 +598,7 @@ export function useBoard(
           (frameAndChildrenIds.has(o.fromId) || frameAndChildrenIds.has(o.toId))
       );
 
+      const batchUpdates: Array<{ id: string; updates: Partial<AnyBoardObject> }> = [];
       for (const connector of connectors) {
         const originalPos = connectorDragStartRef.current.get(connector.id);
         if (originalPos) {
@@ -604,11 +612,9 @@ export function useBoard(
         }
       }
 
-      // Update frame and connectors
-      batchUpdateObjects(boardId, batchUpdates, userId);
-
-      // Track offset locally — children apply this visually without Firestore round-trip
-      setFrameDragOffset({ frameId, dx, dy });
+      if (batchUpdates.length > 0) {
+        batchUpdateObjects(boardId, batchUpdates, userId);
+      }
 
       // Detect hover over other frames for frame-in-frame nesting
       const draggedFrame = { ...frame, x: newX, y: newY };
@@ -617,7 +623,6 @@ export function useBoard(
       );
       const containingFrame = findContainingFrame(draggedFrame, otherFrames, objectsRef.current);
       setHoveredFrame(containingFrame ? { id: containingFrame.id, fits: isObjectInsideFrame(draggedFrame, containingFrame) } : null);
-      setDraggingObjectId(frameId);
     },
     [boardId, captureBeforeSnapshot]
   );
@@ -630,6 +635,7 @@ export function useBoard(
         updateObject(boardId, frameId, { x: newX, y: newY }, userId);
         frameDragStartRef.current = null;
         connectorDragStartRef.current.clear();
+        frameDragFirestoreRef.current = 0;
         setHoveredFrame(null);
         setDraggingObjectId(null);
         pendingFrameClearRef.current = true;
@@ -704,6 +710,7 @@ export function useBoard(
       // Clear frame drag state
       frameDragStartRef.current = null;
       connectorDragStartRef.current.clear();
+      frameDragFirestoreRef.current = 0;
       setHoveredFrame(null);
       setDraggingObjectId(null);
       dragSnapshotRef.current.clear();

@@ -40,7 +40,6 @@ interface FrameComponentProps {
 }
 
 export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDuplicate, onDissolve, onTitleChange, onClick, hoverState = 'none', onResize, onRotate, onResizeEnd, onRotateEnd, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, dragOffset, parentRotation, isSelected, groupDragOffset, groupTransformPreview, selectionBox, dragTint = 'none', minChildBounds }: FrameComponentProps) {
-  const lastDragUpdate = useRef(0);
   const lastResizeUpdate = useRef(0);
   const titleRef = useRef<Konva.Text>(null);
   const borderRef = useRef<Konva.Rect>(null);
@@ -120,11 +119,10 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
     prevSelectedRef.current = !!isSelected;
   }, [isSelected]);
 
+  // No throttle here — visual offset must update every frame for smooth child dragging.
+  // Firestore writes are throttled inside the useBoard handler instead.
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
-      const now = Date.now();
-      if (now - lastDragUpdate.current < DRAG_THROTTLE_MS) return;
-      lastDragUpdate.current = now;
       // Subtract dragOffset to get the actual position (not the visual position)
       const actualX = e.target.x() - localWidth / 2 - (dragOffset?.x || 0);
       const actualY = e.target.y() - localHeight / 2 - (dragOffset?.y || 0);

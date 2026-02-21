@@ -20,6 +20,7 @@ export async function sendAICommand(
   selectedIds?: string[],
   viewport?: ViewportCenter,
   signal?: AbortSignal,
+  conversationHistory?: Array<{ role: string; content: string }>,
 ): Promise<AICommandOutput> {
   const user = auth.currentUser;
   if (!user) {
@@ -27,10 +28,10 @@ export async function sendAICommand(
   }
 
   // Fast path: client-side template engine (no Cloud Function call needed)
-  const templateMatch = detectTemplate(prompt);
+  const templateMatch = detectTemplate(prompt, selectedIds);
   if (templateMatch && isClientExecutable(templateMatch)) {
     try {
-      return await executeTemplateMatch(templateMatch, boardId, user.uid, viewport);
+      return await executeTemplateMatch(templateMatch, boardId, user.uid, viewport, selectedIds);
     } catch (err) {
       console.warn('Client template failed, falling through to server:', err);
     }
@@ -45,6 +46,7 @@ export async function sendAICommand(
     createdAt: Date.now(),
     ...(selectedIds && selectedIds.length > 0 ? { selectedIds } : {}),
     ...(viewport ? { viewport } : {}),
+    ...(conversationHistory?.length ? { conversationHistory } : {}),
   });
 
   const requestDocRef = doc(db, `boards/${boardId}/aiRequests/${docRef.id}`);
@@ -58,6 +60,7 @@ export async function sendAICommand(
     prompt,
     ...(selectedIds && selectedIds.length > 0 ? { selectedIds } : {}),
     ...(viewport ? { viewport } : {}),
+    ...(conversationHistory?.length ? { conversationHistory } : {}),
   }).catch(() => {
     // Callable failed (e.g. cold start timeout, network error).
     // The Firestore trigger acts as a fallback — it will pick up the pending doc.

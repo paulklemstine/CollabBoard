@@ -1,5 +1,6 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { sendAICommand } from '../services/aiService';
+import { batchDeleteObjects } from '../services/boardService';
 import type { AIMessage } from '../types/board';
 import type { ViewportCenter } from '../components/AIChat/AIChat';
 
@@ -33,10 +34,28 @@ export function useAI(boardId: string, onObjectsCreated?: (ids: string[]) => voi
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // Retry support: store last prompt + viewport
+  const lastPromptRef = useRef<{ prompt: string; viewport?: ViewportCenter } | null>(null);
+
+  // Iterative refinement: track IDs from last AI response
+  const lastCreatedIdsRef = useRef<string[]>([]);
+
+  // Clear lastCreatedIds when user explicitly selects objects
+  const prevSelectedIdsRef = useRef<string[] | undefined>(selectedIds);
+  useEffect(() => {
+    if (selectedIds !== prevSelectedIdsRef.current && selectedIds && selectedIds.length > 0) {
+      lastCreatedIdsRef.current = [];
+    }
+    prevSelectedIdsRef.current = selectedIds;
+  }, [selectedIds]);
+
   const sendCommand = useCallback(
     async (prompt: string, viewport?: ViewportCenter) => {
       const trimmed = prompt.trim();
       if (!trimmed || isLoading) return;
+
+      // Save for retry
+      lastPromptRef.current = { prompt: trimmed, viewport };
 
       const userMessage: AIMessage = {
         id: `user-${Date.now()}`,
@@ -53,8 +72,27 @@ export function useAI(boardId: string, onObjectsCreated?: (ids: string[]) => voi
       const controller = new AbortController();
       abortControllerRef.current = controller;
 
+      // Merge implicit lastCreatedIds with explicit selectedIds for iterative refinement
+      const implicitIds = lastCreatedIdsRef.current;
+      const explicitIds = selectedIdsRef.current ?? [];
+      const mergedIds = [...new Set([...explicitIds, ...implicitIds])];
+      // Reset lastCreatedIds after merging to avoid stale refs
+      lastCreatedIdsRef.current = [];
+
+      // Extract conversation history (last 10 entries = 5 pairs)
+      const recentMessages = messages.slice(-10);
+      const conversationHistory = recentMessages.map(m => ({ role: m.role, content: m.content }));
+
       try {
-        const result = await sendAICommand(boardId, trimmed, (p) => setProgress(p), selectedIdsRef.current, viewport, controller.signal);
+        const result = await sendAICommand(
+          boardId,
+          trimmed,
+          (p) => setProgress(p),
+          mergedIds.length > 0 ? mergedIds : undefined,
+          viewport,
+          controller.signal,
+          conversationHistory.length > 0 ? conversationHistory : undefined,
+        );
 
         const assistantMessage: AIMessage = {
           id: `assistant-${Date.now()}`,
@@ -66,8 +104,12 @@ export function useAI(boardId: string, onObjectsCreated?: (ids: string[]) => voi
 
         setMessages((prev) => [...prev, assistantMessage]);
 
-        if (result.objectsCreated.length > 0 && onObjectsCreated) {
-          onObjectsCreated(result.objectsCreated);
+        // Track created IDs for iterative refinement
+        if (result.objectsCreated.length > 0) {
+          lastCreatedIdsRef.current = result.objectsCreated;
+          if (onObjectsCreated) {
+            onObjectsCreated(result.objectsCreated);
+          }
         }
       } catch (err: unknown) {
         const raw = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
@@ -78,8 +120,34 @@ export function useAI(boardId: string, onObjectsCreated?: (ids: string[]) => voi
         setProgress(null);
       }
     },
-    [boardId, isLoading],
+    [boardId, isLoading, messages],
   );
+
+  const retryLastCommand = useCallback(() => {
+    if (lastPromptRef.current) {
+      setError(null);
+      sendCommand(lastPromptRef.current.prompt, lastPromptRef.current.viewport);
+    }
+  }, [sendCommand]);
+
+  const undoMessage = useCallback(async (messageId: string) => {
+    const msg = messages.find(m => m.id === messageId);
+    if (!msg || !msg.objectsCreated || msg.objectsCreated.length === 0) return;
+
+    try {
+      await batchDeleteObjects(boardId, msg.objectsCreated);
+      setMessages((prev) =>
+        prev.map(m =>
+          m.id === messageId
+            ? { ...m, objectsCreated: [], content: m.content + ' (Undone)' }
+            : m,
+        ),
+      );
+    } catch (err) {
+      console.error('Undo failed:', err);
+      setError('Failed to undo. Some objects may have been deleted already.');
+    }
+  }, [boardId, messages]);
 
   const cancelRequest = useCallback(() => {
     abortControllerRef.current?.abort();
@@ -95,5 +163,9 @@ export function useAI(boardId: string, onObjectsCreated?: (ids: string[]) => voi
     setError(null);
   }, []);
 
-  return { messages, isLoading, error, progress, sendCommand, cancelRequest, clearMessages, dismissError };
+  return {
+    messages, isLoading, error, progress,
+    sendCommand, cancelRequest, clearMessages, dismissError,
+    retryLastCommand, undoMessage,
+  };
 }

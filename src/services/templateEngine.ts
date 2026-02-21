@@ -1,5 +1,6 @@
 import { doc, collection, writeBatch } from 'firebase/firestore';
 import { db } from './firebase';
+import { getBoardObjects } from './boardService';
 import type { ViewportCenter } from '../components/AIChat/AIChat';
 
 // ---- Template match types (mirrored from server) ----
@@ -50,11 +51,20 @@ type TemplateMatch = {
 } | {
   type: 'canned-response';
   response: string;
+} | {
+  type: 'group-selection';
+} | {
+  type: 'duplicate-selection';
+  direction: 'below' | 'right';
+} | {
+  type: 'table-create';
+  columns: number;
+  headers?: string[];
 };
 
 // ---- detectTemplate (pure regex, copied from server) ----
 
-export function detectTemplate(prompt: string): TemplateMatch | null {
+export function detectTemplate(prompt: string, selectedIds?: string[]): TemplateMatch | null {
   const lower = prompt.toLowerCase().trim();
 
   // Canned responses
@@ -63,6 +73,34 @@ export function detectTemplate(prompt: string): TemplateMatch | null {
   }
   if (/^(?:help|what\s+can\s+you\s+do|commands|what\s+are\s+your\s+(?:commands|capabilities))\??$/i.test(lower)) {
     return { type: 'canned-response', response: 'I can create objects (stickies, shapes, frames, text, connectors), move/resize/delete them, arrange layouts (grids, rows, columns), build templates (SWOT, kanban, retro, timeline, journey map, flowchart, mind map), and manipulate colors. Try: "create a SWOT analysis", "add 10 stickies", "arrange in a grid", or "A -> B -> C" for a flowchart.' };
+  }
+
+  // Group selection — requires selectedIds
+  if (selectedIds && selectedIds.length > 0 &&
+      /^(?:group|frame|wrap|enclose|put)\s+(?:these|them|selected|the\s+selected)/i.test(lower)) {
+    return { type: 'group-selection' };
+  }
+
+  // Duplicate selection — requires selectedIds
+  if (selectedIds && selectedIds.length > 0) {
+    const dupMatch = lower.match(/^(?:duplicate|copy|clone)\s+(?:these|them|selected|the\s+selected)(?:\s+(?:to\s+the\s+)?(below|underneath|down|right|beside))?/i);
+    if (dupMatch) {
+      const dirStr = dupMatch[1] || 'below';
+      const direction = /right|beside/.test(dirStr) ? 'right' as const : 'below' as const;
+      return { type: 'duplicate-selection', direction };
+    }
+  }
+
+  // Table create
+  const tableMatch = lower.match(/(?:create|make|build)\s+(?:a\s+)?table\s+(?:with\s+)?(\d+)\s+(?:columns?|cols?)\s*(?::\s*(.+))?/i);
+  if (tableMatch) {
+    const columns = parseInt(tableMatch[1], 10);
+    if (columns >= 1 && columns <= 20) {
+      const headers = tableMatch[2]
+        ? tableMatch[2].split(/\s*,\s*/).map(s => s.trim()).filter(Boolean)
+        : undefined;
+      return { type: 'table-create', columns, headers };
+    }
   }
 
   // Flowchart arrow syntax
@@ -292,6 +330,7 @@ export function detectTemplate(prompt: string): TemplateMatch | null {
 const CLIENT_EXECUTABLE_TYPES = new Set([
   'canned-response', 'flowchart', 'template', 'bulk-create',
   'single-create', 'grid-create', 'numbered-flowchart', 'row-create',
+  'group-selection', 'duplicate-selection', 'table-create',
 ]);
 
 export function isClientExecutable(match: TemplateMatch): boolean {
@@ -808,6 +847,191 @@ async function executeRowCreateClient(
   return { response: `Done! Created ${count} ${typeLabel} in a ${direction}.`, objectsCreated };
 }
 
+// ---- Executor: Group Selection ----
+
+async function executeGroupSelectionClient(
+  boardId: string,
+  userId: string,
+  selectedIds: string[],
+): Promise<{ response: string; objectsCreated: string[] }> {
+  const now = Date.now();
+  const objects = await getBoardObjects(boardId);
+  const selected = objects.filter(obj => selectedIds.includes(obj.id));
+
+  if (selected.length === 0) {
+    return { response: 'No selected objects found on the board.', objectsCreated: [] };
+  }
+
+  // Calculate bounding box
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const obj of selected) {
+    minX = Math.min(minX, obj.x);
+    minY = Math.min(minY, obj.y);
+    maxX = Math.max(maxX, obj.x + obj.width);
+    maxY = Math.max(maxY, obj.y + obj.height);
+  }
+
+  const padding = 20;
+  const frameX = minX - padding;
+  const frameY = minY - padding;
+  const frameW = (maxX - minX) + padding * 2;
+  const frameH = (maxY - minY) + padding * 2;
+
+  const frameId = crypto.randomUUID();
+  const docs: PendingDoc[] = [{
+    id: frameId,
+    data: {
+      type: 'frame', title: 'Group', x: frameX, y: frameY, width: frameW, height: frameH,
+      rotation: 0, createdBy: userId, updatedAt: now, parentId: '', sentToBack: true,
+    },
+  }];
+
+  await commitBatch(boardId, docs);
+
+  // Update selected objects to set parentId to the new frame
+  const updateBatch = writeBatch(db);
+  for (const obj of selected) {
+    updateBatch.update(doc(collection(db, 'boards', boardId, 'objects'), obj.id), { parentId: frameId });
+  }
+  await updateBatch.commit();
+
+  return { response: `Done! Grouped ${selected.length} objects into a frame.`, objectsCreated: [frameId] };
+}
+
+// ---- Executor: Duplicate Selection ----
+
+async function executeDuplicateSelectionClient(
+  direction: 'below' | 'right',
+  boardId: string,
+  userId: string,
+  selectedIds: string[],
+): Promise<{ response: string; objectsCreated: string[] }> {
+  const now = Date.now();
+  const objects = await getBoardObjects(boardId);
+  const selected = objects.filter(obj => selectedIds.includes(obj.id));
+
+  if (selected.length === 0) {
+    return { response: 'No selected objects found on the board.', objectsCreated: [] };
+  }
+
+  // Calculate bounding box for offset
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const obj of selected) {
+    minX = Math.min(minX, obj.x);
+    minY = Math.min(minY, obj.y);
+    maxX = Math.max(maxX, obj.x + obj.width);
+    maxY = Math.max(maxY, obj.y + obj.height);
+  }
+
+  const gap = 40;
+  const offsetX = direction === 'right' ? (maxX - minX) + gap : 0;
+  const offsetY = direction === 'below' ? (maxY - minY) + gap : 0;
+
+  const objectsCreated: string[] = [];
+  const docs: PendingDoc[] = [];
+
+  for (const obj of selected) {
+    const id = crypto.randomUUID();
+    objectsCreated.push(id);
+
+    // Copy relevant fields — strip id, adjust position
+    const { id: _id, ...rest } = obj as unknown as Record<string, unknown>;
+    docs.push({
+      id,
+      data: {
+        ...rest,
+        x: obj.x + offsetX,
+        y: obj.y + offsetY,
+        createdBy: userId,
+        updatedAt: now,
+        parentId: '',
+      },
+    });
+  }
+
+  await commitBatch(boardId, docs);
+  return { response: `Done! Duplicated ${selected.length} objects ${direction}.`, objectsCreated };
+}
+
+// ---- Executor: Table Create ----
+
+async function executeTableCreateClient(
+  columns: number,
+  boardId: string,
+  userId: string,
+  viewport?: Viewport,
+  headers?: string[],
+): Promise<{ response: string; objectsCreated: string[] }> {
+  const now = Date.now();
+  const colWidth = 180;
+  const headerHeight = 50;
+  const rowHeight = 200;
+  const gap = 10;
+  const rows = 3; // default 3 data rows
+  const totalWidth = columns * (colWidth + gap) - gap;
+  const totalHeight = headerHeight + gap + rows * (rowHeight + gap) - gap;
+
+  const startX = viewport ? Math.round(viewport.x - viewport.width / 2 + (viewport.width - totalWidth) / 2) : 100;
+  const startY = viewport ? Math.round(viewport.y - viewport.height / 2 + (viewport.height - totalHeight) / 2) : 100;
+
+  const objectsCreated: string[] = [];
+  const docs: PendingDoc[] = [];
+  const colors = ['#fef9c3', '#dbeafe', '#dcfce7', '#fce7f3', '#f3e8ff', '#ffedd5'];
+
+  // Create frame to contain the table
+  const frameId = crypto.randomUUID();
+  objectsCreated.push(frameId);
+  docs.push({
+    id: frameId,
+    data: {
+      type: 'frame', title: 'Table', x: startX - 20, y: startY - 20,
+      width: totalWidth + 40, height: totalHeight + 40,
+      rotation: 0, createdBy: userId, updatedAt: now, parentId: '', sentToBack: true,
+    },
+  });
+
+  // Create header row as bold text objects
+  for (let c = 0; c < columns; c++) {
+    const headerText = headers && headers[c] ? headers[c] : `Column ${c + 1}`;
+    const id = crypto.randomUUID();
+    objectsCreated.push(id);
+    docs.push({
+      id,
+      data: {
+        type: 'text', text: headerText,
+        x: startX + c * (colWidth + gap), y: startY,
+        width: colWidth, height: headerHeight,
+        fontSize: 18, fontFamily: "'Inter', sans-serif", fontWeight: 'bold',
+        fontStyle: 'normal', textAlign: 'center', color: '#1e293b', bgColor: 'transparent',
+        rotation: 0, createdBy: userId, updatedAt: now, parentId: frameId,
+      },
+    });
+  }
+
+  // Create data cells as sticky notes
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < columns; c++) {
+      const id = crypto.randomUUID();
+      objectsCreated.push(id);
+      docs.push({
+        id,
+        data: {
+          type: 'sticky', text: '',
+          x: startX + c * (colWidth + gap),
+          y: startY + headerHeight + gap + r * (rowHeight + gap),
+          width: colWidth, height: rowHeight,
+          color: colors[c % colors.length], textColor: '#1e293b',
+          rotation: 0, createdBy: userId, updatedAt: now, parentId: frameId,
+        },
+      });
+    }
+  }
+
+  await commitBatch(boardId, docs);
+  const headerLabel = headers?.length ? ` (${headers.join(', ')})` : '';
+  return { response: `Done! Created table with ${columns} columns${headerLabel} and ${rows} rows.`, objectsCreated };
+}
+
 // ---- Main dispatcher ----
 
 export async function executeTemplateMatch(
@@ -815,6 +1039,7 @@ export async function executeTemplateMatch(
   boardId: string,
   userId: string,
   viewport?: ViewportCenter,
+  selectedIds?: string[],
 ): Promise<{ response: string; objectsCreated: string[] }> {
   const vp = toViewport(viewport);
 
@@ -837,6 +1062,14 @@ export async function executeTemplateMatch(
     }
     case 'row-create':
       return executeRowCreateClient(match.count, match.direction, match.objectType, boardId, userId, vp);
+    case 'group-selection':
+      if (!selectedIds?.length) throw new Error('No objects selected for grouping.');
+      return executeGroupSelectionClient(boardId, userId, selectedIds);
+    case 'duplicate-selection':
+      if (!selectedIds?.length) throw new Error('No objects selected for duplication.');
+      return executeDuplicateSelectionClient(match.direction, boardId, userId, selectedIds);
+    case 'table-create':
+      return executeTableCreateClient(match.columns, boardId, userId, vp, match.headers);
     default:
       throw new Error(`Unhandled client template type: ${(match as TemplateMatch).type}`);
   }

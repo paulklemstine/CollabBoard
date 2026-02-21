@@ -26,8 +26,35 @@ function SparkleIcon({ size = 20 }: { size?: number }) {
   );
 }
 
-function MessageBubble({ message }: { message: AIMessage }) {
+// ---- Follow-up Suggestion Logic ----
+
+function getSuggestions(message: AIMessage): string[] {
+  if (message.role !== 'assistant' || !message.objectsCreated?.length) return [];
+  const text = message.content.toLowerCase();
+
+  if (/swot/i.test(text)) return ['Add more items', 'Color-code by priority'];
+  if (/flowchart|flow chart/i.test(text)) return ['Add more steps', 'Label the connections'];
+  if (/kanban/i.test(text)) return ['Add tasks to each column', 'Add a "Blocked" column'];
+  if (/retro/i.test(text)) return ['Add more feedback', 'Prioritize action items'];
+  if (/mind\s*map/i.test(text)) return ['Add sub-branches', 'Color-code branches'];
+  if (/timeline/i.test(text)) return ['Add more phases', 'Add milestones'];
+  if (/journey/i.test(text)) return ['Add pain points', 'Add touchpoints'];
+  if (/grid/i.test(text)) return ['Label each cell', 'Color-code by category'];
+  if (message.objectsCreated.length >= 5) return ['Arrange in a grid', 'Group into frames'];
+  return ['Tell me more about these', 'Create something else'];
+}
+
+// ---- Message Bubble ----
+
+function MessageBubble({
+  message,
+  onUndo,
+}: {
+  message: AIMessage;
+  onUndo?: (messageId: string) => void;
+}) {
   const isUser = message.role === 'user';
+  const hasUndoableObjects = !isUser && message.objectsCreated && message.objectsCreated.length > 0;
 
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-3`}>
@@ -48,6 +75,18 @@ function MessageBubble({ message }: { message: AIMessage }) {
           <p className="mt-1.5 text-xs opacity-70">
             {message.objectsCreated.length} object{message.objectsCreated.length !== 1 ? 's' : ''} added to the board
           </p>
+        )}
+        {hasUndoableObjects && onUndo && (
+          <button
+            onClick={() => onUndo(message.id)}
+            className="mt-1 flex items-center gap-1 text-xs text-red-400 hover:text-red-600 transition-colors"
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            </svg>
+            Undo
+          </button>
         )}
       </div>
     </div>
@@ -75,11 +114,40 @@ function LoadingIndicator({ progress }: { progress: string | null }) {
   );
 }
 
+// ---- Suggestion Chips ----
+
+function SuggestionChips({
+  suggestions,
+  onSelect,
+}: {
+  suggestions: string[];
+  onSelect: (text: string) => void;
+}) {
+  if (suggestions.length === 0) return null;
+  return (
+    <div className="flex gap-1.5 mb-3 ml-8 overflow-x-auto pb-1">
+      {suggestions.map((s) => (
+        <button
+          key={s}
+          onClick={() => onSelect(s)}
+          className="flex-shrink-0 px-3 py-1.5 text-xs font-medium bg-violet-50 text-violet-600 border border-violet-200 rounded-full hover:bg-violet-100 hover:border-violet-300 transition-colors"
+        >
+          {s}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function AIChat({ boardId, isOpen, onClose, onObjectsCreated, selectedIds, getViewportCenter }: AIChatProps) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { messages, isLoading, error, progress, sendCommand, cancelRequest, dismissError } = useAI(boardId, onObjectsCreated, selectedIds);
+  const {
+    messages, isLoading, error, progress,
+    sendCommand, cancelRequest, dismissError,
+    retryLastCommand, undoMessage,
+  } = useAI(boardId, onObjectsCreated, selectedIds);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -105,6 +173,18 @@ export function AIChat({ boardId, isOpen, onClose, onObjectsCreated, selectedIds
       handleSubmit();
     }
   };
+
+  const handleChipSelect = (text: string) => {
+    sendCommand(text, getViewportCenter?.());
+  };
+
+  // Compute suggestions for the last assistant message
+  const lastAssistantMsg = [...messages].reverse().find(m => m.role === 'assistant');
+  const suggestions = lastAssistantMsg && !isLoading ? getSuggestions(lastAssistantMsg) : [];
+
+  // Selection hint
+  const selectionCount = selectedIds?.length ?? 0;
+  const showSelectionHint = selectionCount > 0 && !input && !isLoading;
 
   if (!isOpen) return null;
 
@@ -145,8 +225,14 @@ export function AIChat({ boardId, isOpen, onClose, onObjectsCreated, selectedIds
           </div>
         ) : (
           <>
-            {messages.map((msg) => (
-              <MessageBubble key={msg.id} message={msg} />
+            {messages.map((msg, idx) => (
+              <div key={msg.id}>
+                <MessageBubble message={msg} onUndo={undoMessage} />
+                {/* Show suggestion chips after the last assistant message */}
+                {msg.role === 'assistant' && idx === messages.length - 1 && (
+                  <SuggestionChips suggestions={suggestions} onSelect={handleChipSelect} />
+                )}
+              </div>
             ))}
             {isLoading && <LoadingIndicator progress={progress} />}
           </>
@@ -163,12 +249,29 @@ export function AIChat({ boardId, isOpen, onClose, onObjectsCreated, selectedIds
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
           <span className="flex-1 truncate">{error}</span>
+          <button
+            onClick={retryLastCommand}
+            className="text-violet-500 hover:text-violet-700 font-medium flex-shrink-0 flex items-center gap-1"
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="23 4 23 10 17 10" />
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+            </svg>
+            Retry
+          </button>
           <button onClick={dismissError} className="text-red-400 hover:text-red-600 flex-shrink-0">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
+        </div>
+      )}
+
+      {/* Selection hint */}
+      {showSelectionHint && (
+        <div className="mx-3 mb-1 px-3 py-1.5 text-xs text-gray-400">
+          {selectionCount} object{selectionCount !== 1 ? 's' : ''} selected — try "connect these" or "arrange in a grid"
         </div>
       )}
 

@@ -2957,12 +2957,13 @@ interface ProcessAIParams {
   userId: string;
   selectedIds?: string[];
   viewport?: { x: number; y: number; width: number; height: number };
+  conversationHistory?: Array<{ role: string; content: string }>;
 }
 
 async function processAICore(
   params: ProcessAIParams,
 ): Promise<{ response: string; objectsCreated: string[] }> {
-  const { boardId, requestId, prompt, userId, selectedIds, viewport } = params;
+  const { boardId, requestId, prompt, userId, selectedIds, viewport, conversationHistory } = params;
   const requestRef = db.doc(`boards/${boardId}/aiRequests/${requestId}`);
 
   // Mark as processing
@@ -3129,9 +3130,16 @@ async function processAICore(
         })),
       }];
 
-      const messages: Array<{ role: string; parts: Array<Record<string, unknown>> }> = [
-        { role: 'user', parts: [{ text: userMessage }] },
-      ];
+      // Build Gemini messages — prepend conversation history for context
+      const messages: Array<{ role: string; parts: Array<Record<string, unknown>> }> = [];
+      const safeHistory = (conversationHistory ?? []).slice(-10); // cap at 10 entries (5 pairs)
+      for (const entry of safeHistory) {
+        messages.push({
+          role: entry.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: entry.content }],
+        });
+      }
+      messages.push({ role: 'user', parts: [{ text: userMessage }] });
 
       // Tool execution loop — max 3 rounds to keep latency bounded
       const allToolCalls: { name: string; args: ToolInput }[] = [];
@@ -3152,9 +3160,15 @@ async function processAICore(
           break;
         }
 
-        await requestRef.update({
-          progress: `Executing ${fnCalls.length} action${fnCalls.length > 1 ? 's' : ''}...`,
-        });
+        // Smart progress: use LLM's first text as progress message
+        if (response.text && round === 0) {
+          const smartProgress = response.text.slice(0, 100) + (response.text.length > 100 ? '...' : '');
+          await requestRef.update({ progress: smartProgress });
+        } else {
+          await requestRef.update({
+            progress: `Executing ${fnCalls.length} action${fnCalls.length > 1 ? 's' : ''}...`,
+          });
+        }
 
         const allReadOnly = fnCalls.every((fc: any) => READ_ONLY_TOOLS.has(fc.name!));
         const results = await executeToolCalls(fnCalls, allToolCalls);
@@ -3221,9 +3235,16 @@ async function processAICore(
     const anthropic = await getAnthropicClient();
     const anthropicTools = toolsToAnthropic(tools);
 
-    const claudeMessages: Anthropic.MessageParam[] = [
-      { role: 'user', content: userMessage },
-    ];
+    // Build Anthropic messages — prepend conversation history for context
+    const claudeMessages: Anthropic.MessageParam[] = [];
+    const safeHistoryAnthropic = (conversationHistory ?? []).slice(-10);
+    for (const entry of safeHistoryAnthropic) {
+      claudeMessages.push({
+        role: entry.role === 'assistant' ? 'assistant' : 'user',
+        content: entry.content,
+      });
+    }
+    claudeMessages.push({ role: 'user', content: userMessage });
 
     const allToolCalls: { name: string; args: ToolInput }[] = [];
     let lastResponseText: string | undefined;
@@ -3243,9 +3264,15 @@ async function processAICore(
         break;
       }
 
-      await requestRef.update({
-        progress: `Executing ${normalized.functionCalls.length} action${normalized.functionCalls.length > 1 ? 's' : ''}...`,
-      });
+      // Smart progress: use LLM's first text as progress message
+      if (normalized.text && round === 0) {
+        const smartProgress = normalized.text.slice(0, 100) + (normalized.text.length > 100 ? '...' : '');
+        await requestRef.update({ progress: smartProgress });
+      } else {
+        await requestRef.update({
+          progress: `Executing ${normalized.functionCalls.length} action${normalized.functionCalls.length > 1 ? 's' : ''}...`,
+        });
+      }
 
       const allReadOnly = normalized.functionCalls.every((fc: any) => READ_ONLY_TOOLS.has(fc.name));
       const results = await executeToolCalls(normalized.functionCalls, allToolCalls);
@@ -3317,9 +3344,10 @@ export const processAIRequest = onDocumentCreated(
     const boardId = event.params.boardId;
     const requestId = event.params.requestId;
 
-    const { prompt, userId, selectedIds, viewport } = data as {
+    const { prompt, userId, selectedIds, viewport, conversationHistory } = data as {
       prompt: string; userId: string; selectedIds?: string[];
       viewport?: { x: number; y: number; width: number; height: number };
+      conversationHistory?: Array<{ role: string; content: string }>;
     };
 
     if (!prompt || !userId) {
@@ -3337,7 +3365,7 @@ export const processAIRequest = onDocumentCreated(
     if (currentStatus !== 'pending') return;
 
     try {
-      await processAICore({ boardId, requestId, prompt, userId, selectedIds, viewport });
+      await processAICore({ boardId, requestId, prompt, userId, selectedIds, viewport, conversationHistory });
     } catch {
       // Error already written to Firestore by processAICore
     }
@@ -3359,12 +3387,13 @@ export const processAIRequestCallable = onCall(
       throw new HttpsError('unauthenticated', 'Must be signed in to use AI commands.');
     }
 
-    const { boardId, requestId, prompt, selectedIds, viewport } = request.data as {
+    const { boardId, requestId, prompt, selectedIds, viewport, conversationHistory } = request.data as {
       boardId: string;
       requestId: string;
       prompt: string;
       selectedIds?: string[];
       viewport?: { x: number; y: number; width: number; height: number };
+      conversationHistory?: Array<{ role: string; content: string }>;
     };
 
     if (!boardId || !requestId || !prompt) {
@@ -3372,7 +3401,7 @@ export const processAIRequestCallable = onCall(
     }
 
     try {
-      const result = await processAICore({ boardId, requestId, prompt, userId, selectedIds, viewport });
+      const result = await processAICore({ boardId, requestId, prompt, userId, selectedIds, viewport, conversationHistory });
       return result;
     } catch (err: unknown) {
       // processAICore already wrote the error to Firestore

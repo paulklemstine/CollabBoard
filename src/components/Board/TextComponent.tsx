@@ -66,11 +66,11 @@ export function TextComponent({
   useMarchingAnts(selectionRectRef, !!isSelected && !selectionBox);
 
   useEffect(() => {
-    if (!isResizing) {
+    if (!isResizing && !isEditing) {
       setLocalWidth(textObj.width);
       setLocalHeight(textObj.height);
     }
-  }, [textObj.width, textObj.height, isResizing]);
+  }, [textObj.width, textObj.height, isResizing, isEditing]);
 
   // Auto-fit height to text content (grow and shrink, never below minHeight)
   useEffect(() => {
@@ -208,14 +208,15 @@ export function TextComponent({
     textarea.style.transformOrigin = 'top left';
     textarea.style.transform = `rotate(${rotation}deg)`;
 
-    // Auto-grow textarea height to fit content
+    // Auto-grow/shrink textarea height to fit content
     const autoGrow = () => {
-      textarea.style.height = 'auto';
+      textarea.style.height = '0';
       const scrollH = textarea.scrollHeight;
       textarea.style.height = `${scrollH}px`;
-      // Grow the component panel to match (convert screen px back to world px)
-      const neededH = scrollH / scale + 8; // add padding
-      if (neededH > localHeightRef.current) {
+      // Grow or shrink the component panel to match (convert screen px back to world px)
+      const neededH = Math.max(minHeight, scrollH / scale + 8); // add padding, clamp to min
+      if (Math.abs(neededH - localHeightRef.current) > 1) {
+        localHeightRef.current = neededH;
         setLocalHeight(neededH);
         onResizeRef.current?.(textObjRef.current.id, localWidthRef.current, neededH);
       }

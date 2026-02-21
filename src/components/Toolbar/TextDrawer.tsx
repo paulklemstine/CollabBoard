@@ -59,11 +59,24 @@ export function TextDrawer({
           }}
           title="Add text"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <polyline points="4 7 4 4 20 4 20 7" />
-            <line x1="12" y1="4" x2="12" y2="20" />
-            <line x1="8" y1="20" x2="16" y2="20" />
-          </svg>
+          <div className="flex flex-col items-center gap-0.5">
+            <span
+              style={{
+                fontSize: 15,
+                fontWeight,
+                fontStyle,
+                fontFamily,
+                color: textColor,
+                lineHeight: 1,
+              }}
+            >
+              A
+            </span>
+            <div
+              className="rounded-full"
+              style={{ width: 14, height: 3, backgroundColor: textColor, minHeight: 3 }}
+            />
+          </div>
           Text
         </button>
         <button

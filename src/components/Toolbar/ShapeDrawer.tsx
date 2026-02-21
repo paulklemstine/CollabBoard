@@ -118,11 +118,23 @@ export function ShapeDrawer({
           title="Shapes"
         >
           <div className="flex items-center gap-1.5">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="3" />
-              <rect x="3" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="14" width="7" height="7" rx="1" />
-            </svg>
+            <div className="relative" style={{ width: 16, height: 16 }}>
+              <svg width="16" height="16" viewBox="0 0 16 16">
+                <rect
+                  x="1" y="1" width="14" height="14" rx="2"
+                  fill={fillColor === 'transparent' ? 'none' : fillColor}
+                  stroke={strokeColor === 'transparent' ? 'none' : strokeColor}
+                  strokeWidth="2"
+                />
+                {fillColor === 'transparent' && strokeColor === 'transparent' && (
+                  <>
+                    <circle cx="8" cy="8" r="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                    <rect x="2" y="2" width="5" height="5" rx="0.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                    <rect x="9" y="9" width="5" height="5" rx="0.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                  </>
+                )}
+              </svg>
+            </div>
             Shapes
           </div>
         </button>

@@ -585,14 +585,11 @@ function BoardView({
     await new Promise(r => setTimeout(r, 200));
     const blob = await capturePreviewBlob();
     if (blob) {
-      // Always cache locally for instant dashboard preview
       setPreviewBlob(boardId, blob);
-      // Probabilistic upload: ~1 upload expected regardless of user count
-      const shouldUpload = onlineUsers.length <= 1 || Math.random() < 1 / onlineUsers.length;
-      if (shouldUpload) uploadPreview(blob);
+      uploadPreview(blob);
     }
     onNavigateBack();
-  }, [capturePreviewBlob, uploadPreview, onNavigateBack, boardId, onlineUsers.length]);
+  }, [capturePreviewBlob, uploadPreview, onNavigateBack, boardId]);
 
   const handleMouseMove = useCallback(
     (x: number, y: number) => {
@@ -1027,6 +1024,8 @@ function BoardView({
         onRedo={redo}
         canUndo={canUndo}
         canRedo={canRedo}
+        forceOpenDrawer={tutorial.isActive ? tutorial.openDrawer : null}
+        forceOpenDrawerTab={tutorial.isActive ? tutorial.openDrawerTab : undefined}
       />
       <AIChat boardId={boardId} isOpen={aiOpen} onClose={() => setAiOpen(false)} onObjectsCreated={handleAIObjectsCreated} selectedIds={[...selectedIds]} getViewportCenter={() => ({
         x: (-stageTransform.x + window.innerWidth / 2) / stageTransform.scale,

@@ -140,7 +140,7 @@ export function detectTemplate(prompt: string): TemplateMatch | null {
     const rows = parseInt(gridMatch[1], 10);
     const cols = parseInt(gridMatch[2], 10);
     if (rows >= 1 && rows <= 50 && cols >= 1 && cols <= 50 && rows * cols <= 500) {
-      const labelMatch = prompt.match(/\bfor\s+(.+)$/i);
+      const labelMatch = prompt.match(/\b(?:for|about|on|with)\s+(.+)$/i);
       let labels: string[] | undefined;
       if (labelMatch) {
         labels = labelMatch[1].split(/\s+and\s+|,\s*/i).map(s => s.trim()).filter(Boolean);
@@ -718,7 +718,9 @@ async function executeGridCreateClient(
   for (let i = 0; i < total; i++) {
     const col = i % cols;
     const row = Math.floor(i / cols);
-    const text = labels && labels[col] ? labels[col] : '';
+    const text = labels
+      ? (labels.length === 1 ? labels[0] : (labels[i % labels.length] ?? ''))
+      : '';
     const id = crypto.randomUUID();
     objectsCreated.push(id);
     docs.push({

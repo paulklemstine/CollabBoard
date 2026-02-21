@@ -1600,7 +1600,9 @@ async function executeGridCreate(
       const y = baseY + row * cellH;
 
       // If labels provided, use column labels as header text
-      const text = labels && labels[col] ? labels[col] : '';
+      const text = labels
+        ? (labels.length === 1 ? labels[0] : (labels[i % labels.length] ?? ''))
+        : '';
 
       const docRef = objectsRef.doc();
       batch.set(docRef, {

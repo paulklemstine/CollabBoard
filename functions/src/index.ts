@@ -3,60 +3,23 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import type { BaseMessage } from '@langchain/core/messages';
+import type Anthropic from '@anthropic-ai/sdk';
 
 initializeApp();
 const db = getFirestore();
 
 const anthropicApiKey = defineSecret('ANTHROPIC_API_KEY');
-const langchainApiKey = defineSecret('LANGCHAIN_API_KEY');
-const langfuseSecretKey = defineSecret('LANGFUSE_SECRET_KEY');
-const langfusePublicKey = defineSecret('LANGFUSE_PUBLIC_KEY');
-const langfuseHost = defineSecret('LANGFUSE_HOST');
 const giphyApiKey = defineSecret('GIPHY_API_KEY');
 
-// ---- Cached module singletons (import once per function instance, reuse across warm invocations) ----
-let _modules: {
-  ChatAnthropic: typeof import('@langchain/anthropic').ChatAnthropic;
-  HumanMessage: typeof import('@langchain/core/messages').HumanMessage;
-  SystemMessage: typeof import('@langchain/core/messages').SystemMessage;
-  AIMessage: typeof import('@langchain/core/messages').AIMessage;
-  ToolMessage: typeof import('@langchain/core/messages').ToolMessage;
-  CallbackHandler: typeof import('@langfuse/langchain').CallbackHandler;
-} | null = null;
+// ---- Cached Anthropic client singleton (import once per function instance, reuse across warm invocations) ----
+let _anthropicClient: Anthropic | null = null;
 
-async function getModules() {
-  if (!_modules) {
-    const [anthropic, core, langfuse] = await Promise.all([
-      import('@langchain/anthropic'),
-      import('@langchain/core/messages'),
-      import('@langfuse/langchain'),
-    ]);
-    _modules = {
-      ChatAnthropic: anthropic.ChatAnthropic,
-      HumanMessage: core.HumanMessage,
-      SystemMessage: core.SystemMessage,
-      AIMessage: core.AIMessage,
-      ToolMessage: core.ToolMessage,
-      CallbackHandler: langfuse.CallbackHandler,
-    };
+async function getAnthropicClient(): Promise<Anthropic> {
+  if (!_anthropicClient) {
+    const { default: AnthropicSDK } = await import('@anthropic-ai/sdk');
+    _anthropicClient = new AnthropicSDK({ apiKey: anthropicApiKey.value() });
   }
-  return _modules;
-}
-
-// ---- OpenTelemetry singleton (initialized once per function instance) ----
-let _otelInitialized = false;
-
-async function ensureOtel() {
-  if (!_otelInitialized) {
-    const { NodeSDK } = await import('@opentelemetry/sdk-node');
-    const { LangfuseSpanProcessor } = await import('@langfuse/otel');
-    const sdk = new NodeSDK({
-      spanProcessors: [new LangfuseSpanProcessor()],
-    });
-    sdk.start();
-    _otelInitialized = true;
-  }
+  return _anthropicClient;
 }
 
 // ---- GIPHY search (server-side, no SDK needed) ----
@@ -97,7 +60,7 @@ const tools = [
   {
     name: 'executePlan',
     description: 'Execute multiple creation ops in one atomic batch. Use tempIds for cross-refs (e.g. connector fromId refs a sticky tempId). Ops: createStickyNote, createShape, createFrame, createSticker, createGifSticker, createText, createConnector.',
-    schema: {
+    input_schema: {
       type: 'object' as const,
       properties: {
         operations: {
@@ -121,7 +84,7 @@ const tools = [
   {
     name: 'moveObject',
     description: 'Move object to x,y.',
-    schema: {
+    input_schema: {
       type: 'object' as const,
       properties: { objectId: { type: 'string' }, x: { type: 'number' }, y: { type: 'number' } },
       required: ['objectId', 'x', 'y'],
@@ -130,7 +93,7 @@ const tools = [
   {
     name: 'resizeObject',
     description: 'Resize object.',
-    schema: {
+    input_schema: {
       type: 'object' as const,
       properties: { objectId: { type: 'string' }, width: { type: 'number' }, height: { type: 'number' } },
       required: ['objectId', 'width', 'height'],
@@ -139,7 +102,7 @@ const tools = [
   {
     name: 'updateText',
     description: 'Update text of sticky/text element.',
-    schema: {
+    input_schema: {
       type: 'object' as const,
       properties: { objectId: { type: 'string' }, newText: { type: 'string' } },
       required: ['objectId', 'newText'],
@@ -148,7 +111,7 @@ const tools = [
   {
     name: 'changeColor',
     description: 'Change object colors. Provide only fields to change: newColor(bg/fill), textColor, strokeColor, bgColor, borderColor.',
-    schema: {
+    input_schema: {
       type: 'object' as const,
       properties: {
         objectId: { type: 'string' },
@@ -161,7 +124,7 @@ const tools = [
   {
     name: 'deleteObject',
     description: 'Delete one object.',
-    schema: {
+    input_schema: {
       type: 'object' as const,
       properties: { objectId: { type: 'string' } },
       required: ['objectId'],
@@ -170,7 +133,7 @@ const tools = [
   {
     name: 'deleteObjects',
     description: 'Bulk delete objects by IDs.',
-    schema: {
+    input_schema: {
       type: 'object' as const,
       properties: { objectIds: { type: 'array', items: { type: 'string' } } },
       required: ['objectIds'],
@@ -179,7 +142,7 @@ const tools = [
   {
     name: 'updateParent',
     description: 'Set parent frame. Empty string "" = detach.',
-    schema: {
+    input_schema: {
       type: 'object' as const,
       properties: { objectId: { type: 'string' }, newParentId: { type: 'string' } },
       required: ['objectId', 'newParentId'],
@@ -188,7 +151,7 @@ const tools = [
   {
     name: 'embedInFrame',
     description: 'Move objects into frame, auto-reposition.',
-    schema: {
+    input_schema: {
       type: 'object' as const,
       properties: { objectIds: { type: 'array', items: { type: 'string' } }, frameId: { type: 'string' } },
       required: ['objectIds', 'frameId'],
@@ -197,7 +160,7 @@ const tools = [
   {
     name: 'alignObjects',
     description: 'Align objects. center-x=vertical column, center-y=horizontal row.',
-    schema: {
+    input_schema: {
       type: 'object' as const,
       properties: {
         objectIds: { type: 'array', items: { type: 'string' } },
@@ -210,7 +173,7 @@ const tools = [
   {
     name: 'layoutObjects',
     description: 'Arrange in pattern.',
-    schema: {
+    input_schema: {
       type: 'object' as const,
       properties: {
         objectIds: { type: 'array', items: { type: 'string' } },
@@ -225,7 +188,7 @@ const tools = [
   {
     name: 'duplicateObject',
     description: 'Duplicate object N times with offset.',
-    schema: {
+    input_schema: {
       type: 'object' as const,
       properties: {
         objectId: { type: 'string' }, count: { type: 'number' },
@@ -237,7 +200,7 @@ const tools = [
   {
     name: 'setZIndex',
     description: 'Change layer order.',
-    schema: {
+    input_schema: {
       type: 'object' as const,
       properties: {
         objectId: { type: 'string' },
@@ -249,7 +212,7 @@ const tools = [
   {
     name: 'rotateObject',
     description: 'Rotate object (degrees).',
-    schema: {
+    input_schema: {
       type: 'object' as const,
       properties: { objectId: { type: 'string' }, rotation: { type: 'number' } },
       required: ['objectId', 'rotation'],
@@ -258,7 +221,7 @@ const tools = [
   {
     name: 'getObject',
     description: 'Get full object details by ID.',
-    schema: {
+    input_schema: {
       type: 'object' as const,
       properties: { objectId: { type: 'string' } },
       required: ['objectId'],
@@ -267,7 +230,7 @@ const tools = [
   {
     name: 'updateFrameTitle',
     description: 'Update frame title.',
-    schema: {
+    input_schema: {
       type: 'object' as const,
       properties: { objectId: { type: 'string' }, title: { type: 'string' } },
       required: ['objectId', 'title'],
@@ -276,7 +239,7 @@ const tools = [
   {
     name: 'searchObjects',
     description: 'Search by type/text/parentId. AND logic.',
-    schema: {
+    input_schema: {
       type: 'object' as const,
       properties: {
         objectType: { type: 'string', description: 'sticky|shape|frame|sticker|connector|text' },
@@ -288,17 +251,17 @@ const tools = [
   {
     name: 'getBoardSummary',
     description: 'Counts by type + frame list with IDs.',
-    schema: { type: 'object' as const, properties: {}, required: [] as string[] },
+    input_schema: { type: 'object' as const, properties: {}, required: [] as string[] },
   },
   {
     name: 'getBoardState',
     description: 'Full compact board state with all object IDs and properties.',
-    schema: { type: 'object' as const, properties: {}, required: [] as string[] },
+    input_schema: { type: 'object' as const, properties: {}, required: [] as string[] },
   },
   {
     name: 'getSelectedObjects',
     description: 'Get details of user-selected objects.',
-    schema: { type: 'object' as const, properties: {}, required: [] as string[] },
+    input_schema: { type: 'object' as const, properties: {}, required: [] as string[] },
   },
 ];
 
@@ -333,13 +296,13 @@ const SYSTEM_PROMPT = `You are Flow Space AI — a collaborative whiteboard assi
 CREATE objects via executePlan — ONE call with all operations. Use tempIds to cross-reference (e.g. connector refs a sticky's tempId).
 Examples:
 {"operations":[{"op":"createStickyNote","tempId":"s1","params":{"text":"Hello","x":100,"y":100}},{"op":"createConnector","params":{"fromId":"s1","toId":"s2"}}]}
-{"operations":[{"op":"createSticker","params":{"emoji":"🐱","x":100,"y":100}},{"op":"createSticker","params":{"emoji":"🦊","x":260,"y":100}}]}
+{"operations":[{"op":"createFrame","tempId":"f1","params":{"title":"Ideas","x":100,"y":100,"width":460,"height":260}},{"op":"createStickyNote","params":{"text":"First","x":120,"y":120,"parentId":"f1"}},{"op":"createStickyNote","params":{"text":"Second","x":340,"y":120,"parentId":"f1"}}]}
 
 Compact board state keys: w=width, h=height, pid=parentId, rot=rotation, sel=selected.
 
 Canvas: infinite, X→right, Y→down. (0,0)=top-left of ~1200x800 viewport.
 
-Frames: set parentId to attach children. Coords are ABSOLUTE. Title bar renders ABOVE frame.y. Position children at frameX+20, frameY+20. Use embedInFrame for bulk. updateParent auto-repositions.
+Frames: ALWAYS set parentId on children when creating objects inside a frame — use the frame's tempId. Coords are ABSOLUTE. Title bar renders ABOVE frame.y. Position children at frameX+20, frameY+20. Use embedInFrame for bulk. updateParent auto-repositions.
 
 Layout: layoutObjects (row/column/grid/staggered/circular/pack/fan). alignObjects (left/right/top/bottom/center-x/center-y/distribute-horizontal/distribute-vertical). "Align horizontally"=same Y (row). "Align vertically"=same X (column). Auto spacing 20px.
 
@@ -2045,6 +2008,7 @@ async function executeExecutePlan(
   groupLabels: Record<number, string>,
   planAiGroupId?: string,
   planAiGroupLabel?: string,
+  viewport?: { x: number; y: number; width: number; height: number },
 ): Promise<string> {
   console.log(`executePlan: ${operations.length} operations for board ${boardId}`);
   if (operations.length > 0) {
@@ -2077,9 +2041,10 @@ async function executeExecutePlan(
     }),
   );
 
-  // Step 3: Build objects and add to batch
+  // Step 3: Build objects (deferred batch.set — auto-parent needs all objects first)
   const created: string[] = [];
   const failedGifs: string[] = [];
+  const builtObjects: Array<{ docRef: FirebaseFirestore.DocumentReference; data: Record<string, unknown> }> = [];
   for (let i = 0; i < operations.length; i++) {
     const item = operations[i];
     const params: ToolInput = item.params ?? {};
@@ -2089,6 +2054,17 @@ async function executeExecutePlan(
     if (item.op === 'createGifSticker' && !gifResults.get(i)) {
       failedGifs.push(params.searchTerm ?? 'unknown');
       continue;
+    }
+
+    // Auto-position objects that lack explicit coordinates within the viewport
+    if (viewport && item.op !== 'createConnector' && params.x == null && params.y == null) {
+      const vx = viewport.x - viewport.width / 2;
+      const vy = viewport.y - viewport.height / 2;
+      params.x = Math.round(vx + 60 + (i % 5) * 170);
+      params.y = Math.round(vy + 60 + Math.floor(i / 5) * 170);
+      console.log(`Auto-positioned ${item.op} [${i}] to (${params.x}, ${params.y}) within viewport (${vx},${vy},${viewport.width}x${viewport.height})`);
+    } else if (item.op !== 'createConnector') {
+      console.log(`${item.op} [${i}] explicit pos (${params.x}, ${params.y}), viewport=${!!viewport}`);
     }
 
     // Resolve tempId references in params
@@ -2115,12 +2091,38 @@ async function executeExecutePlan(
     if (item.op === 'createGifSticker' && gifResults.get(i)) {
       data.gifUrl = gifResults.get(i)!;
     }
-    batch.set(docRef, data);
+    builtObjects.push({ docRef, data });
     objectsCreated.push(docRef.id);
     created.push(docRef.id);
   }
 
-  // Step 4: Single atomic write
+  // Step 4: Auto-parent — objects inside a frame get parentId if not already set
+  const newFrames = builtObjects.filter(o => o.data.type === 'frame');
+  if (newFrames.length > 0) {
+    for (const obj of builtObjects) {
+      if (obj.data.type === 'frame' || obj.data.type === 'connector') continue;
+      if (obj.data.parentId) continue; // already has a parent
+      const ox = obj.data.x as number;
+      const oy = obj.data.y as number;
+      const ow = (obj.data.width as number) || 0;
+      const oh = (obj.data.height as number) || 0;
+      for (const frame of newFrames) {
+        const fx = frame.data.x as number;
+        const fy = frame.data.y as number;
+        const fw = frame.data.width as number;
+        const fh = frame.data.height as number;
+        if (ox >= fx && oy >= fy && ox + ow <= fx + fw && oy + oh <= fy + fh) {
+          obj.data.parentId = frame.docRef.id;
+          break;
+        }
+      }
+    }
+  }
+
+  // Step 5: Add all to batch and commit atomically
+  for (const { docRef, data } of builtObjects) {
+    batch.set(docRef, data);
+  }
   await batch.commit();
 
   const result: Record<string, unknown> = { success: true, created, count: created.length };
@@ -2139,9 +2141,18 @@ async function executeTool(
   objectsCreated: string[],
   groupLabels: Record<number, string>,
   selectedIds?: string[],
+  viewport?: { x: number; y: number; width: number; height: number },
 ): Promise<string> {
   const objectsRef = db.collection(`boards/${boardId}/objects`);
   const now = Date.now();
+
+  // Auto-position creation ops that lack explicit coordinates within the viewport
+  const isCreateOp = toolName.startsWith('create') && toolName !== 'createConnector';
+  if (viewport && isCreateOp && input.x == null && input.y == null) {
+    input.x = Math.round(viewport.x);
+    input.y = Math.round(viewport.y);
+    console.log(`executeTool auto-positioned ${toolName} to (${input.x}, ${input.y})`);
+  }
 
   // Resolve numeric aiGroupId → string label for Firestore storage
   if (input.aiGroupLabel && input.aiGroupId != null) {
@@ -2796,7 +2807,7 @@ async function executeTool(
 }
 
 // ---- Shared secrets config for both trigger and callable ----
-const functionSecrets = [anthropicApiKey, langchainApiKey, langfuseSecretKey, langfusePublicKey, langfuseHost, giphyApiKey];
+const functionSecrets = [anthropicApiKey, giphyApiKey];
 
 // Read-only tools that return data but don't modify the board
 const READ_ONLY_TOOLS = new Set([
@@ -2871,23 +2882,8 @@ async function processAICore(
     }
   }
 
-  // Set tracing env vars (idempotent on warm instances)
-  process.env.LANGCHAIN_TRACING_V2 = 'true';
-  process.env.LANGCHAIN_API_KEY = langchainApiKey.value();
-  process.env.LANGCHAIN_PROJECT = 'FlowSpace';
-  process.env.LANGCHAIN_CALLBACKS_BACKGROUND = 'false';
-  process.env.LANGFUSE_SECRET_KEY = langfuseSecretKey.value();
-  process.env.LANGFUSE_PUBLIC_KEY = langfusePublicKey.value();
-  process.env.LANGFUSE_BASE_URL = langfuseHost.value();
-
-  // Cached module singletons + OTel singleton (import once, reuse across warm invocations)
-  const { ChatAnthropic, HumanMessage, SystemMessage, ToolMessage, CallbackHandler } = await getModules();
-  await ensureOtel();
-
-  const langfuseHandler = new CallbackHandler({
-    sessionId: requestId,
-    userId: userId,
-  });
+  // Anthropic SDK client (cached singleton, lazy import)
+  const anthropic = await getAnthropicClient();
 
   try {
     // Build context — single board state read, reused for both context and selection
@@ -2930,47 +2926,51 @@ async function processAICore(
       }
     }
 
-    // LangChain ChatAnthropic with tools
-    const model = new ChatAnthropic({
-      model: 'claude-haiku-4-5-20251001',
-      maxRetries: 2,
-      anthropicApiKey: anthropicApiKey.value(),
-    });
-    const modelWithTools = model.bindTools(tools as never);
+    // Anthropic SDK tools (same definitions, cast for API compatibility)
+    const anthropicTools: Anthropic.Tool[] = tools.map(t => ({
+      name: t.name,
+      description: t.description,
+      input_schema: t.input_schema as Anthropic.Tool['input_schema'],
+    }));
 
-    const messages: BaseMessage[] = [
-      new SystemMessage(SYSTEM_PROMPT),
-      new HumanMessage(userMessage),
+    const messages: Anthropic.MessageParam[] = [
+      { role: 'user', content: userMessage },
     ];
 
     await requestRef.update({ progress: 'Thinking...' });
 
     // Tool execution loop — max 3 rounds to keep latency bounded
     const allToolCalls: { name: string; args: ToolInput }[] = [];
-    let lastResponse: BaseMessage | null = null;
+    let lastResponse: Anthropic.Message | null = null;
 
     for (let round = 0; round < 3; round++) {
-      const response = await modelWithTools.invoke(messages, {
-        callbacks: [langfuseHandler],
+      const response = await anthropic.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 4096,
+        system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
+        tools: anthropicTools,
+        messages,
       });
       lastResponse = response;
 
-      const toolCalls = response.tool_calls ?? [];
-      if (toolCalls.length === 0) break;
+      const toolUseBlocks = response.content.filter(
+        (b): b is Anthropic.ContentBlock & { type: 'tool_use' } => b.type === 'tool_use',
+      );
+      if (toolUseBlocks.length === 0) break;
 
       await requestRef.update({
-        progress: `Executing ${toolCalls.length} action${toolCalls.length > 1 ? 's' : ''}...`,
+        progress: `Executing ${toolUseBlocks.length} action${toolUseBlocks.length > 1 ? 's' : ''}...`,
       });
 
-      const allReadOnly = toolCalls.every(tc => READ_ONLY_TOOLS.has(tc.name));
+      const allReadOnly = toolUseBlocks.every(tc => READ_ONLY_TOOLS.has(tc.name));
 
       const results = await Promise.all(
-        toolCalls.map(async (toolCall) => {
+        toolUseBlocks.map(async (toolBlock) => {
           try {
-            const args = (toolCall.args && typeof toolCall.args === 'object') ? toolCall.args as ToolInput : {} as ToolInput;
+            const args = (toolBlock.input && typeof toolBlock.input === 'object') ? toolBlock.input as ToolInput : {} as ToolInput;
             let result: string;
-            if (toolCall.name === 'executePlan') {
-              const planArgs = toolCall.args as any;
+            if (toolBlock.name === 'executePlan') {
+              const planArgs = toolBlock.input as any;
               console.log(`executePlan raw args keys: ${Object.keys(planArgs || {}).join(', ')}`);
               result = await executeExecutePlan(
                 planArgs.operations ?? [],
@@ -2980,34 +2980,42 @@ async function processAICore(
                 groupLabels,
                 planArgs.aiGroupId != null ? String(planArgs.aiGroupId) : undefined,
                 planArgs.aiGroupLabel,
+                viewport,
               );
             } else {
               result = await executeTool(
-                toolCall.name,
+                toolBlock.name,
                 args,
                 boardId,
                 userId,
                 objectsCreated,
                 groupLabels,
                 selectedIds,
+                viewport,
               );
             }
-            return { id: toolCall.id, name: toolCall.name, result };
+            return { id: toolBlock.id, name: toolBlock.name, result };
           } catch (toolErr: unknown) {
             const errMsg = toolErr instanceof Error ? toolErr.message : 'Tool execution failed';
-            console.error(`Tool ${toolCall.name} error:`, toolErr);
-            return { id: toolCall.id, name: toolCall.name, result: JSON.stringify({ error: errMsg }) };
+            console.error(`Tool ${toolBlock.name} error:`, toolErr);
+            return { id: toolBlock.id, name: toolBlock.name, result: JSON.stringify({ error: errMsg }) };
           }
         }),
       );
 
-      allToolCalls.push(...toolCalls.map(tc => ({ name: tc.name, args: tc.args as ToolInput })));
+      allToolCalls.push(...toolUseBlocks.map(tc => ({ name: tc.name, args: tc.input as ToolInput })));
 
       if (allReadOnly && round < 2) {
-        messages.push(response);
-        for (const r of results) {
-          messages.push(new ToolMessage({ content: r.result, tool_call_id: r.id ?? r.name }));
-        }
+        // Feed assistant response + tool results back for next round
+        messages.push({ role: 'assistant', content: response.content });
+        messages.push({
+          role: 'user',
+          content: results.map(r => ({
+            type: 'tool_result' as const,
+            tool_use_id: r.id,
+            content: r.result,
+          })),
+        });
         await requestRef.update({ progress: 'Planning actions...' });
         continue;
       }
@@ -3024,31 +3032,39 @@ async function processAICore(
       if (deficit > 0 && deficit <= 500) {
         await requestRef.update({ progress: `Created ${objectsCreated.length}/${requestedCount}, creating ${deficit} more...` });
         const correctionMsg = `You created ${objectsCreated.length} objects but the user requested ${requestedCount}. Please create ${deficit} more to reach the exact count.`;
-        if (lastResponse) messages.push(lastResponse);
-        messages.push(new HumanMessage(correctionMsg));
+        if (lastResponse) {
+          messages.push({ role: 'assistant', content: lastResponse.content });
+        }
+        messages.push({ role: 'user', content: correctionMsg });
 
-        const correctionResponse = await modelWithTools.invoke(messages, {
-          callbacks: [langfuseHandler],
+        const correctionResponse = await anthropic.messages.create({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 4096,
+          system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
+          tools: anthropicTools,
+          messages,
         });
 
-        const corrToolCalls = correctionResponse.tool_calls ?? [];
-        if (corrToolCalls.length > 0) {
+        const corrToolBlocks = correctionResponse.content.filter(
+          (b): b is Anthropic.ContentBlock & { type: 'tool_use' } => b.type === 'tool_use',
+        );
+        if (corrToolBlocks.length > 0) {
           await Promise.all(
-            corrToolCalls.map(async (toolCall) => {
+            corrToolBlocks.map(async (toolBlock) => {
               try {
-                const args = (toolCall.args && typeof toolCall.args === 'object') ? toolCall.args as ToolInput : {} as ToolInput;
-                if (toolCall.name === 'executePlan') {
-                  const planArgs = toolCall.args as any;
-                  await executeExecutePlan(planArgs.operations ?? [], boardId, userId, objectsCreated, groupLabels);
+                const args = (toolBlock.input && typeof toolBlock.input === 'object') ? toolBlock.input as ToolInput : {} as ToolInput;
+                if (toolBlock.name === 'executePlan') {
+                  const planArgs = toolBlock.input as any;
+                  await executeExecutePlan(planArgs.operations ?? [], boardId, userId, objectsCreated, groupLabels, undefined, undefined, viewport);
                 } else {
-                  await executeTool(toolCall.name, args, boardId, userId, objectsCreated, groupLabels, selectedIds);
+                  await executeTool(toolBlock.name, args, boardId, userId, objectsCreated, groupLabels, selectedIds, viewport);
                 }
               } catch (toolErr: unknown) {
-                console.error(`Correction tool ${toolCall.name} error:`, toolErr);
+                console.error(`Correction tool ${toolBlock.name} error:`, toolErr);
               }
             }),
           );
-          allToolCalls.push(...corrToolCalls.map(tc => ({ name: tc.name, args: tc.args as ToolInput })));
+          allToolCalls.push(...corrToolBlocks.map(tc => ({ name: tc.name, args: tc.input as ToolInput })));
         }
       }
     }
@@ -3067,16 +3083,10 @@ async function processAICore(
       );
       responseText = `Done! ${parts.join(', ')}.`;
     } else if (lastResponse) {
-      const content = lastResponse.content;
-      responseText = typeof content === 'string'
-        ? (content || 'Done!')
-        : Array.isArray(content)
-          ? content
-              .filter((b): b is { type: 'text'; text: string } =>
-                typeof b === 'object' && 'type' in b && b.type === 'text')
-              .map((b) => b.text)
-              .join('\n') || 'Done!'
-          : 'Done!';
+      const textBlocks = lastResponse.content.filter(
+        (b): b is Anthropic.TextBlock => b.type === 'text',
+      );
+      responseText = textBlocks.map(b => b.text).join('\n') || 'Done!';
     } else {
       responseText = 'Done!';
     }
@@ -3200,7 +3210,7 @@ export const searchGiphyCallable = onCall(
       throw new HttpsError('invalid-argument', 'Missing search query.');
     }
 
-    const key = giphyApiKey.value();
+    const key = giphyApiKey.value().trim();
     if (!key) {
       throw new HttpsError('unavailable', 'GIPHY API key not configured.');
     }

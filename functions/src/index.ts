@@ -13,6 +13,7 @@ const langchainApiKey = defineSecret('LANGCHAIN_API_KEY');
 const langfuseSecretKey = defineSecret('LANGFUSE_SECRET_KEY');
 const langfusePublicKey = defineSecret('LANGFUSE_PUBLIC_KEY');
 const langfuseHost = defineSecret('LANGFUSE_HOST');
+const giphyApiKey = defineSecret('GIPHY_API_KEY');
 
 // ---- Cached module singletons (import once per function instance, reuse across warm invocations) ----
 let _modules: {
@@ -58,6 +59,25 @@ async function ensureOtel() {
   }
 }
 
+// ---- GIPHY search (server-side, no SDK needed) ----
+
+async function searchGiphy(query: string): Promise<string | null> {
+  const key = giphyApiKey.value();
+  if (!key) return null;
+  try {
+    const url = `https://api.giphy.com/v1/stickers/search?api_key=${encodeURIComponent(key)}&q=${encodeURIComponent(query)}&limit=1`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const json = await res.json();
+    const gif = json.data?.[0];
+    if (!gif) return null;
+    const img = gif.images?.fixed_height ?? gif.images?.original;
+    return img?.url || null;
+  } catch {
+    return null;
+  }
+}
+
 // ---- Tool definitions (trimmed for token efficiency) ----
 // All create tools share: x,y (position), parentId (frame), aiLabel, aiGroupId, aiGroupLabel
 // Defaults handled server-side — descriptions omit them.
@@ -76,7 +96,7 @@ const tools = [
             properties: {
               op: { type: 'string', enum: ['createStickyNote', 'createShape', 'createFrame', 'createSticker', 'createGifSticker', 'createText', 'createConnector'] },
               tempId: { type: 'string', description: 'Optional temp ID for cross-referencing between ops' },
-              params: { type: 'object', description: 'Same params as the individual create tool' },
+              params: { type: 'object', description: 'Op params — createStickyNote: text,color,textColor,width,height. createShape: shapeType(rect|circle|triangle|diamond|pentagon|hexagon|octagon|star|arrow|cross|line),color,strokeColor,width,height. createFrame: title,width,height,borderless. createSticker: emoji(single Unicode emoji char e.g. "🐱","🦊","🐶"),size. createGifSticker: searchTerm,size. createText: text,fontSize,fontFamily,fontWeight,fontStyle,textAlign,color,bgColor,width,height. createConnector: fromId,toId,color,lineType. All ops accept: x,y,parentId,aiLabel,aiGroupId.' },
             },
             required: ['op'],
           },
@@ -300,7 +320,9 @@ const TOOL_LABELS: Record<string, string> = {
 const SYSTEM_PROMPT = `You are Flow Space AI — a collaborative whiteboard assistant. Use tools to create/manipulate objects. Emit ALL tool calls in a single response.
 
 CREATE objects via executePlan — ONE call with all operations. Use tempIds to cross-reference (e.g. connector refs a sticky's tempId).
-Example: {"operations":[{"op":"createStickyNote","tempId":"s1","params":{"text":"Hello","x":100,"y":100}},{"op":"createConnector","params":{"fromId":"s1","toId":"s2"}}]}
+Examples:
+{"operations":[{"op":"createStickyNote","tempId":"s1","params":{"text":"Hello","x":100,"y":100}},{"op":"createConnector","params":{"fromId":"s1","toId":"s2"}}]}
+{"operations":[{"op":"createSticker","params":{"emoji":"🐱","x":100,"y":100}},{"op":"createSticker","params":{"emoji":"🦊","x":260,"y":100}}]}
 
 Compact board state keys: w=width, h=height, pid=parentId, rot=rotation, sel=selected.
 
@@ -312,6 +334,8 @@ Layout: layoutObjects (row/column/grid/staggered/circular/pack/fan). alignObject
 
 Colors — Yellow:#fef9c3 Blue:#dbeafe Green:#dcfce7 Pink:#fce7f3 Purple:#f3e8ff Orange:#ffedd5
 Fonts — sans(Inter) serif(Georgia) mono(Fira Code) cursive(Caveat)
+
+Stickers: createSticker emoji param is REQUIRED — must be a single Unicode emoji character (e.g. "🐱","🦊","🐶","🦁","🐸"). Always vary emojis — never repeat the same one. For animated GIFs use createGifSticker with searchTerm.
 
 Always provide aiLabel + aiGroupId. Provide aiGroupLabel once per group. borderless=true for invisible frames.
 
@@ -730,6 +754,10 @@ type TemplateMatch = {
 } | {
   type: 'template';
   templateType: 'swot' | 'kanban' | 'retrospective' | 'eisenhower' | 'mind-map';
+} | {
+  type: 'bulk-create';
+  count: number;
+  objectType: 'sticky' | 'shape' | 'text' | 'sticker' | 'frame' | 'random';
 }
 
 function detectTemplate(prompt: string): TemplateMatch | null {
@@ -737,6 +765,33 @@ function detectTemplate(prompt: string): TemplateMatch | null {
   const arrowParts = prompt.split(/\s*(?:->|-->|→)\s*/);
   if (arrowParts.length >= 2 && arrowParts.every(p => p.trim().length > 0 && p.trim().length < 100)) {
     return { type: 'flowchart', nodes: arrowParts.map(p => p.trim()) };
+  }
+
+  // Bulk creation: "create 10 stickies", "add 50 random objects", "generate 20 cards"
+  const bulkMatch = prompt.match(
+    /(?:create|add|make|generate|put|place)\s+(\d+)\s+(sticky|stickies|note|notes|card|cards|shape|shapes|text|texts|sticker|stickers|frame|frames|random|object|objects|thing|things|item|items)/i,
+  );
+  const bulkMatchReversed = !bulkMatch
+    ? prompt.match(/(\d+)\s+(?:random\s+)?(?:sticky|stickies|note|notes|card|cards|shape|shapes|text|texts|sticker|stickers|frame|frames|object|objects|thing|things|item|items)/i)
+    : null;
+
+  const rawCount = bulkMatch ? parseInt(bulkMatch[1], 10) : bulkMatchReversed ? parseInt(bulkMatchReversed[1], 10) : 0;
+  const rawType = bulkMatch ? bulkMatch[2].toLowerCase() : bulkMatchReversed ? bulkMatchReversed[0].toLowerCase() : '';
+
+  if (rawCount >= 1 && rawCount <= 500 && rawType) {
+    // Guard: if prompt has content qualifiers after the type, let LLM handle it
+    const contentWords = /\b(?:about|with|for|titled|saying|containing|regarding|related|labeled|named|called)\b/i;
+    if (contentWords.test(prompt)) return null;
+
+    let objectType: 'sticky' | 'shape' | 'text' | 'sticker' | 'frame' | 'random';
+    if (/sticky|stickies|note|notes|card|cards/.test(rawType)) objectType = 'sticky';
+    else if (/shape|shapes/.test(rawType)) objectType = 'shape';
+    else if (/text|texts/.test(rawType)) objectType = 'text';
+    else if (/sticker|stickers/.test(rawType)) objectType = 'sticker';
+    else if (/frame|frames/.test(rawType)) objectType = 'frame';
+    else objectType = 'random';
+
+    return { type: 'bulk-create', count: rawCount, objectType };
   }
 
   // Structural templates
@@ -754,13 +809,19 @@ async function executeFlowchart(
   boardId: string,
   userId: string,
   objectsCreated: string[],
+  viewport?: { x: number; y: number; width: number; height: number },
 ): Promise<string> {
   const objectsRef = db.collection(`boards/${boardId}/objects`);
   const now = Date.now();
   const batch = db.batch();
   const spacing = 280;
-  const startX = 100;
-  const startY = 300;
+  const totalWidth = (nodes.length - 1) * spacing + 200;
+  const startX = viewport
+    ? Math.round(viewport.x - viewport.width / 2 + (viewport.width - totalWidth) / 2)
+    : 100;
+  const startY = viewport
+    ? Math.round(viewport.y - 100)
+    : 300;
   const nodeIds: string[] = [];
 
   // Create stickies in a row
@@ -817,13 +878,15 @@ async function executeTemplate(
   boardId: string,
   userId: string,
   objectsCreated: string[],
+  viewport?: { x: number; y: number; width: number; height: number },
 ): Promise<string> {
   const objectsRef = db.collection(`boards/${boardId}/objects`);
   const now = Date.now();
   const batch = db.batch();
   const titleBarH = 36; // Math.max(36, defaultFontSize(14) + 20)
-  const startX = 0;
-  const startY = titleBarH; // offset so first row's title bars don't clip at top
+  // Viewport-aware positioning: center the template in the user's visible area
+  const startX = viewport ? Math.round(viewport.x - viewport.width / 2 + 40) : 0;
+  const startY = viewport ? Math.round(viewport.y - viewport.height / 2 + 40 + titleBarH) : titleBarH;
 
   switch (templateType) {
     case 'swot': {
@@ -994,6 +1057,113 @@ async function executeTemplate(
     'eisenhower': 'Eisenhower matrix', 'mind-map': 'mind map',
   };
   return `Done! Created ${templateNames[templateType] || templateType}.`;
+}
+
+async function executeBulkCreate(
+  count: number,
+  objectType: 'sticky' | 'shape' | 'text' | 'sticker' | 'frame' | 'random',
+  boardId: string,
+  userId: string,
+  objectsCreated: string[],
+  viewport?: { x: number; y: number; width: number; height: number },
+): Promise<string> {
+  const objectsRef = db.collection(`boards/${boardId}/objects`);
+  const now = Date.now();
+
+  const colors = ['#fef9c3', '#dbeafe', '#dcfce7', '#fce7f3', '#f3e8ff', '#ffedd5'];
+  const randomTypes: Array<'sticky' | 'shape' | 'text' | 'sticker'> = ['sticky', 'shape', 'text', 'sticker'];
+  const emojis = ['😊', '🎯', '💡', '🔥', '⭐', '🚀', '✨', '🎨', '📌', '🏆'];
+  const shapeTypes = ['rect', 'circle', 'triangle', 'diamond'];
+  const objSize = objectType === 'text' ? { w: 200, h: 40 } : { w: 200, h: 200 };
+  const padding = 20;
+  const cols = Math.ceil(Math.sqrt(count));
+  const cellW = objSize.w + padding;
+  const cellH = objSize.h + padding;
+  const totalW = cols * cellW;
+  const totalH = Math.ceil(count / cols) * cellH;
+
+  const baseX = viewport
+    ? Math.round(viewport.x - viewport.width / 2 + (viewport.width - totalW) / 2)
+    : 100;
+  const baseY = viewport
+    ? Math.round(viewport.y - viewport.height / 2 + (viewport.height - totalH) / 2)
+    : 100;
+
+  // Split into batches of 450 to stay under Firestore's 500-op limit
+  const batchSize = 450;
+  for (let batchStart = 0; batchStart < count; batchStart += batchSize) {
+    const batchEnd = Math.min(batchStart + batchSize, count);
+    const batch = db.batch();
+
+    for (let i = batchStart; i < batchEnd; i++) {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x = baseX + col * cellW;
+      const y = baseY + row * cellH;
+      const color = colors[i % colors.length];
+      const resolvedType = objectType === 'random' ? randomTypes[i % randomTypes.length] : objectType;
+
+      const docRef = objectsRef.doc();
+      let data: Record<string, unknown>;
+
+      switch (resolvedType) {
+        case 'sticky':
+          data = {
+            type: 'sticky', text: '', x, y,
+            width: 200, height: 200, color, textColor: '#1e293b',
+            rotation: 0, createdBy: userId, updatedAt: now, parentId: '',
+          };
+          break;
+        case 'shape':
+          data = {
+            type: 'shape', shapeType: shapeTypes[i % shapeTypes.length], x, y,
+            width: 120, height: 120, color: '#dbeafe',
+            strokeColor: '#4f46e5', rotation: 0,
+            createdBy: userId, updatedAt: now, parentId: '',
+          };
+          break;
+        case 'text':
+          data = {
+            type: 'text', text: `Text ${i + 1}`, x, y,
+            width: 200, height: 40, fontSize: 24,
+            fontFamily: "'Inter', sans-serif", fontWeight: 'normal',
+            fontStyle: 'normal', textAlign: 'left',
+            color: '#1e293b', bgColor: 'transparent',
+            rotation: 0, createdBy: userId, updatedAt: now, parentId: '',
+          };
+          break;
+        case 'sticker':
+          data = {
+            type: 'sticker', emoji: emojis[i % emojis.length], x, y,
+            width: 150, height: 150,
+            rotation: 0, createdBy: userId, updatedAt: now, parentId: '',
+          };
+          break;
+        case 'frame':
+          data = {
+            type: 'frame', title: `Frame ${i + 1}`, x, y,
+            width: 400, height: 300,
+            rotation: 0, createdBy: userId, updatedAt: now, parentId: '',
+            sentToBack: true,
+          };
+          break;
+        default:
+          data = {
+            type: 'sticky', text: '', x, y,
+            width: 200, height: 200, color, textColor: '#1e293b',
+            rotation: 0, createdBy: userId, updatedAt: now, parentId: '',
+          };
+      }
+
+      batch.set(docRef, data);
+      objectsCreated.push(docRef.id);
+    }
+
+    await batch.commit();
+  }
+
+  const typeLabel = objectType === 'random' ? 'objects' : `${objectType}${count !== 1 ? 's' : ''}`;
+  return `Done! Created ${count} ${typeLabel}.`;
 }
 
 function buildObjectData(
@@ -1181,6 +1351,10 @@ async function executeExecutePlan(
   planAiGroupId?: string,
   planAiGroupLabel?: string,
 ): Promise<string> {
+  console.log(`executePlan: ${operations.length} operations for board ${boardId}`);
+  if (operations.length > 0) {
+    console.log(`executePlan ops: ${operations.slice(0, 5).map(o => o.op).join(', ')}${operations.length > 5 ? ` ...+${operations.length - 5} more` : ''}`);
+  }
   const objectsRef = db.collection(`boards/${boardId}/objects`);
   const now = Date.now();
   const batch = db.batch();
@@ -1197,12 +1371,30 @@ async function executeExecutePlan(
     }
   }
 
-  // Step 2: Build objects and add to batch
+  // Step 2: Resolve GIF URLs in parallel before building the batch
+  const gifResults = new Map<number, string | null>();
+  await Promise.all(
+    operations.map(async (item, i) => {
+      if (item.op === 'createGifSticker') {
+        const term = (item.params ?? {}).searchTerm ?? '';
+        gifResults.set(i, await searchGiphy(term));
+      }
+    }),
+  );
+
+  // Step 3: Build objects and add to batch
   const created: string[] = [];
+  const failedGifs: string[] = [];
   for (let i = 0; i < operations.length; i++) {
     const item = operations[i];
     const params: ToolInput = item.params ?? {};
     const docRef = docRefs[i];
+
+    // Skip GIF stickers that failed to resolve
+    if (item.op === 'createGifSticker' && !gifResults.get(i)) {
+      failedGifs.push(params.searchTerm ?? 'unknown');
+      continue;
+    }
 
     // Resolve tempId references in params
     if (params.fromId && tempIdMap.has(params.fromId)) params.fromId = tempIdMap.get(params.fromId)!;
@@ -1224,15 +1416,24 @@ async function executeExecutePlan(
     }
 
     const data = buildObjectData(item.op, params, userId, now, resolvedGroupId);
+    // Inject resolved GIF URL for gif stickers
+    if (item.op === 'createGifSticker' && gifResults.get(i)) {
+      data.gifUrl = gifResults.get(i)!;
+    }
     batch.set(docRef, data);
     objectsCreated.push(docRef.id);
     created.push(docRef.id);
   }
 
-  // Step 3: Single atomic write
+  // Step 4: Single atomic write
   await batch.commit();
 
-  return JSON.stringify({ success: true, created, count: created.length });
+  const result: Record<string, unknown> = { success: true, created, count: created.length };
+  if (failedGifs.length > 0) {
+    result.gifSearchFailed = failedGifs;
+    result.note = `No GIF results for: ${failedGifs.map(t => `"${t}"`).join(', ')}. Try different, simpler search terms with createGifSticker.`;
+  }
+  return JSON.stringify(result);
 }
 
 async function executeTool(
@@ -1353,12 +1554,18 @@ async function executeTool(
     }
 
     case 'createGifSticker': {
+      const searchTerm = input.searchTerm ?? '';
+      const gifUrl = await searchGiphy(searchTerm);
+      if (!gifUrl) {
+        return JSON.stringify({ error: `No GIF results for "${searchTerm}". Try a different, simpler search term.` });
+      }
       const docRef = objectsRef.doc();
       const size = input.size ?? 150;
       const data: Record<string, unknown> = {
         type: 'sticker',
         emoji: '',
-        gifSearchTerm: input.searchTerm ?? '',
+        gifUrl,
+        gifSearchTerm: searchTerm,
         x: input.x ?? 0,
         y: input.y ?? 0,
         width: size,
@@ -1372,7 +1579,7 @@ async function executeTool(
       if (resolvedGroupId) data.aiGroupId = resolvedGroupId;
       await docRef.set(data);
       objectsCreated.push(docRef.id);
-      return JSON.stringify({ id: docRef.id, type: 'sticker', searchTerm: input.searchTerm });
+      return JSON.stringify({ id: docRef.id, type: 'sticker', gifUrl });
     }
 
     case 'createText': {
@@ -1894,7 +2101,7 @@ async function executeTool(
 }
 
 // ---- Shared secrets config for both trigger and callable ----
-const functionSecrets = [anthropicApiKey, langchainApiKey, langfuseSecretKey, langfusePublicKey, langfuseHost];
+const functionSecrets = [anthropicApiKey, langchainApiKey, langfuseSecretKey, langfusePublicKey, langfuseHost, giphyApiKey];
 
 // Read-only tools that return data but don't modify the board
 const READ_ONLY_TOOLS = new Set([
@@ -1909,12 +2116,13 @@ interface ProcessAIParams {
   prompt: string;
   userId: string;
   selectedIds?: string[];
+  viewport?: { x: number; y: number; width: number; height: number };
 }
 
 async function processAICore(
   params: ProcessAIParams,
 ): Promise<{ response: string; objectsCreated: string[] }> {
-  const { boardId, requestId, prompt, userId, selectedIds } = params;
+  const { boardId, requestId, prompt, userId, selectedIds, viewport } = params;
   const requestRef = db.doc(`boards/${boardId}/aiRequests/${requestId}`);
 
   // Mark as processing
@@ -1929,9 +2137,11 @@ async function processAICore(
     try {
       let responseText: string;
       if (templateMatch.type === 'flowchart') {
-        responseText = await executeFlowchart(templateMatch.nodes, boardId, userId, objectsCreated);
+        responseText = await executeFlowchart(templateMatch.nodes, boardId, userId, objectsCreated, viewport);
+      } else if (templateMatch.type === 'bulk-create') {
+        responseText = await executeBulkCreate(templateMatch.count, templateMatch.objectType, boardId, userId, objectsCreated, viewport);
       } else {
-        responseText = await executeTemplate(templateMatch.templateType, boardId, userId, objectsCreated);
+        responseText = await executeTemplate(templateMatch.templateType, boardId, userId, objectsCreated, viewport);
       }
       await requestRef.update({
         status: 'completed',
@@ -1986,6 +2196,15 @@ async function processAICore(
       userMessage = prompt;
     }
 
+    // Inject viewport so LLM places objects in the user's visible area
+    if (viewport) {
+      const vx = Math.round(viewport.x - viewport.width / 2);
+      const vy = Math.round(viewport.y - viewport.height / 2);
+      const vw = Math.round(viewport.width);
+      const vh = Math.round(viewport.height);
+      userMessage += `\n\nUser viewport (visible area): x=${vx}, y=${vy}, width=${vw}, height=${vh}. Place new objects within this region.`;
+    }
+
     if (hasSelection && boardState) {
       const selectedObjects = boardState.filter(obj => selectedIds!.includes(obj.id));
       if (selectedObjects.length > 0) {
@@ -2037,6 +2256,7 @@ async function processAICore(
             let result: string;
             if (toolCall.name === 'executePlan') {
               const planArgs = toolCall.args as any;
+              console.log(`executePlan raw args keys: ${Object.keys(planArgs || {}).join(', ')}`);
               result = await executeExecutePlan(
                 planArgs.operations ?? [],
                 boardId,
@@ -2078,6 +2298,44 @@ async function processAICore(
       }
 
       break;
+    }
+
+    // LLM count validation: if user requested N objects but fewer were created, ask for more
+    const countMatch = prompt.match(/(?:create|add|make|generate)\s+(\d+)/i)
+      || prompt.match(/(\d+)\s+(?:random|new)\b/i);
+    if (countMatch && objectsCreated.length > 0) {
+      const requestedCount = parseInt(countMatch[1], 10);
+      const deficit = requestedCount - objectsCreated.length;
+      if (deficit > 0 && deficit <= 500) {
+        await requestRef.update({ progress: `Created ${objectsCreated.length}/${requestedCount}, creating ${deficit} more...` });
+        const correctionMsg = `You created ${objectsCreated.length} objects but the user requested ${requestedCount}. Please create ${deficit} more to reach the exact count.`;
+        if (lastResponse) messages.push(lastResponse);
+        messages.push(new HumanMessage(correctionMsg));
+
+        const correctionResponse = await modelWithTools.invoke(messages, {
+          callbacks: [langfuseHandler],
+        });
+
+        const corrToolCalls = correctionResponse.tool_calls ?? [];
+        if (corrToolCalls.length > 0) {
+          await Promise.all(
+            corrToolCalls.map(async (toolCall) => {
+              try {
+                const args = (toolCall.args && typeof toolCall.args === 'object') ? toolCall.args as ToolInput : {} as ToolInput;
+                if (toolCall.name === 'executePlan') {
+                  const planArgs = toolCall.args as any;
+                  await executeExecutePlan(planArgs.operations ?? [], boardId, userId, objectsCreated, groupLabels);
+                } else {
+                  await executeTool(toolCall.name, args, boardId, userId, objectsCreated, groupLabels, selectedIds);
+                }
+              } catch (toolErr: unknown) {
+                console.error(`Correction tool ${toolCall.name} error:`, toolErr);
+              }
+            }),
+          );
+          allToolCalls.push(...corrToolCalls.map(tc => ({ name: tc.name, args: tc.args as ToolInput })));
+        }
+      }
     }
 
     // Build deterministic summary from executed tool names (skip read-only tools)
@@ -2146,7 +2404,10 @@ export const processAIRequest = onDocumentCreated(
     const boardId = event.params.boardId;
     const requestId = event.params.requestId;
 
-    const { prompt, userId, selectedIds } = data as { prompt: string; userId: string; selectedIds?: string[] };
+    const { prompt, userId, selectedIds, viewport } = data as {
+      prompt: string; userId: string; selectedIds?: string[];
+      viewport?: { x: number; y: number; width: number; height: number };
+    };
 
     if (!prompt || !userId) {
       await db.doc(`boards/${boardId}/aiRequests/${requestId}`).update({
@@ -2163,7 +2424,7 @@ export const processAIRequest = onDocumentCreated(
     if (currentStatus !== 'pending') return;
 
     try {
-      await processAICore({ boardId, requestId, prompt, userId, selectedIds });
+      await processAICore({ boardId, requestId, prompt, userId, selectedIds, viewport });
     } catch {
       // Error already written to Firestore by processAICore
     }
@@ -2185,11 +2446,12 @@ export const processAIRequestCallable = onCall(
       throw new HttpsError('unauthenticated', 'Must be signed in to use AI commands.');
     }
 
-    const { boardId, requestId, prompt, selectedIds } = request.data as {
+    const { boardId, requestId, prompt, selectedIds, viewport } = request.data as {
       boardId: string;
       requestId: string;
       prompt: string;
       selectedIds?: string[];
+      viewport?: { x: number; y: number; width: number; height: number };
     };
 
     if (!boardId || !requestId || !prompt) {
@@ -2197,7 +2459,7 @@ export const processAIRequestCallable = onCall(
     }
 
     try {
-      const result = await processAICore({ boardId, requestId, prompt, userId, selectedIds });
+      const result = await processAICore({ boardId, requestId, prompt, userId, selectedIds, viewport });
       return result;
     } catch (err: unknown) {
       // processAICore already wrote the error to Firestore
@@ -2206,3 +2468,7 @@ export const processAIRequestCallable = onCall(
     }
   },
 );
+
+// ---- Exports for testing ----
+export { detectTemplate, buildObjectData, requestNeedsContext, resolveFontFamily, computeAutoOrigin, executeBulkCreate };
+export type { TemplateMatch };

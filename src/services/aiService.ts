@@ -1,12 +1,14 @@
 import { collection, addDoc, onSnapshot, doc } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
+import { httpsCallable, httpsCallableFromURL } from 'firebase/functions';
 import { db, auth, functions } from './firebase';
 import type { ViewportCenter } from '../components/AIChat/AIChat';
 import { detectTemplate, isClientExecutable, executeTemplateMatch } from './templateEngine';
 
-const processAICallable = httpsCallable(functions, 'processAIRequestCallable', {
-  timeout: 300_000,
-});
+// In production, route through Firebase Hosting rewrite to bypass Cloud Run IAM.
+// In emulator mode, call the function directly (emulator doesn't have IAM restrictions).
+const processAICallable = import.meta.env.VITE_USE_EMULATORS === 'true'
+  ? httpsCallable(functions, 'processAIRequestCallable', { timeout: 300_000 })
+  : httpsCallableFromURL(functions, '/api/processAIRequestCallable', { timeout: 300_000 });
 
 export interface AICommandOutput {
   response: string;

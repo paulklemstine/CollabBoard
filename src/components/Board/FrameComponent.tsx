@@ -173,17 +173,17 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
       });
       tweenRef.current.play();
     } else if (isMouseHovered) {
-      // Mouse hover — use custom frame colors when set
+      // Mouse hover — match default state (no purple glow); tint overlay handles feedback
       const hasBorderlessStroke = frame.borderless && frame.borderColor;
       tweenRef.current = new Konva.Tween({
         node: rect,
         duration: 0.15,
-        stroke: frame.borderless ? (frame.borderColor || 'transparent') : (frame.borderColor || '#c084fc'),
-        strokeWidth: frame.borderless ? (hasBorderlessStroke ? 2.5 : 0) : 3,
-        fill: frame.color || (frame.borderless ? 'transparent' : 'rgba(250, 245, 255, 0.2)'),
-        shadowColor: frame.borderless ? 'transparent' : (frame.borderColor || 'rgba(168, 85, 247, 0.2)'),
-        shadowBlur: frame.borderless ? 0 : 10,
-        shadowOpacity: frame.borderless ? 0 : 0.4,
+        stroke: frame.borderless ? (frame.borderColor || 'transparent') : (frame.borderColor || '#a78bfa'),
+        strokeWidth: frame.borderless ? (hasBorderlessStroke ? 2.5 : 0) : 2.5,
+        fill: frame.color || (frame.borderless ? 'transparent' : 'rgba(250, 245, 255, 0.12)'),
+        shadowColor: 'transparent',
+        shadowBlur: 0,
+        shadowOpacity: 0,
         easing: Konva.Easings.EaseInOut,
       });
       tweenRef.current.play();
@@ -401,6 +401,17 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
           shadowBlur={24}
           shadowOpacity={0.5}
           cornerRadius={18}
+          listening={false}
+        />
+      )}
+      {/* Hover tint overlay */}
+      {isMouseHovered && !isSelected && hoverState === 'none' && (
+        <Rect
+          width={localWidth}
+          height={localHeight}
+          cornerRadius={16}
+          fill="#3b82f6"
+          opacity={0.12}
           listening={false}
         />
       )}

@@ -265,19 +265,14 @@ export function StickerComponent({
           listening={false}
         />
       )}
-      {/* Hover highlight */}
+      {/* Hover tint overlay */}
       {isMouseHovered && !isSelected && (
         <Rect
-          x={panelX}
-          width={localWidth - panelX + localWidth * 0.05}
-          height={panelHeight}
-          fill="transparent"
-          stroke="#a78bfa"
-          strokeWidth={2}
+          width={localWidth}
+          height={localHeight}
           cornerRadius={16}
-          shadowColor="#8b5cf6"
-          shadowBlur={16}
-          shadowOpacity={0.35}
+          fill="#3b82f6"
+          opacity={0.12}
           listening={false}
         />
       )}

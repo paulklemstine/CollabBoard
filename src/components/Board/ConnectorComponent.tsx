@@ -131,8 +131,6 @@ export function ConnectorComponent({ connector, objects, onDelete }: ConnectorCo
   const lineType = connector.lineType ?? (connector.style === 'curved' ? 'dashed' : 'solid');
   const startArrow = connector.startArrow ?? false;
   const endArrow = connector.endArrow !== false; // default true for legacy
-  const hoverSw = sw + 1;
-
   const dash = getDash(lineType, sw);
   const shadowColor = color;
 
@@ -254,11 +252,26 @@ export function ConnectorComponent({ connector, objects, onDelete }: ConnectorCo
     return (
       <Group>
         {hitArea}
+        {isHovered && (
+          <Arrow
+            points={points}
+            tension={isCurved ? 0.5 : undefined}
+            stroke="#3b82f6"
+            strokeWidth={sw + 4}
+            fill="#3b82f6"
+            pointerLength={pointerLength + 4}
+            pointerWidth={pointerWidth + 4}
+            opacity={0.2}
+            lineCap="round"
+            lineJoin="round"
+            listening={false}
+          />
+        )}
         <Arrow
           points={points}
           tension={isCurved ? 0.5 : undefined}
           stroke={color}
-          strokeWidth={isHovered ? hoverSw : sw}
+          strokeWidth={sw}
           fill={color}
           pointerLength={pointerLength}
           pointerWidth={pointerWidth}
@@ -279,11 +292,23 @@ export function ConnectorComponent({ connector, objects, onDelete }: ConnectorCo
   return (
     <Group>
       {hitArea}
+      {isHovered && (
+        <Line
+          points={points}
+          tension={isCurved ? 0.5 : undefined}
+          stroke="#3b82f6"
+          strokeWidth={sw + 4}
+          opacity={0.2}
+          lineCap="round"
+          lineJoin="round"
+          listening={false}
+        />
+      )}
       <Line
         points={points}
         tension={isCurved ? 0.5 : undefined}
         stroke={color}
-        strokeWidth={isHovered ? hoverSw : sw}
+        strokeWidth={sw}
         shadowColor={shadowColor}
         shadowBlur={isHovered ? 16 : 12}
         shadowOpacity={isHovered ? 0.5 : 0.4}

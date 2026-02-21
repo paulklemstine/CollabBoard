@@ -245,9 +245,9 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
 
   const renderShape = () => {
     const highlighted = isConnectorHighlighted || isMouseHovered;
-    const defaultStroke = isMouseHovered ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)';
+    const defaultStroke = 'rgba(255,255,255,0.4)';
     const stroke = isConnectorHighlighted ? '#818cf8' : (shape.strokeColor || defaultStroke);
-    const strokeWidth = isConnectorHighlighted ? 4 : (shape.strokeColor ? 2 : (isMouseHovered ? 2.5 : 1.5));
+    const strokeWidth = isConnectorHighlighted ? 4 : (shape.strokeColor ? 2 : 1.5);
 
     switch (shape.shapeType) {
       case 'rect':
@@ -391,6 +391,37 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
     }
   };
 
+  const renderHoverTint = () => {
+    if (!isMouseHovered || isSelected || isConnectorHighlighted) return null;
+    const tintColor = '#3b82f6';
+    const tintOpacity = 0.12;
+    switch (shape.shapeType) {
+      case 'rect':
+        return <Rect width={localWidth} height={localHeight} cornerRadius={16} fill={tintColor} opacity={tintOpacity} listening={false} />;
+      case 'circle':
+        return <Circle x={localWidth / 2} y={localHeight / 2} radius={Math.min(localWidth, localHeight) / 2} fill={tintColor} opacity={tintOpacity} listening={false} />;
+      case 'line':
+        return <Line points={[0, localHeight / 2, localWidth, localHeight / 2]} stroke={tintColor} strokeWidth={10} opacity={0.2} lineCap="round" listening={false} />;
+      case 'triangle':
+      case 'pentagon':
+      case 'hexagon':
+      case 'octagon': {
+        const sides = shape.shapeType === 'triangle' ? 3 : shape.shapeType === 'pentagon' ? 5 : shape.shapeType === 'hexagon' ? 6 : 8;
+        return <Line points={regularPolygonPoints(localWidth, localHeight, sides)} closed fill={tintColor} opacity={tintOpacity} lineJoin="round" listening={false} />;
+      }
+      case 'diamond':
+        return <Line points={[localWidth / 2, 0, localWidth, localHeight / 2, localWidth / 2, localHeight, 0, localHeight / 2]} closed fill={tintColor} opacity={tintOpacity} lineJoin="round" listening={false} />;
+      case 'star':
+        return <Line points={starPoints(localWidth, localHeight)} closed fill={tintColor} opacity={tintOpacity} lineJoin="round" listening={false} />;
+      case 'arrow':
+        return <Line points={arrowPoints(localWidth, localHeight)} closed fill={tintColor} opacity={tintOpacity} lineJoin="round" listening={false} />;
+      case 'cross':
+        return <Line points={crossPoints(localWidth, localHeight)} closed fill={tintColor} opacity={tintOpacity} lineJoin="round" listening={false} />;
+      default:
+        return <Rect width={localWidth} height={localHeight} cornerRadius={16} fill={tintColor} opacity={tintOpacity} listening={false} />;
+    }
+  };
+
   const handleResizeDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
     e.cancelBubble = true;
     let newWidth = Math.max(MIN_WIDTH, e.target.x() + resizeHandleSizeRef.current);
@@ -484,6 +515,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
       <Rect x={-30} y={-30} width={localWidth + 60} height={localHeight + 60}
             fill="transparent" listening={true} />
       {renderShape()}
+      {renderHoverTint()}
       {/* Selection highlight — only for single-select */}
       {isSelected && !selectionBox && (
         <Rect

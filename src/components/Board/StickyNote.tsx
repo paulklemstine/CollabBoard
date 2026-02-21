@@ -296,6 +296,17 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
         stroke={isConnectorHighlighted ? '#818cf8' : (note.borderColor || getComplementaryColor(note.color))}
         strokeWidth={isConnectorHighlighted ? 4 : (note.borderColor ? 2.5 : 3)}
       />
+      {/* Hover tint overlay */}
+      {isMouseHovered && !isSelected && !isConnectorHighlighted && (
+        <Rect
+          width={localWidth}
+          height={localHeight}
+          cornerRadius={14}
+          fill="#3b82f6"
+          opacity={0.12}
+          listening={false}
+        />
+      )}
       {/* Selection highlight — only for single-select */}
       {isSelected && !selectionBox && (
         <Rect

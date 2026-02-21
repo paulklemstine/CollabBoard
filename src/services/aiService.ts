@@ -1,4 +1,4 @@
-import { collection, addDoc, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, doc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, auth, functions } from './firebase';
 
@@ -49,8 +49,6 @@ export async function sendAICommand(
 
   // 3. Try callable first (lower latency), fall back to Firestore trigger
   try {
-    await updateDoc(requestDocRef, { status: 'callable' });
-
     const result = await processAICallable({
       boardId,
       requestId: docRef.id,
@@ -58,11 +56,10 @@ export async function sendAICommand(
       selectedIds,
     });
 
+    unsubscribe?.();
     return result.data;
   } catch {
-    // Callable failed (likely IAM/permissions) — revert to pending so trigger picks it up
-    await updateDoc(requestDocRef, { status: 'pending' });
-
+    // Callable failed (likely IAM/permissions) — trigger will pick up the pending doc
     return new Promise<AICommandOutput>((resolve, reject) => {
       const timeout = setTimeout(() => {
         triggerUnsub();
@@ -94,7 +91,5 @@ export async function sendAICommand(
         }
       });
     });
-  } finally {
-    unsubscribe?.();
   }
 }

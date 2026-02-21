@@ -506,7 +506,7 @@ function BoardView({
       const ctx = offscreen.getContext('2d');
       if (!ctx) { zoomControls.setTransform(savedTransform); return null; }
 
-      ctx.fillStyle = '#f8fafc';
+      ctx.fillStyle = '#f8f7f6';
       ctx.fillRect(0, 0, WIDTH, HEIGHT);
       ctx.drawImage(sourceCanvas, 0, 0, WIDTH, HEIGHT);
 
@@ -708,8 +708,8 @@ function BoardView({
         return { ...obj, x, y, width, height, rotation };
       }
 
-      // Frame drag offset for children of the dragged frame
-      if (frameDragOffset && obj.parentId === frameDragOffset.frameId) {
+      // Frame drag offset for the dragged frame itself AND its children
+      if (frameDragOffset && (obj.id === frameDragOffset.frameId || obj.parentId === frameDragOffset.frameId)) {
         return {
           ...obj,
           x: obj.x + frameDragOffset.dx,

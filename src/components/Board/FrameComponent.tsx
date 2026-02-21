@@ -36,9 +36,10 @@ interface FrameComponentProps {
   groupTransformPreview?: GroupTransformPreview | null;
   selectionBox?: SelectionBox | null;
   dragTint?: 'accept' | 'reject' | 'none';
+  minChildBounds?: { width: number; height: number };
 }
 
-export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDuplicate, onDissolve, onTitleChange, onClick, hoverState = 'none', onResize, onRotate, onResizeEnd, onRotateEnd, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, dragOffset, parentRotation, isSelected, groupDragOffset, groupTransformPreview, selectionBox, dragTint = 'none' }: FrameComponentProps) {
+export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDuplicate, onDissolve, onTitleChange, onClick, hoverState = 'none', onResize, onRotate, onResizeEnd, onRotateEnd, onConnectorHoverEnter, onConnectorHoverLeave, isConnectorHighlighted, isNew, dragOffset, parentRotation, isSelected, groupDragOffset, groupTransformPreview, selectionBox, dragTint = 'none', minChildBounds }: FrameComponentProps) {
   const lastDragUpdate = useRef(0);
   const lastResizeUpdate = useRef(0);
   const titleRef = useRef<Konva.Text>(null);
@@ -771,8 +772,8 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
           }}
           onDragMove={(e) => {
             e.cancelBubble = true;
-            const newWidth = Math.max(MIN_WIDTH, e.target.x() + 20);
-            const newHeight = Math.max(MIN_HEIGHT, e.target.y() + 20);
+            const newWidth = Math.max(MIN_WIDTH, minChildBounds?.width ?? 0, e.target.x() + 20);
+            const newHeight = Math.max(MIN_HEIGHT, minChildBounds?.height ?? 0, e.target.y() + 20);
             setLocalWidth(newWidth);
             setLocalHeight(newHeight);
             const now = Date.now();
@@ -783,8 +784,8 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
           }}
           onDragEnd={(e) => {
             e.cancelBubble = true;
-            const newWidth = Math.max(MIN_WIDTH, e.target.x() + 20);
-            const newHeight = Math.max(MIN_HEIGHT, e.target.y() + 20);
+            const newWidth = Math.max(MIN_WIDTH, minChildBounds?.width ?? 0, e.target.x() + 20);
+            const newHeight = Math.max(MIN_HEIGHT, minChildBounds?.height ?? 0, e.target.y() + 20);
             setLocalWidth(newWidth);
             setLocalHeight(newHeight);
             (onResizeEnd ?? onResize)(frame.id, newWidth, newHeight);

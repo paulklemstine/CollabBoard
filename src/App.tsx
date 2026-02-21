@@ -780,7 +780,13 @@ function BoardView({
               />
             ) : null;
           })()}
-          {frames.map((frame) => (
+          {frames.map((frame) => {
+            const children = objects.filter((o) => o.parentId === frame.id);
+            const minChildBounds = children.length > 0 ? {
+              width: Math.max(...children.map((c) => c.x + c.width - frame.x)) + 10,
+              height: Math.max(...children.map((c) => c.y + c.height - frame.y)) + 10,
+            } : undefined;
+            return (
             <FrameComponent
               key={frame.id}
               frame={frame}
@@ -811,8 +817,10 @@ function BoardView({
               groupTransformPreview={selectedIds.size > 1 && isObjectSelected(frame.id) ? transformPreview : null}
               selectionBox={selectedIds.size > 1 && isObjectSelected(frame.id) ? selectionBox : null}
               dragTint={getDragTint(frame.id)}
+              minChildBounds={minChildBounds}
             />
-          ))}
+            );
+          })}
           {shapes.map((shape) => (
             <ShapeComponent
               key={shape.id}
@@ -975,7 +983,12 @@ function BoardView({
         canUndo={canUndo}
         canRedo={canRedo}
       />
-      <AIChat boardId={boardId} isOpen={aiOpen} onClose={() => setAiOpen(false)} onObjectsCreated={handleAIObjectsCreated} selectedIds={[...selectedIds]} />
+      <AIChat boardId={boardId} isOpen={aiOpen} onClose={() => setAiOpen(false)} onObjectsCreated={handleAIObjectsCreated} selectedIds={[...selectedIds]} getViewportCenter={() => ({
+        x: (-stageTransform.x + window.innerWidth / 2) / stageTransform.scale,
+        y: (-stageTransform.y + window.innerHeight / 2) / stageTransform.scale,
+        width: window.innerWidth / stageTransform.scale,
+        height: window.innerHeight / stageTransform.scale,
+      })} />
       {/* Confetti burst on AI completion — positioned near bottom-right */}
       <div className="fixed bottom-24 right-10 z-[9998]">
         <ConfettiBurst trigger={showConfetti} onComplete={() => setShowConfetti(false)} />
@@ -994,7 +1007,7 @@ function BoardView({
           </button>
           <div className="w-px h-6 bg-gray-300" />
           {boardMetadata && (
-              <span className="flex-1 px-3 text-center text-sm font-bold text-orange-500 truncate">
+              <span className="flex-1 px-3 text-center text-lg font-bold text-orange-500 truncate">
                 {boardMetadata.name}
               </span>
           )}

@@ -6,10 +6,24 @@ import { addObject, updateObject } from '../services/boardService';
 export type AnimationCommand =
   | { type: 'pause'; ms: number }
   | { type: 'update'; targetIndex: number; props: Record<string, unknown> }
-  | { type: 'create'; obj: Partial<AnyBoardObject> & { type: string }; parentIndex?: number; fromIndex?: number; toIndex?: number };
+  | { type: 'create'; obj: Partial<AnyBoardObject> & { type: string }; parentIndex?: number; fromIndex?: number; toIndex?: number }
+  | { type: 'ui'; drawer: string | null; tab?: string }
+  | { type: 'cursor'; target: string; click?: boolean }
+  | { type: 'select'; targetIndex: number }
+  | { type: 'multiselect'; targetIndices: number[] }
+  | { type: 'deselect' };
 
 export interface StepAnimation {
   commands: AnimationCommand[];
+}
+
+export interface AnimationCallbacks {
+  onDrawerChange: (drawer: string | null, tab?: string) => void;
+  onCursorChange: (pos: { x: number; y: number; clicking: boolean } | null) => void;
+  onSelect: (id: string) => void;
+  onMultiSelect: (ids: string[]) => void;
+  onClearSelection: () => void;
+  worldToScreen: (worldX: number, worldY: number) => { x: number; y: number };
 }
 
 // --- Helper: abortable sleep ---
@@ -22,6 +36,54 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
   });
 }
 
+// --- Target resolution ---
+
+interface ObjectRecord {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+function resolveTarget(
+  target: string,
+  createdObjects: Map<number, ObjectRecord>,
+  callbacks: AnimationCallbacks,
+): { x: number; y: number } | null {
+  if (target === 'hide') return null;
+
+  // CSS selector: '[data-tutorial-id="..."]'
+  if (target.startsWith('[')) {
+    const el = document.querySelector(target);
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    }
+    return null;
+  }
+
+  // Screen fraction: 'screen:0.5,0.6'
+  if (target.startsWith('screen:')) {
+    const parts = target.slice(7).split(',');
+    const xFrac = parseFloat(parts[0]);
+    const yFrac = parseFloat(parts[1]);
+    return { x: window.innerWidth * xFrac, y: window.innerHeight * yFrac };
+  }
+
+  // Object ref: 'object:0'
+  if (target.startsWith('object:')) {
+    const idx = parseInt(target.slice(7), 10);
+    const obj = createdObjects.get(idx);
+    if (obj) {
+      const screenPos = callbacks.worldToScreen(obj.x + obj.w / 2, obj.y + obj.h / 2);
+      return screenPos;
+    }
+    return null;
+  }
+
+  return null;
+}
+
 // --- Runner ---
 
 export async function runAnimation(
@@ -30,8 +92,10 @@ export async function runAnimation(
   userId: string,
   worldCenter: (xFrac: number, yFrac: number) => { x: number; y: number },
   signal: AbortSignal,
+  callbacks: AnimationCallbacks,
 ): Promise<string[]> {
   const newIds: string[] = [];
+  const createdObjects = new Map<number, ObjectRecord>();
 
   for (const cmd of animation.commands) {
     if (signal.aborted) break;
@@ -51,20 +115,24 @@ export async function runAnimation(
 
       case 'create': {
         const id = crypto.randomUUID();
+        const w = (cmd.obj.width as number) ?? 0;
+        const h = (cmd.obj.height as number) ?? 0;
         const pos = worldCenter(
           (cmd.obj.x as number) ?? 0.5,
           (cmd.obj.y as number) ?? 0.5,
         );
+        const isConnector = cmd.obj.type === 'connector';
+        const finalX = isConnector ? 0 : pos.x - w / 2;
+        const finalY = isConnector ? 0 : pos.y - h / 2;
         const base: Record<string, unknown> = {
           ...cmd.obj,
           id,
-          x: pos.x,
-          y: pos.y,
+          x: finalX,
+          y: finalY,
           rotation: (cmd.obj.rotation as number) ?? 0,
           createdBy: userId,
           updatedAt: Date.now(),
         };
-        // Resolve references to previously created objects in this animation
         if (cmd.parentIndex !== undefined && newIds[cmd.parentIndex]) {
           base.parentId = newIds[cmd.parentIndex];
         }
@@ -75,7 +143,58 @@ export async function runAnimation(
           base.toId = newIds[cmd.toIndex];
         }
         await addObject(boardId, base as unknown as AnyBoardObject);
+        const idx = newIds.length;
         newIds.push(id);
+        // Track position for object: targets
+        if (!isConnector) {
+          createdObjects.set(idx, { x: finalX, y: finalY, w, h });
+        }
+        break;
+      }
+
+      case 'ui': {
+        callbacks.onDrawerChange(cmd.drawer, cmd.tab);
+        break;
+      }
+
+      case 'cursor': {
+        const pos = resolveTarget(cmd.target, createdObjects, callbacks);
+        if (pos) {
+          callbacks.onCursorChange({ x: pos.x, y: pos.y, clicking: false });
+          // Wait for cursor to arrive
+          await sleep(650, signal);
+          // Click ripple if requested
+          if (cmd.click) {
+            callbacks.onCursorChange({ x: pos.x, y: pos.y, clicking: true });
+            await sleep(350, signal);
+            callbacks.onCursorChange({ x: pos.x, y: pos.y, clicking: false });
+          }
+        } else if (cmd.target === 'hide') {
+          callbacks.onCursorChange(null);
+        }
+        break;
+      }
+
+      case 'select': {
+        const targetId = newIds[cmd.targetIndex];
+        if (targetId) {
+          callbacks.onSelect(targetId);
+        }
+        break;
+      }
+
+      case 'multiselect': {
+        const ids = cmd.targetIndices
+          .map((i) => newIds[i])
+          .filter(Boolean);
+        if (ids.length > 0) {
+          callbacks.onMultiSelect(ids);
+        }
+        break;
+      }
+
+      case 'deselect': {
+        callbacks.onClearSelection();
         break;
       }
     }
@@ -86,17 +205,37 @@ export async function runAnimation(
 
 // --- Per-step animation scripts ---
 // Object positions use fractional screen coords (x: 0-1, y: 0-1).
-// All y values ≥ 0.5 so objects render below the tutorial tooltip panel.
-// 'targetIndex' is the index in `newIds` (objects created within this animation).
+// The runner centers objects on that position (subtracts half width/height).
+// All y values >= 0.5 so objects render below the tutorial tooltip panel.
+// 'cursor' commands guide the user through a realistic workflow.
 
 function stickyAnimation(): StepAnimation {
   return {
     commands: [
+      // Cursor moves to Shapes button and clicks
+      { type: 'cursor', target: '[data-tutorial-id="shape-tool"]', click: true },
+      { type: 'ui', drawer: 'shape', tab: 'shapes' },
+      { type: 'pause', ms: 800 },
+      // Cursor moves to Sticky option
+      { type: 'cursor', target: '[data-tutorial-id="shape-opt-sticky"]', click: true },
+      { type: 'pause', ms: 400 },
+      // Switch to colors tab
+      { type: 'ui', drawer: 'shape', tab: 'colors' },
+      { type: 'pause', ms: 800 },
+      // Close drawer
+      { type: 'ui', drawer: null },
+      // Cursor moves to canvas and creates sticky
+      { type: 'cursor', target: 'screen:0.5,0.6', click: true },
       { type: 'create', obj: {
         type: 'sticky', x: 0.5, y: 0.6, width: 180, height: 180,
         text: 'My first idea!', color: '#fef08a', textColor: '#1e293b',
       } },
-      { type: 'pause', ms: 800 },
+      { type: 'pause', ms: 700 },
+      // Cursor moves to the sticky and selects it
+      { type: 'cursor', target: 'object:0', click: true },
+      { type: 'select', targetIndex: 0 },
+      { type: 'pause', ms: 600 },
+      // Cycle colors via updates
       { type: 'update', targetIndex: 0, props: { color: '#93c5fd' } },
       { type: 'pause', ms: 500 },
       { type: 'update', targetIndex: 0, props: { color: '#86efac' } },
@@ -109,7 +248,10 @@ function stickyAnimation(): StepAnimation {
       { type: 'pause', ms: 600 },
       { type: 'update', targetIndex: 0, props: { fontWeight: 'bold' } },
       { type: 'pause', ms: 500 },
+      // Settle and deselect
       { type: 'update', targetIndex: 0, props: { color: '#fef08a', fontWeight: 'normal', text: 'My first idea!' } },
+      { type: 'deselect' },
+      { type: 'cursor', target: 'hide' },
     ],
   };
 }
@@ -117,30 +259,65 @@ function stickyAnimation(): StepAnimation {
 function textAnimation(): StepAnimation {
   return {
     commands: [
+      // Cursor moves to Text chevron and opens drawer
+      { type: 'cursor', target: '[data-tutorial-id="text-button"]', click: false },
+      { type: 'pause', ms: 300 },
+      // Open the text drawer by targeting the chevron area
+      { type: 'ui', drawer: 'text' },
+      { type: 'pause', ms: 600 },
+      // Cursor moves to Bold button
+      { type: 'cursor', target: '[data-tutorial-id="text-opt-bold"]', click: true },
+      { type: 'pause', ms: 400 },
+      // Cursor moves to Serif font
+      { type: 'cursor', target: '[data-tutorial-id="text-opt-serif"]', click: true },
+      { type: 'pause', ms: 400 },
+      // Close drawer
+      { type: 'ui', drawer: null },
+      // Cursor to canvas — create title text
+      { type: 'cursor', target: 'screen:0.5,0.52', click: true },
       { type: 'create', obj: {
-        type: 'text', x: 0.5, y: 0.6, width: 260, height: 50,
-        text: 'Welcome to my board!', fontSize: 28,
+        type: 'text', x: 0.5, y: 0.52, width: 280, height: 50,
+        text: 'Bold Title', fontSize: 32,
         fontFamily: "'Inter', sans-serif", fontWeight: 'bold', fontStyle: 'normal',
         textAlign: 'center', color: '#7c3aed',
       } },
       { type: 'pause', ms: 700 },
-      { type: 'update', targetIndex: 0, props: { fontFamily: 'Georgia, serif' } },
-      { type: 'pause', ms: 600 },
-      { type: 'update', targetIndex: 0, props: { fontFamily: "'Courier New', monospace" } },
-      { type: 'pause', ms: 600 },
-      { type: 'update', targetIndex: 0, props: { fontSize: 36, fontFamily: "'Inter', sans-serif" } },
+      // Create subtitle
+      { type: 'cursor', target: 'screen:0.5,0.62', click: true },
+      { type: 'create', obj: {
+        type: 'text', x: 0.5, y: 0.62, width: 260, height: 40,
+        text: 'Elegant subtitle', fontSize: 22,
+        fontFamily: 'Georgia, serif', fontWeight: 'normal', fontStyle: 'italic',
+        textAlign: 'center', color: '#059669',
+      } },
+      { type: 'pause', ms: 700 },
+      // Create code snippet
+      { type: 'cursor', target: 'screen:0.5,0.7', click: true },
+      { type: 'create', obj: {
+        type: 'text', x: 0.5, y: 0.7, width: 240, height: 30,
+        text: 'code_snippet()', fontSize: 18,
+        fontFamily: "'Courier New', monospace", fontWeight: 'normal', fontStyle: 'normal',
+        textAlign: 'left', color: '#dc2626',
+      } },
+      { type: 'pause', ms: 800 },
+      // Select title and cycle styles
+      { type: 'cursor', target: 'object:0', click: true },
+      { type: 'select', targetIndex: 0 },
+      { type: 'pause', ms: 400 },
+      { type: 'update', targetIndex: 0, props: { color: '#dc2626' } },
       { type: 'pause', ms: 500 },
-      { type: 'update', targetIndex: 0, props: { fontSize: 20 } },
+      { type: 'update', targetIndex: 0, props: { color: '#059669' } },
       { type: 'pause', ms: 500 },
-      { type: 'update', targetIndex: 0, props: { textAlign: 'left', fontSize: 28 } },
+      { type: 'update', targetIndex: 0, props: { fontSize: 36 } },
+      { type: 'pause', ms: 500 },
+      { type: 'update', targetIndex: 0, props: { textAlign: 'left' } },
       { type: 'pause', ms: 400 },
       { type: 'update', targetIndex: 0, props: { textAlign: 'right' } },
       { type: 'pause', ms: 400 },
-      { type: 'update', targetIndex: 0, props: { color: '#dc2626', textAlign: 'center' } },
-      { type: 'pause', ms: 400 },
-      { type: 'update', targetIndex: 0, props: { color: '#059669' } },
-      { type: 'pause', ms: 400 },
-      { type: 'update', targetIndex: 0, props: { color: '#7c3aed' } },
+      // Settle
+      { type: 'update', targetIndex: 0, props: { color: '#7c3aed', fontSize: 32, textAlign: 'center' } },
+      { type: 'deselect' },
+      { type: 'cursor', target: 'hide' },
     ],
   };
 }
@@ -148,95 +325,61 @@ function textAnimation(): StepAnimation {
 function shapeAnimation(): StepAnimation {
   return {
     commands: [
+      // Cursor to Shapes button
+      { type: 'cursor', target: '[data-tutorial-id="shape-tool"]', click: true },
+      // Show colors tab
+      { type: 'ui', drawer: 'shape', tab: 'colors' },
+      { type: 'pause', ms: 1000 },
+      // Switch to shapes tab
+      { type: 'ui', drawer: 'shape', tab: 'shapes' },
+      { type: 'pause', ms: 600 },
+      // Cursor to Star option
+      { type: 'cursor', target: '[data-tutorial-id="shape-opt-star"]', click: true },
+      { type: 'pause', ms: 400 },
+      // Close drawer
+      { type: 'ui', drawer: null },
+      // Create 3 shapes on canvas
+      { type: 'cursor', target: 'screen:0.35,0.6', click: true },
       { type: 'create', obj: {
-        type: 'shape', shapeType: 'star', x: 0.5, y: 0.6,
-        width: 140, height: 140, color: '#c4b5fd', strokeColor: '#7c3aed',
+        type: 'shape', shapeType: 'star', x: 0.35, y: 0.6,
+        width: 130, height: 130, color: '#fca5a5', strokeColor: '#dc2626',
       } },
-      { type: 'pause', ms: 700 },
-      { type: 'update', targetIndex: 0, props: { shapeType: 'circle' } },
       { type: 'pause', ms: 500 },
+      { type: 'cursor', target: 'screen:0.5,0.6', click: true },
+      { type: 'create', obj: {
+        type: 'shape', shapeType: 'circle', x: 0.5, y: 0.6,
+        width: 130, height: 130, color: '#93c5fd', strokeColor: '#2563eb',
+      } },
+      { type: 'pause', ms: 500 },
+      { type: 'cursor', target: 'screen:0.65,0.6', click: true },
+      { type: 'create', obj: {
+        type: 'shape', shapeType: 'hexagon', x: 0.65, y: 0.6,
+        width: 130, height: 130, color: '#86efac', strokeColor: '#16a34a',
+      } },
+      { type: 'pause', ms: 800 },
+      // Multiselect all 3 shapes
+      { type: 'multiselect', targetIndices: [0, 1, 2] },
+      { type: 'pause', ms: 1200 },
+      // Morph shapes while selected
       { type: 'update', targetIndex: 0, props: { shapeType: 'diamond' } },
-      { type: 'pause', ms: 500 },
-      { type: 'update', targetIndex: 0, props: { shapeType: 'hexagon' } },
-      { type: 'pause', ms: 500 },
-      { type: 'update', targetIndex: 0, props: { shapeType: 'triangle' } },
-      { type: 'pause', ms: 500 },
-      { type: 'update', targetIndex: 0, props: { color: '#fca5a5', shapeType: 'star' } },
-      { type: 'pause', ms: 400 },
-      { type: 'update', targetIndex: 0, props: { color: '#93c5fd' } },
-      { type: 'pause', ms: 400 },
-      { type: 'update', targetIndex: 0, props: { color: '#86efac' } },
-      { type: 'pause', ms: 400 },
-      { type: 'update', targetIndex: 0, props: { width: 180, height: 180, color: '#c4b5fd' } },
-      { type: 'pause', ms: 400 },
-      { type: 'update', targetIndex: 0, props: { width: 100, height: 100 } },
-      { type: 'pause', ms: 400 },
-      { type: 'update', targetIndex: 0, props: { width: 140, height: 140 } },
-    ],
-  };
-}
-
-function frameAnimation(): StepAnimation {
-  // Index 0 = frame, 1-3 = child stickies created one by one
-  return {
-    commands: [
-      // Create frame
-      { type: 'create', obj: {
-        type: 'frame', x: 0.5, y: 0.52, width: 500, height: 340,
-        title: 'My Section', color: 'rgba(250, 245, 255, 0.35)',
-        borderColor: '#a78bfa', textColor: '#581c87',
-      } },
+      { type: 'update', targetIndex: 1, props: { shapeType: 'triangle' } },
+      { type: 'update', targetIndex: 2, props: { shapeType: 'arrow' } },
       { type: 'pause', ms: 700 },
-      // Stagger children inside
-      { type: 'create', parentIndex: 0, obj: {
-        type: 'sticky', x: 0.38, y: 0.58, width: 120, height: 120,
-        text: 'Idea A', color: '#fef08a', textColor: '#1e293b',
-      } },
-      { type: 'pause', ms: 500 },
-      { type: 'create', parentIndex: 0, obj: {
-        type: 'sticky', x: 0.5, y: 0.58, width: 120, height: 120,
-        text: 'Idea B', color: '#93c5fd', textColor: '#1e293b',
-      } },
-      { type: 'pause', ms: 500 },
-      { type: 'create', parentIndex: 0, obj: {
-        type: 'sticky', x: 0.62, y: 0.58, width: 120, height: 120,
-        text: 'Idea C', color: '#86efac', textColor: '#1e293b',
-      } },
+      { type: 'update', targetIndex: 0, props: { shapeType: 'pentagon' } },
+      { type: 'update', targetIndex: 1, props: { shapeType: 'cross' } },
+      { type: 'update', targetIndex: 2, props: { shapeType: 'octagon' } },
       { type: 'pause', ms: 700 },
-      // Change frame title
-      { type: 'update', targetIndex: 0, props: { title: 'Design Ideas' } },
+      // Swap colors
+      { type: 'update', targetIndex: 0, props: { color: '#c4b5fd', strokeColor: '#7c3aed' } },
+      { type: 'update', targetIndex: 1, props: { color: '#fde68a', strokeColor: '#d97706' } },
+      { type: 'update', targetIndex: 2, props: { color: '#fda4af', strokeColor: '#e11d48' } },
       { type: 'pause', ms: 700 },
-      { type: 'update', targetIndex: 0, props: { title: 'Sprint Goals' } },
-      { type: 'pause', ms: 700 },
-      // Dramatic frame color themes
-      { type: 'update', targetIndex: 0, props: {
-        borderColor: '#f472b6', color: 'rgba(251, 207, 232, 0.4)', textColor: '#9d174d',
-      } },
-      { type: 'pause', ms: 600 },
-      { type: 'update', targetIndex: 0, props: {
-        borderColor: '#38bdf8', color: 'rgba(186, 230, 253, 0.4)', textColor: '#0c4a6e',
-      } },
-      { type: 'pause', ms: 600 },
-      { type: 'update', targetIndex: 0, props: {
-        borderColor: '#34d399', color: 'rgba(167, 243, 208, 0.4)', textColor: '#064e3b',
-      } },
-      { type: 'pause', ms: 600 },
-      // Recolor children to match
-      { type: 'update', targetIndex: 1, props: { color: '#bbf7d0' } },
-      { type: 'update', targetIndex: 2, props: { color: '#a7f3d0' } },
-      { type: 'update', targetIndex: 3, props: { color: '#6ee7b7' } },
-      { type: 'pause', ms: 600 },
-      // Resize frame larger
-      { type: 'update', targetIndex: 0, props: { width: 580, height: 380 } },
-      { type: 'pause', ms: 600 },
       // Settle back
-      { type: 'update', targetIndex: 0, props: {
-        width: 500, height: 340, title: 'My Section',
-        borderColor: '#a78bfa', color: 'rgba(250, 245, 255, 0.35)', textColor: '#581c87',
-      } },
-      { type: 'update', targetIndex: 1, props: { color: '#fef08a' } },
-      { type: 'update', targetIndex: 2, props: { color: '#93c5fd' } },
-      { type: 'update', targetIndex: 3, props: { color: '#86efac' } },
+      { type: 'update', targetIndex: 0, props: { shapeType: 'star', color: '#fca5a5', strokeColor: '#dc2626' } },
+      { type: 'update', targetIndex: 1, props: { shapeType: 'circle', color: '#93c5fd', strokeColor: '#2563eb' } },
+      { type: 'update', targetIndex: 2, props: { shapeType: 'hexagon', color: '#86efac', strokeColor: '#16a34a' } },
+      { type: 'deselect' },
+      { type: 'cursor', target: 'hide' },
     ],
   };
 }
@@ -244,11 +387,15 @@ function frameAnimation(): StepAnimation {
 function stickerAnimation(): StepAnimation {
   return {
     commands: [
+      // Light cursor: point to canvas and create
+      { type: 'cursor', target: 'screen:0.5,0.6', click: true },
       { type: 'create', obj: {
         type: 'sticker', x: 0.5, y: 0.6, width: 80, height: 80,
         emoji: '\u{1F680}', rotation: 0,
       } },
       { type: 'pause', ms: 600 },
+      { type: 'cursor', target: 'hide' },
+      // Emoji cycling (no drawer needed)
       { type: 'update', targetIndex: 0, props: { emoji: '\u{1F3AF}' } },
       { type: 'pause', ms: 400 },
       { type: 'update', targetIndex: 0, props: { emoji: '\u{1F4A1}' } },
@@ -277,28 +424,44 @@ function stickerAnimation(): StepAnimation {
 }
 
 function connectorAnimation(): StepAnimation {
-  // Self-contained: creates two source objects then a connector between them.
   // Index 0 = sticky, 1 = shape, 2 = connector
   return {
     commands: [
-      // Create source objects
+      // Cursor to Link chevron, open drawer
+      { type: 'cursor', target: '[data-tutorial-id="connector-tool"]', click: false },
+      { type: 'pause', ms: 300 },
+      { type: 'ui', drawer: 'connector' },
+      { type: 'pause', ms: 600 },
+      // Cursor to Curved option
+      { type: 'cursor', target: '[data-tutorial-id="connector-opt-curved"]', click: true },
+      { type: 'pause', ms: 400 },
+      // Cursor to End Arrow
+      { type: 'cursor', target: '[data-tutorial-id="connector-opt-end-arrow"]', click: true },
+      { type: 'pause', ms: 400 },
+      // Close drawer
+      { type: 'ui', drawer: null },
+      // Create two objects on canvas
+      { type: 'cursor', target: 'screen:0.35,0.6', click: true },
       { type: 'create', obj: {
         type: 'sticky', x: 0.35, y: 0.6, width: 140, height: 140,
         text: 'Start', color: '#fef08a', textColor: '#1e293b',
       } },
+      { type: 'pause', ms: 400 },
+      { type: 'cursor', target: 'screen:0.65,0.6', click: true },
       { type: 'create', obj: {
         type: 'shape', shapeType: 'circle', x: 0.65, y: 0.6,
         width: 120, height: 120, color: '#c4b5fd', strokeColor: '#7c3aed',
       } },
       { type: 'pause', ms: 400 },
-      // Create connector referencing the two objects by index
+      // Create connector between them
       { type: 'create', fromIndex: 0, toIndex: 1, obj: {
         type: 'connector', x: 0, y: 0, width: 0, height: 0,
         style: 'curved', endArrow: true, startArrow: false,
         strokeWidth: 3, color: '#818cf8', lineType: 'solid',
       } },
       { type: 'pause', ms: 600 },
-      // Animate connector (index 2)
+      { type: 'cursor', target: 'hide' },
+      // Cycle connector styles
       { type: 'update', targetIndex: 2, props: { style: 'straight' } },
       { type: 'pause', ms: 600 },
       { type: 'update', targetIndex: 2, props: { style: 'curved' } },
@@ -325,6 +488,7 @@ function connectorAnimation(): StepAnimation {
 }
 
 function aiMockAnimation(): StepAnimation {
+  // No cursor — staggered AI-style creation
   return {
     commands: [
       { type: 'create', obj: {
@@ -352,7 +516,6 @@ const ANIMATIONS: Record<string, () => StepAnimation> = {
   sticky: stickyAnimation,
   text: textAnimation,
   shape: shapeAnimation,
-  frame: frameAnimation,
   sticker: stickerAnimation,
   connector: connectorAnimation,
   'ai-mock': aiMockAnimation,

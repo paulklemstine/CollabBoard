@@ -1,6 +1,7 @@
 import type { TutorialStep } from '../../utils/tutorialSteps';
 import { TutorialSpotlight } from './TutorialSpotlight';
 import { TutorialTooltip } from './TutorialTooltip';
+import { TutorialCursor } from './TutorialCursor';
 
 interface TutorialOverlayProps {
   step: TutorialStep;
@@ -11,6 +12,7 @@ interface TutorialOverlayProps {
   onPrev: () => void;
   onSkip: () => void;
   onFinish: () => void;
+  cursorPos?: { x: number; y: number; clicking: boolean } | null;
 }
 
 export function TutorialOverlay({
@@ -22,6 +24,7 @@ export function TutorialOverlay({
   onPrev,
   onSkip,
   onFinish,
+  cursorPos,
 }: TutorialOverlayProps) {
   return (
     <>
@@ -36,6 +39,14 @@ export function TutorialOverlay({
         onSkip={onSkip}
         onFinish={onFinish}
       />
+      {cursorPos && (
+        <TutorialCursor
+          x={cursorPos.x}
+          y={cursorPos.y}
+          visible={true}
+          clicking={cursorPos.clicking}
+        />
+      )}
     </>
   );
 }

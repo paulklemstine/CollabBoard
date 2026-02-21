@@ -35,6 +35,8 @@ interface ToolbarProps {
   onRedo?: () => void;
   canUndo?: boolean;
   canRedo?: boolean;
+  forceOpenDrawer?: string | null;
+  forceOpenDrawerTab?: string;
 }
 
 export function Toolbar({
@@ -65,6 +67,8 @@ export function Toolbar({
   onRedo,
   canUndo,
   canRedo,
+  forceOpenDrawer,
+  forceOpenDrawerTab,
 }: ToolbarProps) {
   // Text styling
   const [textFontSize, setTextFontSize] = useState(24);
@@ -300,6 +304,7 @@ export function Toolbar({
         onTextAlignChange={handleTextAlignChange}
         onTextColorChange={handleTextColorChange}
         onAdd={() => onAddText(textFontSize, textFontFamily, textFontWeight, textFontStyle, textAlign, textColor)}
+        forceOpen={forceOpenDrawer === 'text'}
       />
 
       {divider}
@@ -316,6 +321,8 @@ export function Toolbar({
         onAddFrame={onAddFrame}
         onAddBorderlessFrame={onAddBorderlessFrame}
         onAddSticky={() => onAddStickyNote(shapeFill, shapeStroke, shapeBorder)}
+        forceOpen={forceOpenDrawer === 'shape'}
+        forceTab={forceOpenDrawerTab as 'shapes' | 'colors' | undefined}
       />
 
       {divider}
@@ -334,6 +341,7 @@ export function Toolbar({
         connectMode={connectMode}
         connectingFrom={connectingFrom}
         onToggleConnectMode={onToggleConnectMode}
+        forceOpen={forceOpenDrawer === 'connector'}
       />
 
       {divider}
@@ -341,6 +349,7 @@ export function Toolbar({
       {/* Webcam */}
       {onToggleWebcam && (
         <button
+          data-tutorial-id="cam-button"
           onClick={onToggleWebcam}
           className={`btn-lift px-3.5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
             isWebcamStreaming

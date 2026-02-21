@@ -13,15 +13,20 @@ interface ShapeDrawerProps {
   onAddFrame: () => void;
   onAddBorderlessFrame: () => void;
   onAddSticky: () => void;
+  forceOpen?: boolean;
+  forceTab?: 'shapes' | 'colors';
 }
 
 export function ShapeDrawer({
   fillColor, strokeColor, borderColor: _borderColor,
   onFillColorChange, onStrokeColorChange, onBorderColorChange: _onBorderColorChange,
   onAddShape, onAddFrame, onAddBorderlessFrame, onAddSticky,
+  forceOpen, forceTab,
 }: ShapeDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [tab, setTab] = useState<'shapes' | 'colors'>('shapes');
+  const effectiveOpen = isOpen || !!forceOpen;
+  const effectiveTab = forceOpen && forceTab ? forceTab : tab;
   const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleMouseEnter = useCallback(() => {
@@ -130,22 +135,23 @@ export function ShapeDrawer({
           title="Shape colors"
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points={isOpen && tab === 'colors' ? '6 15 12 9 18 15' : '6 9 12 15 18 9'} />
+            <polyline points={effectiveOpen && effectiveTab === 'colors' ? '6 15 12 9 18 15' : '6 9 12 15 18 9'} />
           </svg>
         </button>
       </div>
 
       {/* Drawer */}
-      {isOpen && (
+      {effectiveOpen && (
         <div
           className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 animate-bounce-in"
           style={{ zIndex: 1001 }}
         >
-          {tab === 'shapes' ? (
+          {effectiveTab === 'shapes' ? (
             <div className="glass-playful rounded-2xl shadow-2xl p-3 grid grid-cols-4 gap-2.5" style={{ width: 340 }}>
               {shapes.map((shape) => (
                 <button
                   key={shape.type}
+                  data-tutorial-id={`shape-opt-${shape.type}`}
                   onClick={() => { shape.action(); setIsOpen(false); }}
                   className="flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-xl transition-all duration-200 hover:scale-105"
                   style={{

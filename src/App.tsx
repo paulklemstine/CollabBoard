@@ -466,7 +466,11 @@ function BoardView({
 
   // Help & Tutorial
   const [helpOpen, setHelpOpen] = useState(false);
-  const tutorial = useTutorial(boardId, user.uid, stageTransform);
+  const tutorial = useTutorial(boardId, user.uid, stageTransform, {
+    selectObject,
+    selectMultiple,
+    clearSelection,
+  });
 
   const MAX_WEBCAMS_PER_BOARD = 5;
   const handleToggleWebcam = useCallback(async () => {
@@ -490,14 +494,14 @@ function BoardView({
   // Capture board preview: zoom-to-fit, screenshot to blob (fast, DOM-dependent)
   const capturePreviewBlob = useCallback(async (): Promise<Blob | null> => {
     const el = stageContainerRef.current;
-    if (!el || !zoomControls) return null;
+    if (!el || !zoomControls) { console.warn('[preview] no container or zoomControls'); return null; }
     try {
       const sourceCanvas = el.querySelector('canvas');
-      if (!sourceCanvas) return null;
+      if (!sourceCanvas) { console.warn('[preview] no canvas found'); return null; }
 
       // Compute bounding box of all visible objects
       const visible = objects.filter(o => o.type !== 'connector');
-      if (visible.length === 0) return null;
+      if (visible.length === 0) { console.warn('[preview] no visible objects'); return null; }
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       for (const obj of visible) {
         minX = Math.min(minX, obj.x);
@@ -538,7 +542,7 @@ function BoardView({
       ctx.fillRect(0, 0, WIDTH, HEIGHT);
       ctx.drawImage(sourceCanvas, 0, 0, WIDTH, HEIGHT);
 
-      // Composite GIF overlay <img> elements
+      // Composite GIF overlay <img> elements (marked crossOrigin=anonymous)
       const sx = WIDTH / sourceCanvas.width;
       const sy = HEIGHT / sourceCanvas.height;
       const imgs = el.querySelectorAll('img');
@@ -550,7 +554,7 @@ function BoardView({
         const h = parseFloat(img.style.height) || img.naturalHeight;
         ctx.save();
         ctx.setTransform(a * sx, b * sy, c * sx, d * sy, e * sx, f * sy);
-        try { ctx.drawImage(img, 0, 0, w, h); } catch { /* cross-origin */ }
+        try { ctx.drawImage(img, 0, 0, w, h); } catch { /* skip cross-origin */ }
         ctx.restore();
       }
 
@@ -559,18 +563,24 @@ function BoardView({
       return await new Promise<Blob | null>(resolve =>
         offscreen.toBlob(resolve, 'image/jpeg', 0.7)
       );
-    } catch {
+    } catch (err) {
+      console.error('[preview] capture failed:', err);
       return null;
     }
   }, [objects, stageTransform, zoomControls]);
 
   // Upload preview blob to Storage (slow, runs in background after navigation)
   const uploadPreview = useCallback((blob: Blob) => {
+    console.log('[preview] uploading', blob.size, 'bytes');
     const sRef = storageRef(storage, `boards/${boardId}/preview.jpg`);
     uploadBytes(sRef, blob, { contentType: 'image/jpeg' })
       .then((snapshot) => getDownloadURL(snapshot.ref))
-      .then((url) => updateBoardMetadata(boardId, { thumbnailUrl: url }))
-      .catch(() => {}); // fire-and-forget
+      .then((url) => {
+        console.log('[preview] uploaded, updating metadata with URL');
+        return updateBoardMetadata(boardId, { thumbnailUrl: url });
+      })
+      .then(() => console.log('[preview] metadata updated'))
+      .catch((err) => console.error('[preview] upload failed:', err));
   }, [boardId]);
 
   // Capture preview on board exit — fade overlay hides zoom-to-fit flicker
@@ -580,6 +590,7 @@ function BoardView({
     // Wait for fade overlay to become opaque
     await new Promise(r => setTimeout(r, 200));
     const blob = await capturePreviewBlob();
+    console.log('[preview] blob result:', blob ? `${blob.size} bytes` : 'null');
     if (blob) {
       setPreviewBlob(boardId, blob);
       uploadPreview(blob);
@@ -1142,6 +1153,7 @@ function BoardView({
           onPrev={tutorial.prevStep}
           onSkip={tutorial.skipTutorial}
           onFinish={tutorial.finishTutorial}
+          cursorPos={tutorial.cursorPos}
         />
       )}
     </div>

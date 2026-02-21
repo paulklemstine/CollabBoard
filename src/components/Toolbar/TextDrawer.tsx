@@ -15,6 +15,7 @@ interface TextDrawerProps {
   onTextAlignChange: (align: 'left' | 'center' | 'right') => void;
   onTextColorChange: (color: string) => void;
   onAdd: () => void;
+  forceOpen?: boolean;
 }
 
 const FONTS = [
@@ -28,8 +29,10 @@ export function TextDrawer({
   fontSize, fontFamily, fontWeight, fontStyle, textAlign, textColor,
   onFontSizeChange, onFontFamilyChange, onFontWeightChange, onFontStyleChange, onTextAlignChange, onTextColorChange,
   onAdd,
+  forceOpen,
 }: TextDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const effectiveOpen = isOpen || !!forceOpen;
   const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleMouseEnter = useCallback(() => {
@@ -48,6 +51,7 @@ export function TextDrawer({
     >
       <div className="flex items-stretch">
         <button
+          data-tutorial-id="text-button"
           onClick={onAdd}
           className="btn-lift flex items-center gap-1.5 px-3.5 py-2.5 rounded-l-xl text-sm font-bold text-gray-700 hover:text-violet-600 transition-all duration-200"
           style={{
@@ -71,12 +75,12 @@ export function TextDrawer({
           title="Text options"
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points={isOpen ? '6 15 12 9 18 15' : '6 9 12 15 18 9'} />
+            <polyline points={effectiveOpen ? '6 15 12 9 18 15' : '6 9 12 15 18 9'} />
           </svg>
         </button>
       </div>
 
-      {isOpen && (
+      {effectiveOpen && (
         <div
           className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 animate-bounce-in"
           style={{ zIndex: 1001 }}
@@ -123,6 +127,7 @@ export function TextDrawer({
                 {FONTS.map((f) => (
                   <button
                     key={f.value}
+                    data-tutorial-id={`text-opt-${f.label.toLowerCase()}`}
                     onClick={() => onFontFamilyChange(f.value)}
                     className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                       fontFamily === f.value
@@ -142,6 +147,7 @@ export function TextDrawer({
               <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Style</div>
               <div className="flex gap-1.5">
                 <button
+                  data-tutorial-id="text-opt-bold"
                   onClick={() => onFontWeightChange(fontWeight === 'bold' ? 'normal' : 'bold')}
                   className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                     fontWeight === 'bold'

@@ -2,11 +2,18 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { TUTORIAL_STEPS } from '../utils/tutorialSteps';
 import type { TutorialStep } from '../utils/tutorialSteps';
 import type { StageTransform } from '../components/Board/Board';
-import { screenToWorld } from '../utils/coordinates';
+import { screenToWorld, worldToScreen } from '../utils/coordinates';
 import { batchDeleteObjects } from '../services/boardService';
 import { getAnimation, runAnimation } from '../utils/tutorialAnimations';
+import type { AnimationCallbacks } from '../utils/tutorialAnimations';
 
 const STORAGE_KEY = 'flowspace-tutorial-completed';
+
+export interface SelectionCallbacks {
+  selectObject: (id: string) => void;
+  selectMultiple: (ids: Set<string>) => void;
+  clearSelection: () => void;
+}
 
 export interface UseTutorialReturn {
   isActive: boolean;
@@ -20,12 +27,16 @@ export interface UseTutorialReturn {
   skipTutorial: () => void;
   finishTutorial: () => void;
   hasCompleted: boolean;
+  openDrawer: string | null;
+  openDrawerTab: string | undefined;
+  cursorPos: { x: number; y: number; clicking: boolean } | null;
 }
 
 export function useTutorial(
   boardId: string,
   userId: string,
   stageTransform: StageTransform,
+  selectionCallbacks?: SelectionCallbacks,
 ): UseTutorialReturn {
   const [isActive, setIsActive] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -33,11 +44,16 @@ export function useTutorial(
   const [hasCompleted, setHasCompleted] = useState(() => {
     return localStorage.getItem(STORAGE_KEY) === 'true';
   });
+  const [drawerState, setDrawerState] = useState<{ drawer: string | null; tab?: string }>({ drawer: null });
+  const [cursorPos, setCursorPos] = useState<{ x: number; y: number; clicking: boolean } | null>(null);
 
   const createdIdsRef = useRef<string[]>([]);
   const abortRef = useRef<AbortController | null>(null);
   const stageTransformRef = useRef(stageTransform);
   stageTransformRef.current = stageTransform;
+
+  const selectionRef = useRef(selectionCallbacks);
+  selectionRef.current = selectionCallbacks;
 
   const currentStep = isActive ? (TUTORIAL_STEPS[currentStepIndex] ?? null) : null;
 
@@ -48,11 +64,38 @@ export function useTutorial(
       stageTransformRef.current,
     ), []);
 
+  const handleDrawerChange = useCallback((drawer: string | null, tab?: string) => {
+    setDrawerState({ drawer, tab });
+  }, []);
+
+  const handleCursorChange = useCallback((pos: { x: number; y: number; clicking: boolean } | null) => {
+    setCursorPos(pos);
+  }, []);
+
+  const handleWorldToScreen = useCallback((worldX: number, worldY: number) => {
+    return worldToScreen(worldX, worldY, stageTransformRef.current);
+  }, []);
+
+  const handleSelect = useCallback((id: string) => {
+    selectionRef.current?.selectObject(id);
+  }, []);
+
+  const handleMultiSelect = useCallback((ids: string[]) => {
+    selectionRef.current?.selectMultiple(new Set(ids));
+  }, []);
+
+  const handleClearSelection = useCallback(() => {
+    selectionRef.current?.clearSelection();
+  }, []);
+
   const abortAnimation = useCallback(() => {
     if (abortRef.current) {
       abortRef.current.abort();
       abortRef.current = null;
     }
+    setDrawerState({ drawer: null });
+    setCursorPos(null);
+    selectionRef.current?.clearSelection();
   }, []);
 
   const cleanupObjects = useCallback(async () => {
@@ -112,9 +155,18 @@ export function useTutorial(
     abortRef.current = controller;
     setIsAnimating(true);
 
+    const callbacks: AnimationCallbacks = {
+      onDrawerChange: handleDrawerChange,
+      onCursorChange: handleCursorChange,
+      worldToScreen: handleWorldToScreen,
+      onSelect: handleSelect,
+      onMultiSelect: handleMultiSelect,
+      onClearSelection: handleClearSelection,
+    };
+
     (async () => {
       try {
-        const newIds = await runAnimation(animation, boardId, userId, worldCenter, controller.signal);
+        const newIds = await runAnimation(animation, boardId, userId, worldCenter, controller.signal, callbacks);
         createdIdsRef.current.push(...newIds);
       } catch {
         // AbortError — animation was cancelled, no-op
@@ -136,5 +188,8 @@ export function useTutorial(
     skipTutorial: close,
     finishTutorial: close,
     hasCompleted,
+    openDrawer: drawerState.drawer,
+    openDrawerTab: drawerState.tab,
+    cursorPos,
   };
 }

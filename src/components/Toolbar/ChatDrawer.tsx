@@ -67,6 +67,7 @@ export function ChatDrawer({ messages, currentUserId, onSend }: ChatDrawerProps)
     >
       {/* Trigger Button */}
       <button
+        data-tutorial-id="chat-button"
         onClick={() => setIsOpen((o) => !o)}
         className={`btn-lift px-3.5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
           isOpen

@@ -10,6 +10,7 @@ interface ConnectorDrawerProps {
   connectMode: boolean;
   connectingFrom: string | null;
   onToggleConnectMode: () => void;
+  forceOpen?: boolean;
 }
 
 const LINE_TYPES: { type: ConnectorLineType; label: string }[] = [
@@ -34,8 +35,10 @@ export function ConnectorDrawer({
   connectMode,
   connectingFrom,
   onToggleConnectMode,
+  forceOpen,
 }: ConnectorDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const effectiveOpen = isOpen || !!forceOpen;
   const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleMouseEnter = useCallback(() => {
@@ -108,13 +111,13 @@ export function ConnectorDrawer({
           title="Connector options"
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points={isOpen ? '6 15 12 9 18 15' : '6 9 12 15 18 9'} />
+            <polyline points={effectiveOpen ? '6 15 12 9 18 15' : '6 9 12 15 18 9'} />
           </svg>
         </button>
       </div>
 
       {/* Drawer */}
-      {isOpen && (
+      {effectiveOpen && (
         <div
           className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 animate-bounce-in"
           style={{ zIndex: 1001 }}
@@ -128,6 +131,7 @@ export function ConnectorDrawer({
                 {CURVE_STYLES.map((cs) => (
                   <button
                     key={cs.style}
+                    data-tutorial-id={`connector-opt-${cs.style}`}
                     onClick={() => update({ curveStyle: cs.style })}
                     className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                       curveStyle === cs.style
@@ -189,6 +193,7 @@ export function ConnectorDrawer({
                   Start
                 </button>
                 <button
+                  data-tutorial-id="connector-opt-end-arrow"
                   onClick={() => update({ endArrow: !connectorStyle.endArrow })}
                   className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
                     connectorStyle.endArrow

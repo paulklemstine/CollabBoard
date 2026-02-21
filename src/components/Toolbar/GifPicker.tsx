@@ -159,7 +159,7 @@ export function GifPicker({ onSelect, onClose }: GifPickerProps) {
     <div className="flex flex-col gap-2">
       <input
         type="search"
-        placeholder="Find the perfect vibe..."
+        placeholder="Search stickers..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         className="w-full px-3 py-2 rounded-lg text-sm border border-green-200 focus:ring-2 focus:ring-green-400 focus:border-green-400 outline-none"
@@ -173,7 +173,7 @@ export function GifPicker({ onSelect, onClose }: GifPickerProps) {
         )}
         {error && (
           <div className="text-center py-6">
-            <p className="text-sm text-gray-500 mb-2">GIFs went AWOL</p>
+            <p className="text-sm text-gray-500 mb-2">Failed to load stickers</p>
             <button
               onClick={() => fetchGifs(search)}
               className="text-sm font-bold text-green-700 hover:underline"
@@ -183,7 +183,7 @@ export function GifPicker({ onSelect, onClose }: GifPickerProps) {
           </div>
         )}
         {!loading && !error && gifs.length === 0 && (
-          <div className="text-center py-6 text-sm text-gray-500">No matches — try something wilder</div>
+          <div className="text-center py-6 text-sm text-gray-500">No results found</div>
         )}
         {gifs.length > 0 && (
           <div className="grid grid-cols-3 gap-1.5">

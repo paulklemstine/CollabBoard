@@ -2,12 +2,20 @@ import { useState, useRef, useEffect } from 'react';
 import { useAI } from '../../hooks/useAI';
 import type { AIMessage } from '../../types/board';
 
+export interface ViewportCenter {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 interface AIChatProps {
   boardId: string;
   isOpen: boolean;
   onClose: () => void;
   onObjectsCreated?: (ids: string[]) => void;
   selectedIds?: string[];
+  getViewportCenter?: () => ViewportCenter;
 }
 
 function SparkleIcon({ size = 20 }: { size?: number }) {
@@ -38,7 +46,7 @@ function MessageBubble({ message }: { message: AIMessage }) {
         <p className="whitespace-pre-wrap break-words">{message.content}</p>
         {!isUser && message.objectsCreated && message.objectsCreated.length > 0 && (
           <p className="mt-1.5 text-xs opacity-70">
-            {message.objectsCreated.length} thing{message.objectsCreated.length !== 1 ? 's' : ''} dropped on the board
+            {message.objectsCreated.length} object{message.objectsCreated.length !== 1 ? 's' : ''} added to the board
           </p>
         )}
       </div>
@@ -67,7 +75,7 @@ function LoadingIndicator({ progress }: { progress: string | null }) {
   );
 }
 
-export function AIChat({ boardId, isOpen, onClose, onObjectsCreated, selectedIds }: AIChatProps) {
+export function AIChat({ boardId, isOpen, onClose, onObjectsCreated, selectedIds, getViewportCenter }: AIChatProps) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -87,7 +95,7 @@ export function AIChat({ boardId, isOpen, onClose, onObjectsCreated, selectedIds
 
   const handleSubmit = () => {
     if (!input.trim() || isLoading) return;
-    sendCommand(input);
+    sendCommand(input, getViewportCenter?.());
     setInput('');
   };
 
@@ -130,7 +138,7 @@ export function AIChat({ boardId, isOpen, onClose, onObjectsCreated, selectedIds
             <div className="w-12 h-12 rounded-full bg-violet-100 flex items-center justify-center mb-3 text-violet-400">
               <SparkleIcon size={24} />
             </div>
-            <p className="text-sm font-medium text-gray-500 mb-1">Your creative co-pilot is ready</p>
+            <p className="text-sm font-medium text-gray-500 mb-1">AI assistant ready</p>
             <p className="text-xs text-gray-400">
               Try: "Create a SWOT analysis" or "Organize my board"
             </p>

@@ -110,10 +110,10 @@ export function AuthPanel({ user, onSignOut, onAuthChange }: AuthPanelProps) {
             Flow Space
           </h2>
           <p className="text-sm text-gray-400 mt-1 font-medium">
-            Where ideas spark and friends build — together, in real time.
+            Collaborate visually, in real time.
           </p>
           <p className="text-xs text-gray-400/90 mt-2 max-w-[280px] mx-auto leading-relaxed">
-            Throw down sticky notes, sketch wild shapes, and let AI surprise you. Your crew sees everything live.
+            Add sticky notes, draw shapes, and use AI assistance. Everyone sees changes live.
           </p>
         </div>
 
@@ -128,7 +128,7 @@ export function AuthPanel({ user, onSignOut, onAuthChange }: AuthPanelProps) {
           {isSignUp && (
             <input
               type="text"
-              placeholder="What should we call you?"
+              placeholder="Display name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full px-4 py-3 rounded-xl bg-white/60 border border-gray-200 text-sm font-medium text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition-all duration-200"
@@ -143,7 +143,7 @@ export function AuthPanel({ user, onSignOut, onAuthChange }: AuthPanelProps) {
           />
           <input
             type="password"
-            placeholder="Secret passphrase"
+            placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full px-4 py-3 rounded-xl bg-white/60 border border-gray-200 text-sm font-medium text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition-all duration-200"
@@ -156,7 +156,7 @@ export function AuthPanel({ user, onSignOut, onAuthChange }: AuthPanelProps) {
               background: 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 50%, #a78bfa 100%)',
             }}
           >
-            {isSignUp ? "Let's Go" : 'Welcome Back'}
+            {isSignUp ? 'Sign Up' : 'Sign In'}
           </button>
 
           <p className="text-center text-sm text-gray-500">
@@ -169,7 +169,7 @@ export function AuthPanel({ user, onSignOut, onAuthChange }: AuthPanelProps) {
               }}
               className="font-semibold text-violet-600 hover:text-violet-800 transition-colors duration-200"
             >
-              {isSignUp ? 'Sign in' : 'Join the fun'}
+              {isSignUp ? 'Sign in' : 'Create an account'}
             </button>
           </p>
         </div>

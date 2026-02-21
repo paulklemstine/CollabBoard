@@ -20,9 +20,9 @@ function ToastItem({ toast }: { toast: PresenceToast }) {
       }`}
     >
       {toast.type === 'join' ? (
-        <span>{toast.name} just dropped in <span role="img" aria-label="wave">👋</span></span>
+        <span>{toast.name} joined</span>
       ) : (
-        <span>{toast.name} bounced <span role="img" aria-label="peace">✌️</span></span>
+        <span>{toast.name} left</span>
       )}
     </div>
   );

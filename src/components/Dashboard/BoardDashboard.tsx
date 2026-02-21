@@ -56,7 +56,7 @@ export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboar
                 Flow Space
               </h1>
               <p className="text-sm text-white/70 font-medium" key={refreshKey}>
-                What are we building today, {user.displayName || user.email?.split('@')[0] || 'User'}?
+                Welcome, {user.displayName || user.email?.split('@')[0] || 'User'}
               </p>
             </div>
           </div>
@@ -70,7 +70,7 @@ export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboar
 
         {/* Create Board */}
         <div className="glass-playful rounded-2xl p-6 mb-8 shadow-lg">
-          <h2 className="text-lg font-bold text-gray-800 mb-4">Spark something new</h2>
+          <h2 className="text-lg font-bold text-gray-800 mb-4">New Board</h2>
           <CreateBoardForm onCreateBoard={handleCreateBoard} />
         </div>
 
@@ -84,8 +84,8 @@ export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboar
             <h2 className="text-lg font-bold text-white/90 mb-4">Your Spaces</h2>
             {myBoards.length === 0 ? (
               <div className="glass-playful rounded-2xl p-8 text-center shadow-lg mb-8">
-                <p className="text-gray-500 font-medium">Nothing here yet — that's about to change</p>
-                <p className="text-gray-400 text-sm mt-1">Spin up your first board, or jump into someone else's.</p>
+                <p className="text-gray-500 font-medium">No boards yet</p>
+                <p className="text-gray-400 text-sm mt-1">Create your first board or join a public one below.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
@@ -106,7 +106,7 @@ export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboar
             {/* Shared with me */}
             {sharedWithMe.length > 0 && (
               <>
-                <h2 className="text-lg font-bold text-white/90 mb-4">Collab invites</h2>
+                <h2 className="text-lg font-bold text-white/90 mb-4">Shared with Me</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
                   {sharedWithMe.map((board) => (
                     <BoardCard
@@ -122,7 +122,7 @@ export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboar
             )}
 
             {/* Public Boards */}
-            <h2 className="text-lg font-bold text-white/90 mb-4">Open vibes</h2>
+            <h2 className="text-lg font-bold text-white/90 mb-4">Open Spaces</h2>
             {publicBoards.length === 0 ? (
               <div className="glass-playful rounded-2xl p-8 text-center shadow-lg">
                 <p className="text-gray-500 font-medium">No public boards yet — be the first</p>

@@ -3164,7 +3164,6 @@ export const processAIRequestCallable = onCall(
     timeoutSeconds: 300,
     memory: '512MiB',
     maxInstances: 10,
-    invoker: 'public',
   },
   async (request) => {
     const userId = request.auth?.uid;
@@ -3203,7 +3202,6 @@ export const searchGiphyCallable = onCall(
     timeoutSeconds: 15,
     memory: '128MiB',
     maxInstances: 10,
-    invoker: 'public',
   },
   async (request) => {
     const { query, limit } = request.data as { query?: string; limit?: number };

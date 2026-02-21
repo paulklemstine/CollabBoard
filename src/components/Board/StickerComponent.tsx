@@ -73,6 +73,7 @@ export function StickerComponent({
   const [localWidth, setLocalWidth] = useState(safeWidth);
   const [localHeight, setLocalHeight] = useState(safeHeight);
   const gifImgRef = useRef<HTMLImageElement | null>(null);
+  const localSizeRef = useRef({ w: safeWidth, h: safeHeight });
 
   useEffect(() => {
     if (!isResizing) {
@@ -80,6 +81,11 @@ export function StickerComponent({
       setLocalHeight(safeHeight);
     }
   }, [safeWidth, safeHeight, isResizing]);
+
+  // Keep ref in sync so the RAF loop reads latest dimensions without re-running the effect
+  useEffect(() => {
+    localSizeRef.current = { w: localWidth, h: localHeight };
+  }, [localWidth, localHeight]);
 
   // HTML <img> overlay for GIF stickers — browser handles animation natively,
   // no Konva canvas redraws needed. Position synced via CSS matrix() transform.
@@ -109,8 +115,8 @@ export function StickerComponent({
       if (!groupRef.current || !img) { rafId = requestAnimationFrame(sync); return; }
       const m = groupRef.current.getAbsoluteTransform().getMatrix();
       img.style.transform = `matrix(${m[0]},${m[1]},${m[2]},${m[3]},${m[4]},${m[5]})`;
-      img.style.width = `${localWidth}px`;
-      img.style.height = `${localHeight}px`;
+      img.style.width = `${localSizeRef.current.w}px`;
+      img.style.height = `${localSizeRef.current.h}px`;
       rafId = requestAnimationFrame(sync);
     };
 
@@ -121,7 +127,7 @@ export function StickerComponent({
       if (img) img.remove();
       gifImgRef.current = null;
     };
-  }, [sticker.gifUrl, localWidth, localHeight]);
+  }, [sticker.gifUrl]);
 
   // Drop bounce + flash for new stickers
   useEffect(() => {

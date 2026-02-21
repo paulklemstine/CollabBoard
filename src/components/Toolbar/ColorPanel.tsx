@@ -16,9 +16,10 @@ interface ColorPanelProps {
   color: string;
   onChange: (color: string) => void;
   showTransparent?: boolean;
+  disableTransparent?: boolean;
 }
 
-export function ColorPanel({ label, color, onChange, showTransparent = false }: ColorPanelProps) {
+export function ColorPanel({ label, color, onChange, showTransparent = false, disableTransparent = false }: ColorPanelProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -54,13 +55,16 @@ export function ColorPanel({ label, color, onChange, showTransparent = false }: 
         ))}
         {showTransparent && (
           <button
-            onClick={() => onChange('transparent')}
-            className="w-7 h-7 rounded-lg transition-all hover:scale-110 border border-gray-300 shrink-0"
+            onClick={() => !disableTransparent && onChange('transparent')}
+            disabled={disableTransparent}
+            className="w-7 h-7 rounded-lg transition-all border border-gray-300 shrink-0"
             style={{
               background: TRANSPARENT_BG,
               boxShadow: isTransparent ? '0 0 0 2px white, 0 0 0 3.5px #6366f1' : 'none',
+              opacity: disableTransparent ? 0.35 : 1,
+              cursor: disableTransparent ? 'not-allowed' : 'pointer',
             }}
-            title="Transparent"
+            title={disableTransparent ? 'Cannot make both fill and border transparent' : 'Transparent'}
           />
         )}
         {/* Custom color picker trigger */}

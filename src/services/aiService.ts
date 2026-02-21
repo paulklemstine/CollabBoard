@@ -1,6 +1,5 @@
 import { collection, addDoc, onSnapshot, doc } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
-import { db, auth, functions } from './firebase';
+import { db, auth } from './firebase';
 import type { ViewportCenter } from '../components/AIChat/AIChat';
 import { detectTemplate, isClientExecutable, executeTemplateMatch } from './templateEngine';
 
@@ -8,12 +7,6 @@ export interface AICommandOutput {
   response: string;
   objectsCreated: string[];
 }
-
-// Callable function reference (reused across calls)
-const processAICallable = httpsCallable<
-  { boardId: string; requestId: string; prompt: string; selectedIds?: string[]; viewport?: ViewportCenter },
-  AICommandOutput
->(functions, 'processAIRequestCallable', { timeout: 300_000 });
 
 export async function sendAICommand(
   boardId: string,
@@ -37,7 +30,7 @@ export async function sendAICommand(
     }
   }
 
-  // 1. Create Firestore doc for progress tracking (also serves as trigger fallback)
+  // Create Firestore doc — triggers the onDocumentCreated Cloud Function
   const requestsRef = collection(db, `boards/${boardId}/aiRequests`);
   const docRef = await addDoc(requestsRef, {
     prompt,
@@ -50,61 +43,33 @@ export async function sendAICommand(
 
   const requestDocRef = doc(db, `boards/${boardId}/aiRequests/${docRef.id}`);
 
-  // 2. Set up progress listener on the Firestore doc
-  let unsubscribe: (() => void) | null = null;
-  if (onProgress) {
-    unsubscribe = onSnapshot(requestDocRef, (snapshot) => {
+  // Listen for the result via Firestore snapshot
+  return new Promise<AICommandOutput>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      unsub();
+      reject(new Error('AI request timed out after 5 minutes'));
+    }, 300_000);
+
+    const unsub = onSnapshot(requestDocRef, (snapshot) => {
       const data = snapshot.data();
-      if (data?.status === 'processing' && data.progress) {
+      if (!data) return;
+
+      if (data.status === 'processing' && data.progress && onProgress) {
         onProgress(data.progress);
       }
+
+      if (data.status === 'completed') {
+        clearTimeout(timeout);
+        unsub();
+        resolve({
+          response: data.response,
+          objectsCreated: data.objectsCreated ?? [],
+        });
+      } else if (data.status === 'error') {
+        clearTimeout(timeout);
+        unsub();
+        reject(new Error(data.error || 'AI request failed'));
+      }
     });
-  }
-
-  // 3. Try callable first (lower latency), fall back to Firestore trigger
-  try {
-    const result = await processAICallable({
-      boardId,
-      requestId: docRef.id,
-      prompt,
-      selectedIds,
-      viewport,
-    });
-
-    unsubscribe?.();
-    return result.data;
-  } catch {
-    // Callable failed (likely IAM/permissions) — trigger will pick up the pending doc
-    return new Promise<AICommandOutput>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        triggerUnsub();
-        unsubscribe?.();
-        reject(new Error('AI request timed out after 5 minutes'));
-      }, 300_000);
-
-      const triggerUnsub = onSnapshot(requestDocRef, (snapshot) => {
-        const data = snapshot.data();
-        if (!data) return;
-
-        if (data.status === 'processing' && data.progress && onProgress) {
-          onProgress(data.progress);
-        }
-
-        if (data.status === 'completed') {
-          clearTimeout(timeout);
-          triggerUnsub();
-          unsubscribe?.();
-          resolve({
-            response: data.response,
-            objectsCreated: data.objectsCreated ?? [],
-          });
-        } else if (data.status === 'error') {
-          clearTimeout(timeout);
-          triggerUnsub();
-          unsubscribe?.();
-          reject(new Error(data.error || 'AI request failed'));
-        }
-      });
-    });
-  }
+  });
 }

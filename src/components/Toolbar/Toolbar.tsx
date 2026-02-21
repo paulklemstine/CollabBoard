@@ -180,6 +180,8 @@ export function Toolbar({
   };
 
   const handleShapeFillChange = (color: string) => {
+    // Prevent both fill and stroke from being transparent simultaneously
+    if (color === 'transparent' && shapeStroke === 'transparent') return;
     setShapeFill(color);
     if (!onUpdateSelectedObject) return;
     if (editingShape || editingSticky) {
@@ -193,6 +195,8 @@ export function Toolbar({
   };
 
   const handleShapeStrokeChange = (color: string) => {
+    // Prevent both fill and stroke from being transparent simultaneously
+    if (color === 'transparent' && shapeFill === 'transparent') return;
     setShapeStroke(color);
     if (!onUpdateSelectedObject) return;
     if (editingShape) {

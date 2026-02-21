@@ -25,7 +25,6 @@ import { WebcamDock } from './components/Webcam/WebcamDock';
 import { TextComponent } from './components/Board/TextComponent';
 import { PreviewConnector } from './components/Board/PreviewConnector';
 import { SelectionOverlay } from './components/Board/SelectionOverlay';
-import { AILabelOverlay } from './components/Board/AILabelOverlay';
 import { CursorsOverlay } from './components/Cursors/CursorsOverlay';
 import { PresencePanel } from './components/Presence/PresencePanel';
 import { Toolbar } from './components/Toolbar/Toolbar';
@@ -453,10 +452,6 @@ function BoardView({
         if (isInput) return;
         handlePaste();
       }
-      if (e.key === 'l' || e.key === 'L') {
-        if (isInput) return;
-        setShowAILabels((prev) => !prev);
-      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -482,7 +477,6 @@ function BoardView({
     }
   }, [isWebcamStreaming, stopStreaming, startStreaming, activePeers.length, user.displayName]);
 
-  const [showAILabels, setShowAILabels] = useState(false);
   const [zoomControls, setZoomControls] = useState<{
     scale: number;
     zoomIn: () => void;
@@ -966,17 +960,6 @@ function BoardView({
               groupTransformPreview={selectedIds.size > 1 && isObjectSelected(sticker.id) ? transformPreview : null}
               selectionBox={selectedIds.size > 1 && isObjectSelected(sticker.id) ? selectionBox : null}
               dragTint={getDragTint(sticker.id)}
-            />
-          ))}
-          {showAILabels && objects.filter((o) => o.aiLabel || o.aiGroupId).map((o) => (
-            <AILabelOverlay
-              key={`ai-label-${o.id}`}
-              x={o.x}
-              y={o.y}
-              width={o.width}
-              height={o.height}
-              label={o.aiLabel ?? ''}
-              groupId={o.aiGroupId}
             />
           ))}
           <SelectionOverlay

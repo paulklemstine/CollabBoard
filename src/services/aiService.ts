@@ -21,6 +21,7 @@ export async function sendAICommand(
   viewport?: ViewportCenter,
   signal?: AbortSignal,
   conversationHistory?: Array<{ role: string; content: string }>,
+  onObjectsCreated?: (ids: string[]) => void,
 ): Promise<AICommandOutput> {
   const user = auth.currentUser;
   if (!user) {
@@ -52,8 +53,6 @@ export async function sendAICommand(
   const requestDocRef = doc(db, `boards/${boardId}/aiRequests/${docRef.id}`);
 
   // Fire callable immediately — bypasses Firestore trigger delivery latency (2-10s)
-  // The Firestore listener below picks up progress updates and the final result.
-  // Errors are handled by the listener (processAICore writes error status to Firestore).
   processAICallable({
     boardId,
     requestId: docRef.id,
@@ -62,8 +61,7 @@ export async function sendAICommand(
     ...(viewport ? { viewport } : {}),
     ...(conversationHistory?.length ? { conversationHistory } : {}),
   }).catch(() => {
-    // Callable failed (e.g. cold start timeout, network error).
-    // The Firestore trigger acts as a fallback — it will pick up the pending doc.
+    // Callable failed — Firestore trigger acts as fallback
   });
 
   // Listen for the result via Firestore snapshot
@@ -73,12 +71,28 @@ export async function sendAICommand(
       reject(new Error('AI request timed out after 5 minutes'));
     }, 300_000);
 
+    // Track last-seen objectsCreated length to only fire callback on changes
+    let lastSeenObjectCount = 0;
+
     const unsub = onSnapshot(requestDocRef, (snapshot) => {
       const data = snapshot.data();
       if (!data) return;
 
-      if (data.status === 'processing' && data.progress && onProgress) {
-        onProgress(data.progress);
+      if (data.status === 'processing' && onProgress) {
+        if (data.phase === 'planning' && data.plan) {
+          onProgress(data.plan);
+        } else if (data.phase === 'applying') {
+          onProgress(data.progress || 'Applying changes...');
+        } else if (data.progress) {
+          onProgress(data.progress);
+        }
+      }
+
+      // Incremental rendering: notify on partial objectsCreated updates
+      const currentObjects: string[] = data.objectsCreated ?? [];
+      if (onObjectsCreated && currentObjects.length > lastSeenObjectCount && data.status !== 'completed') {
+        lastSeenObjectCount = currentObjects.length;
+        onObjectsCreated(currentObjects);
       }
 
       if (data.status === 'completed') {

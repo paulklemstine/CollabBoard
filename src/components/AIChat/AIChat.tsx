@@ -26,24 +26,6 @@ function SparkleIcon({ size = 20 }: { size?: number }) {
   );
 }
 
-// ---- Follow-up Suggestion Logic ----
-
-function getSuggestions(message: AIMessage): string[] {
-  if (message.role !== 'assistant' || !message.objectsCreated?.length) return [];
-  const text = message.content.toLowerCase();
-
-  if (/swot/i.test(text)) return ['Add more items', 'Color-code by priority'];
-  if (/flowchart|flow chart/i.test(text)) return ['Add more steps', 'Label the connections'];
-  if (/kanban/i.test(text)) return ['Add tasks to each column', 'Add a "Blocked" column'];
-  if (/retro/i.test(text)) return ['Add more feedback', 'Prioritize action items'];
-  if (/mind\s*map/i.test(text)) return ['Add sub-branches', 'Color-code branches'];
-  if (/timeline/i.test(text)) return ['Add more phases', 'Add milestones'];
-  if (/journey/i.test(text)) return ['Add pain points', 'Add touchpoints'];
-  if (/grid/i.test(text)) return ['Label each cell', 'Color-code by category'];
-  if (message.objectsCreated.length >= 5) return ['Arrange in a grid', 'Group into frames'];
-  return ['Tell me more about these', 'Create something else'];
-}
-
 // ---- Message Bubble ----
 
 function MessageBubble({
@@ -114,31 +96,6 @@ function LoadingIndicator({ progress }: { progress: string | null }) {
   );
 }
 
-// ---- Suggestion Chips ----
-
-function SuggestionChips({
-  suggestions,
-  onSelect,
-}: {
-  suggestions: string[];
-  onSelect: (text: string) => void;
-}) {
-  if (suggestions.length === 0) return null;
-  return (
-    <div className="flex gap-1.5 mb-3 ml-8 overflow-x-auto pb-1">
-      {suggestions.map((s) => (
-        <button
-          key={s}
-          onClick={() => onSelect(s)}
-          className="flex-shrink-0 px-3 py-1.5 text-xs font-medium bg-violet-50 text-violet-600 border border-violet-200 rounded-full hover:bg-violet-100 hover:border-violet-300 transition-colors"
-        >
-          {s}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 export function AIChat({ boardId, isOpen, onClose, onObjectsCreated, selectedIds, getViewportCenter }: AIChatProps) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -173,14 +130,6 @@ export function AIChat({ boardId, isOpen, onClose, onObjectsCreated, selectedIds
       handleSubmit();
     }
   };
-
-  const handleChipSelect = (text: string) => {
-    sendCommand(text, getViewportCenter?.());
-  };
-
-  // Compute suggestions for the last assistant message
-  const lastAssistantMsg = [...messages].reverse().find(m => m.role === 'assistant');
-  const suggestions = lastAssistantMsg && !isLoading ? getSuggestions(lastAssistantMsg) : [];
 
   // Selection hint
   const selectionCount = selectedIds?.length ?? 0;
@@ -225,14 +174,8 @@ export function AIChat({ boardId, isOpen, onClose, onObjectsCreated, selectedIds
           </div>
         ) : (
           <>
-            {messages.map((msg, idx) => (
-              <div key={msg.id}>
-                <MessageBubble message={msg} onUndo={undoMessage} />
-                {/* Show suggestion chips after the last assistant message */}
-                {msg.role === 'assistant' && idx === messages.length - 1 && (
-                  <SuggestionChips suggestions={suggestions} onSelect={handleChipSelect} />
-                )}
-              </div>
+            {messages.map((msg) => (
+              <MessageBubble key={msg.id} message={msg} onUndo={undoMessage} />
             ))}
             {isLoading && <LoadingIndicator progress={progress} />}
           </>

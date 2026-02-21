@@ -405,7 +405,6 @@ async function executeFlowchartClient(
         x: startX + i * spacing, y: startY,
         width: 200, height: 200, color: '#fef9c3', textColor: '#1e293b',
         rotation: 0, createdBy: userId, updatedAt: now, parentId: '',
-        aiLabel: nodes[i], aiGroupId: 'flowchart',
       },
     });
   }
@@ -575,7 +574,6 @@ async function executeTemplateClient(
         const id = addStickyFull(
           startX + i * (stageWidth + stageGap), startY + 100,
           stageWidth, stageWidth, labels[i], colors[i], '',
-          { aiLabel: labels[i], aiGroupId: 'timeline' },
         );
         nodeIds.push(id);
       }

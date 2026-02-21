@@ -92,6 +92,7 @@ export function useAI(boardId: string, onObjectsCreated?: (ids: string[]) => voi
           viewport,
           controller.signal,
           conversationHistory.length > 0 ? conversationHistory : undefined,
+          onObjectsCreated,
         );
 
         const assistantMessage: AIMessage = {

@@ -22,8 +22,6 @@ export interface BoardObject {
   updatedAt: number;
   lastModifiedBy?: string;
   parentId?: string;
-  aiLabel?: string;
-  aiGroupId?: string;
 }
 
 export interface StickyNote extends BoardObject {

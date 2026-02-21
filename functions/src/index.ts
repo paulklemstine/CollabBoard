@@ -66,6 +66,49 @@ async function generateWithGeminiFallback(
   }
 }
 
+/** Call Gemini generateContentStream, cascading through models on 503/429 errors.
+ *  Streams text tokens and collects function calls for execution after stream completes. */
+async function generateWithGeminiStreamFallback(
+  ai: GoogleGenAIType,
+  params: { contents: unknown; config: unknown },
+  onTextChunk: (text: string) => void,
+): Promise<{ text?: string; functionCalls: any[] }> {
+  for (let i = 0; i < GEMINI_MODELS.length; i++) {
+    try {
+      const stream = await (ai.models as any).generateContentStream({
+        model: GEMINI_MODELS[i],
+        ...params,
+      });
+
+      let fullText = '';
+      const functionCalls: any[] = [];
+
+      for await (const chunk of stream) {
+        // Collect text tokens
+        if (chunk.text) {
+          fullText += chunk.text;
+          onTextChunk(chunk.text);
+        }
+        // Collect function calls
+        if (chunk.functionCalls) {
+          functionCalls.push(...chunk.functionCalls);
+        }
+      }
+
+      return { text: fullText || undefined, functionCalls };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '';
+      const isRetryable =
+        msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('high demand') ||
+        msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('rate') || msg.includes('quota') ||
+        msg.includes('404') || msg.includes('not found');
+      if (!isRetryable || i === GEMINI_MODELS.length - 1) throw err;
+      console.warn(`Gemini stream ${GEMINI_MODELS[i]} failed (${msg.slice(0, 80)}), trying ${GEMINI_MODELS[i + 1]}`);
+    }
+  }
+  throw new Error('All Gemini models failed');
+}
+
 /** Convert our tool definitions to Anthropic format. */
 function toolsToAnthropic(toolDefs: typeof tools): Anthropic.Tool[] {
   return toolDefs.map(t => ({
@@ -126,7 +169,7 @@ async function searchGiphy(query: string): Promise<string | null> {
 }
 
 // ---- Tool definitions (trimmed for token efficiency) ----
-// All create tools share: x,y (position), parentId (frame), aiLabel, aiGroupId, aiGroupLabel
+// All create tools share: x,y (position), parentId (frame)
 // Defaults handled server-side — descriptions omit them.
 
 const tools = [
@@ -143,13 +186,11 @@ const tools = [
             properties: {
               op: { type: 'string', enum: ['createStickyNote', 'createShape', 'createFrame', 'createSticker', 'createGifSticker', 'createText', 'createConnector'] },
               tempId: { type: 'string', description: 'Optional temp ID for cross-referencing between ops' },
-              params: { type: 'object', description: 'Op params — createStickyNote: text(REQUIRED,non-empty),color,textColor,width,height. createShape: shapeType(rect|circle|triangle|diamond|pentagon|hexagon|octagon|star|arrow|cross|line),color,strokeColor,width,height. createFrame: title,width,height,borderless. createSticker: emoji(single Unicode emoji char e.g. "🐱","🦊","🐶"),size. createGifSticker: searchTerm,size. createText: text(REQUIRED,non-empty),fontSize,fontFamily,fontWeight,fontStyle,textAlign,color,bgColor,width,height. createConnector: fromId,toId,color,lineType. All ops accept: x,y,parentId,aiLabel,aiGroupId.' },
+              params: { type: 'object', description: 'Op params — createStickyNote: text(REQUIRED,non-empty),color,textColor,width,height. createShape: shapeType(rect|circle|triangle|diamond|pentagon|hexagon|octagon|star|arrow|cross|line),color,strokeColor,width,height. createFrame: title,width,height,borderless. createSticker: emoji(single Unicode emoji char e.g. "🐱","🦊","🐶"),size. createGifSticker: searchTerm,size. createText: text(REQUIRED,non-empty),fontSize,fontFamily,fontWeight,fontStyle,textAlign,color,bgColor,width,height. createConnector: fromId,toId,color,lineType. All ops accept: x,y,parentId.' },
             },
             required: ['op'],
           },
         },
-        aiGroupId: { type: 'number' },
-        aiGroupLabel: { type: 'string' },
       },
       required: ['operations'],
     },
@@ -386,7 +427,7 @@ Fonts — sans(Inter) serif(Georgia) mono(Fira Code) cursive(Caveat)
 
 Stickers: createSticker emoji param is REQUIRED — must be a single Unicode emoji character (e.g. "🐱","🦊","🐶","🦁","🐸"). Always vary emojis — never repeat the same one. For animated GIFs use createGifSticker with searchTerm.
 
-Always provide aiLabel + aiGroupId. Provide aiGroupLabel once per group. borderless=true for invisible frames.
+borderless=true for invisible frames.
 
 Selected objects listed as "Currently selected objects". "these"/"selected"/"this" = selected IDs. Use directly with tools.
 
@@ -510,9 +551,6 @@ function compactBoardObject(obj: any): Record<string, unknown> {
   if (obj.fontFamily && obj.fontFamily !== "'Inter', sans-serif") compact.fontFamily = obj.fontFamily;
   // Frame borderless
   if (obj.borderless) compact.borderless = true;
-  // AI metadata
-  if (obj.aiLabel) compact.aiLabel = obj.aiLabel;
-  if (obj.aiGroupId) compact.aiGroupId = obj.aiGroupId;
   return compact;
 }
 
@@ -597,9 +635,6 @@ interface ToolInput {
   offsetY?: number;
   operation?: string;
   templateType?: string;
-  aiLabel?: string;
-  aiGroupId?: number;
-  aiGroupLabel?: string;
   objectType?: string;
   textContains?: string;
   frameId?: string;
@@ -1144,8 +1179,6 @@ async function executeFlowchart(
       createdBy: userId,
       updatedAt: now,
       parentId: '',
-      aiLabel: nodes[i],
-      aiGroupId: 'flowchart',
     });
     objectsCreated.push(docRef.id);
   }
@@ -1369,7 +1402,6 @@ async function executeTemplate(
           type: 'sticky', text: stageLabels[i], x: sx, y: sy,
           width: stageWidth, height: stageWidth, color: stageColors[i], textColor: '#1e293b',
           rotation: 0, createdBy: userId, updatedAt: now, parentId: '',
-          aiLabel: stageLabels[i], aiGroupId: 'timeline',
         });
         objectsCreated.push(stageRef.id);
       }
@@ -1944,7 +1976,6 @@ function buildObjectData(
   params: ToolInput,
   userId: string,
   now: number,
-  resolvedGroupId?: string,
 ): Record<string, unknown> {
   const base: Record<string, unknown> = {
     createdBy: userId,
@@ -1952,15 +1983,13 @@ function buildObjectData(
     parentId: params.parentId ?? '',
     rotation: 0,
   };
-  if (params.aiLabel) base.aiLabel = params.aiLabel;
-  if (resolvedGroupId) base.aiGroupId = resolvedGroupId;
 
   switch (op) {
     case 'createStickyNote': {
       const data: Record<string, unknown> = {
         ...base,
         type: 'sticky',
-        text: params.text || params.aiLabel || '',
+        text: params.text || '',
         x: params.x ?? 0,
         y: params.y ?? 0,
         width: params.width ?? 200,
@@ -2070,7 +2099,7 @@ function buildObjectData(
       const data: Record<string, unknown> = {
         ...base,
         type: 'text',
-        text: params.text || params.aiLabel || '',
+        text: params.text || '',
         x: params.x ?? 0,
         y: params.y ?? 0,
         width: params.width ?? 300,
@@ -2123,10 +2152,8 @@ async function executeExecutePlan(
   boardId: string,
   userId: string,
   objectsCreated: string[],
-  groupLabels: Record<number, string>,
-  planAiGroupId?: string,
-  planAiGroupLabel?: string,
   viewport?: { x: number; y: number; width: number; height: number },
+  requestRef?: FirebaseFirestore.DocumentReference,
 ): Promise<string> {
   console.log(`executePlan: ${operations.length} operations for board ${boardId}`);
   if (operations.length > 0) {
@@ -2190,21 +2217,7 @@ async function executeExecutePlan(
     if (params.toId && tempIdMap.has(params.toId)) params.toId = tempIdMap.get(params.toId)!;
     if (params.parentId && tempIdMap.has(params.parentId)) params.parentId = tempIdMap.get(params.parentId)!;
 
-    // Resolve group labels
-    if (params.aiGroupLabel && params.aiGroupId != null) {
-      groupLabels[params.aiGroupId] = params.aiGroupLabel;
-    }
-    // Use plan-level group if operation doesn't specify its own
-    const resolvedGroupId = params.aiGroupId != null
-      ? (groupLabels[params.aiGroupId] ?? `group-${params.aiGroupId}`)
-      : planAiGroupId;
-
-    // Apply plan-level aiGroupLabel to first op's params if not already set
-    if (planAiGroupLabel && !params.aiGroupLabel && params.aiGroupId == null && planAiGroupId) {
-      // already resolved via planAiGroupId
-    }
-
-    const data = buildObjectData(item.op, params, userId, now, resolvedGroupId);
+    const data = buildObjectData(item.op, params, userId, now);
     // Inject resolved GIF URL for gif stickers
     if (item.op === 'createGifSticker' && gifResults.get(i)) {
       data.gifUrl = gifResults.get(i)!;
@@ -2237,11 +2250,38 @@ async function executeExecutePlan(
     }
   }
 
-  // Step 5: Add all to batch and commit atomically
-  for (const { docRef, data } of builtObjects) {
-    batch.set(docRef, data);
+  // Step 5: Two-phase incremental write — first 3 non-connector objects appear immediately
+  const FIRST_BATCH_SIZE = 3;
+  const firstBatch = builtObjects.filter(o => o.data.type !== 'connector').slice(0, FIRST_BATCH_SIZE);
+  const restBatch = builtObjects.filter(o => !firstBatch.includes(o));
+
+  if (firstBatch.length > 0) {
+    const batch1 = db.batch();
+    for (const { docRef, data } of firstBatch) {
+      batch1.set(docRef, data);
+    }
+    await batch1.commit();
+    // Notify client of partial results
+    if (requestRef) {
+      await requestRef.update({ objectsCreated: firstBatch.map(o => o.docRef.id) });
+    }
   }
-  await batch.commit();
+
+  if (restBatch.length > 0) {
+    // Write remaining objects in sub-batches of 450
+    for (let i = 0; i < restBatch.length; i += 450) {
+      const chunk = restBatch.slice(i, i + 450);
+      const batchN = db.batch();
+      for (const { docRef, data } of chunk) {
+        batchN.set(docRef, data);
+      }
+      await batchN.commit();
+    }
+    // Update with full list of created IDs
+    if (requestRef) {
+      await requestRef.update({ objectsCreated: created });
+    }
+  }
 
   const result: Record<string, unknown> = { success: true, created, count: created.length };
   if (failedGifs.length > 0) {
@@ -2257,7 +2297,6 @@ async function executeTool(
   boardId: string,
   userId: string,
   objectsCreated: string[],
-  groupLabels: Record<number, string>,
   selectedIds?: string[],
   viewport?: { x: number; y: number; width: number; height: number },
 ): Promise<string> {
@@ -2272,18 +2311,12 @@ async function executeTool(
     console.log(`executeTool auto-positioned ${toolName} to (${input.x}, ${input.y})`);
   }
 
-  // Resolve numeric aiGroupId → string label for Firestore storage
-  if (input.aiGroupLabel && input.aiGroupId != null) {
-    groupLabels[input.aiGroupId] = input.aiGroupLabel;
-  }
-  const resolvedGroupId = input.aiGroupId != null ? (groupLabels[input.aiGroupId] ?? `group-${input.aiGroupId}`) : undefined;
-
   switch (toolName) {
     case 'createStickyNote': {
       const docRef = objectsRef.doc();
       const data: Record<string, unknown> = {
         type: 'sticky',
-        text: input.text || input.aiLabel || '',
+        text: input.text || '',
         x: input.x ?? 0,
         y: input.y ?? 0,
         width: input.width ?? 200,
@@ -2302,8 +2335,6 @@ async function executeTool(
       if (input.fontStyle && input.fontStyle !== 'normal') data.fontStyle = input.fontStyle;
       if (input.textAlign && input.textAlign !== 'left') data.textAlign = input.textAlign;
       ensureNotInvisible(data);
-      if (input.aiLabel) data.aiLabel = input.aiLabel;
-      if (resolvedGroupId) data.aiGroupId = resolvedGroupId;
       await docRef.set(data);
       objectsCreated.push(docRef.id);
       return JSON.stringify({ id: docRef.id, type: 'sticky' });
@@ -2350,8 +2381,6 @@ async function executeTool(
       };
       if (input.borderColor) data.borderColor = input.borderColor;
       ensureNotInvisible(data);
-      if (input.aiLabel) data.aiLabel = input.aiLabel;
-      if (resolvedGroupId) data.aiGroupId = resolvedGroupId;
       await docRef.set(data);
       objectsCreated.push(docRef.id);
       return JSON.stringify({ id: docRef.id, type: 'shape', shapeType: input.shapeType });
@@ -2372,8 +2401,6 @@ async function executeTool(
         updatedAt: now,
         parentId: input.parentId ?? '',
       };
-      if (input.aiLabel) data.aiLabel = input.aiLabel;
-      if (resolvedGroupId) data.aiGroupId = resolvedGroupId;
       await docRef.set(data);
       objectsCreated.push(docRef.id);
       return JSON.stringify({ id: docRef.id, type: 'sticker', emoji: input.emoji });
@@ -2401,8 +2428,6 @@ async function executeTool(
         updatedAt: now,
         parentId: input.parentId ?? '',
       };
-      if (input.aiLabel) data.aiLabel = input.aiLabel;
-      if (resolvedGroupId) data.aiGroupId = resolvedGroupId;
       await docRef.set(data);
       objectsCreated.push(docRef.id);
       return JSON.stringify({ id: docRef.id, type: 'sticker', gifUrl });
@@ -2412,7 +2437,7 @@ async function executeTool(
       const docRef = objectsRef.doc();
       const data: Record<string, unknown> = {
         type: 'text',
-        text: input.text || input.aiLabel || '',
+        text: input.text || '',
         x: input.x ?? 0,
         y: input.y ?? 0,
         width: input.width ?? 300,
@@ -2431,8 +2456,6 @@ async function executeTool(
       };
       if (input.borderColor) data.borderColor = input.borderColor;
       ensureNotInvisible(data);
-      if (input.aiLabel) data.aiLabel = input.aiLabel;
-      if (resolvedGroupId) data.aiGroupId = resolvedGroupId;
       await docRef.set(data);
       objectsCreated.push(docRef.id);
       return JSON.stringify({ id: docRef.id, type: 'text' });
@@ -2461,8 +2484,6 @@ async function executeTool(
       if (input.fontFamily) data.fontFamily = resolveFontFamily(input.fontFamily);
       if (input.fontWeight && input.fontWeight !== 'normal') data.fontWeight = input.fontWeight;
       if (input.fontStyle && input.fontStyle !== 'normal') data.fontStyle = input.fontStyle;
-      if (input.aiLabel) data.aiLabel = input.aiLabel;
-      if (resolvedGroupId) data.aiGroupId = resolvedGroupId;
       await docRef.set(data);
       objectsCreated.push(docRef.id);
       return JSON.stringify({ id: docRef.id, type: 'frame' });
@@ -2488,8 +2509,6 @@ async function executeTool(
         createdBy: userId,
         updatedAt: now,
       };
-      if (input.aiLabel) data.aiLabel = input.aiLabel;
-      if (resolvedGroupId) data.aiGroupId = resolvedGroupId;
       await docRef.set(data);
       objectsCreated.push(docRef.id);
       return JSON.stringify({ id: docRef.id, type: 'connector' });
@@ -2948,6 +2967,89 @@ const READ_ONLY_TOOLS = new Set([
   'getBoardState', 'getBoardSummary', 'searchObjects', 'getObject', 'getSelectedObjects',
 ]);
 
+// ---- Tool argument validation & repair ----
+
+const MAX_OPERATIONS = 200;
+const MAX_COORD = 20000;
+const MIN_COORD = -20000;
+
+function validateAndRepairToolArgs(
+  name: string,
+  args: ToolInput,
+): { valid: boolean; error?: string } {
+  // Limit executePlan operation count
+  if (name === 'executePlan') {
+    const ops = (args as any).operations;
+    if (Array.isArray(ops) && ops.length > MAX_OPERATIONS) {
+      return { valid: false, error: `Too many operations (${ops.length}). Maximum is ${MAX_OPERATIONS}.` };
+    }
+    // Validate each operation
+    if (Array.isArray(ops)) {
+      for (const op of ops) {
+        if (!op.op) return { valid: false, error: 'Each operation must have an "op" field.' };
+      }
+    }
+    return { valid: true };
+  }
+
+  // Mutation tools require objectId
+  const MUTATION_TOOLS = new Set([
+    'moveObject', 'resizeObject', 'updateText', 'changeColor',
+    'deleteObject', 'updateParent', 'rotateObject', 'setZIndex',
+    'updateFrameTitle', 'getObject',
+  ]);
+  if (MUTATION_TOOLS.has(name) && !args.objectId) {
+    return { valid: false, error: `${name} requires objectId.` };
+  }
+
+  // Clamp coordinates
+  if (args.x != null) args.x = Math.max(MIN_COORD, Math.min(MAX_COORD, args.x));
+  if (args.y != null) args.y = Math.max(MIN_COORD, Math.min(MAX_COORD, args.y));
+
+  // Ensure positive dimensions
+  if (args.width != null && args.width <= 0) args.width = 100;
+  if (args.height != null && args.height <= 0) args.height = 100;
+
+  // Tools requiring objectIds array
+  if ((name === 'deleteObjects' || name === 'embedInFrame' || name === 'alignObjects' || name === 'layoutObjects') &&
+      (!args.objectIds || args.objectIds.length === 0)) {
+    return { valid: false, error: `${name} requires a non-empty objectIds array.` };
+  }
+
+  return { valid: true };
+}
+
+// ---- Plan description generator ----
+
+function generatePlanDescription(fnCalls: Array<{ name: string; args?: any }>): string {
+  const counts: Record<string, number> = {};
+  for (const fc of fnCalls) {
+    if (fc.name === 'executePlan' && fc.args?.operations) {
+      for (const op of fc.args.operations) {
+        const label = OP_LABELS[op.op] || op.op;
+        counts[label] = (counts[label] || 0) + 1;
+      }
+    } else {
+      const label = TOOL_LABELS[fc.name] || fc.name;
+      counts[label] = (counts[label] || 0) + 1;
+    }
+  }
+  const parts = Object.entries(counts).map(([label, count]) =>
+    count > 1 ? `${count} ${label}s` : `1 ${label}`,
+  );
+  return parts.length > 0 ? `Creating ${parts.join(' and ')}` : 'Processing...';
+}
+
+const OP_LABELS: Record<string, string> = {
+  createStickyNote: 'sticky note',
+  createShape: 'shape',
+  createFrame: 'frame',
+  createSticker: 'sticker',
+  createGifSticker: 'GIF sticker',
+  createText: 'text',
+  createConnector: 'connector',
+};
+
 // ---- Core AI processing (shared between onDocumentCreated and onCall) ----
 
 interface ProcessAIParams {
@@ -2966,11 +3068,17 @@ async function processAICore(
   const { boardId, requestId, prompt, userId, selectedIds, viewport, conversationHistory } = params;
   const requestRef = db.doc(`boards/${boardId}/aiRequests/${requestId}`);
 
+  // Latency instrumentation
+  const t0 = Date.now();
+  const latency: Record<string, number> = {};
+  let tFirstToken = 0; // set by streaming callbacks
+  let tToolExecTotal = 0; // accumulated across rounds
+
   // Mark as processing
   await requestRef.update({ status: 'processing', progress: 'Planning...' });
+  latency.inputHandlingMs = Date.now() - t0;
 
   const objectsCreated: string[] = [];
-  const groupLabels: Record<number, string> = {};
 
   // Template engine: bypass LLM for known patterns
   const templateMatch = detectTemplate(prompt);
@@ -3004,11 +3112,15 @@ async function processAICore(
       } else {
         throw new Error('unhandled-template');
       }
+      latency.totalMs = Date.now() - t0;
+      latency.templateMs = latency.totalMs - latency.inputHandlingMs;
+      console.log('Latency (template):', JSON.stringify(latency));
       await requestRef.update({
         status: 'completed',
         response: responseText,
         objectsCreated,
         completedAt: Date.now(),
+        latency,
       });
       return { response: responseText, objectsCreated };
     } catch (err: unknown) {
@@ -3063,11 +3175,28 @@ async function processAICore(
       fnCalls: any[],
       allToolCalls: { name: string; args: ToolInput }[],
     ): Promise<{ name: string; result: string }[]> {
+      // Phase 1: Write plan description before executing
+      const hasWriteOps = fnCalls.some((fc: any) => !READ_ONLY_TOOLS.has(fc.name!));
+      if (hasWriteOps) {
+        const planDesc = generatePlanDescription(fnCalls);
+        await requestRef.update({ phase: 'planning', plan: planDesc });
+        await requestRef.update({ phase: 'applying' });
+      }
+
+      const tToolStart = Date.now();
       const results = await Promise.all(
         fnCalls.map(async (fc: any) => {
           const name = fc.name!;
           try {
             const args = (fc.args && typeof fc.args === 'object') ? fc.args as ToolInput : {} as ToolInput;
+
+            // Validate and repair arguments before execution
+            const validation = validateAndRepairToolArgs(name, args);
+            if (!validation.valid) {
+              console.warn(`Tool validation failed for ${name}: ${validation.error}`);
+              return { name, result: JSON.stringify({ error: validation.error }) };
+            }
+
             let result: string;
             if (name === 'executePlan') {
               const planArgs = fc.args as any;
@@ -3077,13 +3206,11 @@ async function processAICore(
                 boardId,
                 userId,
                 objectsCreated,
-                groupLabels,
-                planArgs.aiGroupId != null ? String(planArgs.aiGroupId) : undefined,
-                planArgs.aiGroupLabel,
                 viewport,
+                requestRef,
               );
             } else {
-              result = await executeTool(name, args, boardId, userId, objectsCreated, groupLabels, selectedIds, viewport);
+              result = await executeTool(name, args, boardId, userId, objectsCreated, selectedIds, viewport);
             }
             return { name, result };
           } catch (toolErr: unknown) {
@@ -3093,6 +3220,7 @@ async function processAICore(
           }
         }),
       );
+      tToolExecTotal += Date.now() - tToolStart;
       allToolCalls.push(...fnCalls.map((fc: any) => ({ name: fc.name!, args: (fc.args ?? {}) as ToolInput })));
       return results;
     }
@@ -3114,7 +3242,42 @@ async function processAICore(
       return lastText || 'Done!';
     }
 
+    // Throttled progress writer — updates Firestore at most every 500ms
+    let lastProgressWrite = 0;
+    let pendingProgress: string | null = null;
+    let progressTimer: ReturnType<typeof setTimeout> | null = null;
+    async function throttledProgress(text: string) {
+      const now = Date.now();
+      if (now - lastProgressWrite >= 500) {
+        lastProgressWrite = now;
+        await requestRef.update({ progress: text });
+      } else {
+        pendingProgress = text;
+        if (!progressTimer) {
+          progressTimer = setTimeout(async () => {
+            progressTimer = null;
+            if (pendingProgress) {
+              lastProgressWrite = Date.now();
+              await requestRef.update({ progress: pendingProgress });
+              pendingProgress = null;
+            }
+          }, 500 - (now - lastProgressWrite));
+        }
+      }
+    }
+    async function flushProgress() {
+      if (progressTimer) {
+        clearTimeout(progressTimer);
+        progressTimer = null;
+      }
+      if (pendingProgress) {
+        await requestRef.update({ progress: pendingProgress });
+        pendingProgress = null;
+      }
+    }
+
     await requestRef.update({ progress: 'Thinking...' });
+    const tLlmStart = Date.now();
 
     // ---- Try Gemini first ----
     let geminiError: Error | null = null;
@@ -3149,13 +3312,32 @@ async function processAICore(
       let lastResponseText: string | undefined;
 
       for (let round = 0; round < 3; round++) {
-        const response = await generateWithGeminiFallback(ai, {
-          contents: messages,
-          config: {
-            systemInstruction: SYSTEM_PROMPT,
-            tools: geminiTools,
-          },
-        });
+        // First round uses streaming for faster first-token; subsequent rounds use non-streaming
+        let response: { text?: string; functionCalls: any[] };
+        if (round === 0) {
+          let streamedText = '';
+          response = await generateWithGeminiStreamFallback(ai, {
+            contents: messages,
+            config: {
+              systemInstruction: SYSTEM_PROMPT,
+              tools: geminiTools,
+            },
+          }, (chunk) => {
+            if (!tFirstToken) tFirstToken = Date.now();
+            streamedText += chunk;
+            throttledProgress(streamedText.slice(0, 200));
+          });
+          await flushProgress();
+        } else {
+          const raw = await generateWithGeminiFallback(ai, {
+            contents: messages,
+            config: {
+              systemInstruction: SYSTEM_PROMPT,
+              tools: geminiTools,
+            },
+          });
+          response = { text: raw.text, functionCalls: raw.functionCalls ?? [] };
+        }
 
         const fnCalls = response.functionCalls ?? [];
         if (fnCalls.length === 0) {
@@ -3221,11 +3403,18 @@ async function processAICore(
       }
 
       const responseText = buildSummary(allToolCalls, lastResponseText);
+      latency.llmMs = Date.now() - tLlmStart - tToolExecTotal;
+      if (tFirstToken) latency.firstTokenMs = tFirstToken - tLlmStart;
+      latency.toolExecutionMs = tToolExecTotal;
+      latency.totalMs = Date.now() - t0;
+      latency.provider = 0; // 0 = Gemini
+      console.log('Latency:', JSON.stringify(latency));
       await requestRef.update({
         status: 'completed',
         response: responseText,
         objectsCreated,
         completedAt: Date.now(),
+        latency,
       });
       return { response: responseText, objectsCreated };
     } catch (err: unknown) {
@@ -3254,15 +3443,39 @@ async function processAICore(
     let lastResponseText: string | undefined;
 
     for (let round = 0; round < 3; round++) {
-      const response = await anthropic.messages.create({
-        model: ANTHROPIC_MODEL,
-        max_tokens: 4096,
-        system: SYSTEM_PROMPT,
-        tools: anthropicTools,
-        messages: claudeMessages,
-      });
+      let normalized: { text?: string; functionCalls: any[] };
 
-      const normalized = normalizeAnthropicResponse(response);
+      if (round === 0) {
+        // Stream first round for faster first-token feedback
+        const stream = anthropic.messages.stream({
+          model: ANTHROPIC_MODEL,
+          max_tokens: 4096,
+          system: SYSTEM_PROMPT,
+          tools: anthropicTools,
+          messages: claudeMessages,
+        });
+
+        let streamedText = '';
+        stream.on('text', (text) => {
+          if (!tFirstToken) tFirstToken = Date.now();
+          streamedText += text;
+          throttledProgress(streamedText.slice(0, 200));
+        });
+
+        const finalMessage = await stream.finalMessage();
+        await flushProgress();
+        normalized = normalizeAnthropicResponse(finalMessage);
+      } else {
+        const response = await anthropic.messages.create({
+          model: ANTHROPIC_MODEL,
+          max_tokens: 4096,
+          system: SYSTEM_PROMPT,
+          tools: anthropicTools,
+          messages: claudeMessages,
+        });
+        normalized = normalizeAnthropicResponse(response);
+      }
+
       if (normalized.functionCalls.length === 0) {
         lastResponseText = normalized.text;
         break;
@@ -3311,20 +3524,31 @@ async function processAICore(
     }
 
     const responseText = buildSummary(allToolCalls, lastResponseText);
+    latency.llmMs = Date.now() - tLlmStart - tToolExecTotal;
+    if (tFirstToken) latency.firstTokenMs = tFirstToken - tLlmStart;
+    latency.toolExecutionMs = tToolExecTotal;
+    latency.totalMs = Date.now() - t0;
+    latency.provider = 1; // 1 = Anthropic
+    console.log('Latency:', JSON.stringify(latency));
     await requestRef.update({
       status: 'completed',
       response: responseText,
       objectsCreated,
       completedAt: Date.now(),
+      latency,
     });
     return { response: responseText, objectsCreated };
   } catch (err: unknown) {
     console.error('AI command error:', err);
     const message = err instanceof Error ? err.message : 'Internal error';
+    latency.totalMs = Date.now() - t0;
+    latency.error = 1;
+    console.log('Latency (error):', JSON.stringify(latency));
     await requestRef.update({
       status: 'error',
       error: message,
       completedAt: Date.now(),
+      latency,
     });
     throw err;
   }

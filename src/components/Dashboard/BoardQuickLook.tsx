@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Stage, Layer, Group } from 'react-konva';
+import { Stage, Layer, Group, Rect } from 'react-konva';
 import type Konva from 'konva';
 import { getBoardObjects, type AnyBoardObject } from '../../services/boardService';
 import type { StickyNote, Shape, Frame, Sticker, Connector, TextObject } from '../../types/board';
@@ -277,6 +277,8 @@ export function BoardQuickLook({ boardId, boardName, onClose, onOpenBoard }: Boa
           onDragEnd={handleDragEnd}
         >
           <Layer>
+            {/* Board background — matches main board's #f8f7f6 so objects render identically */}
+            <Rect x={-50000} y={-50000} width={100000} height={100000} fill="#f8f7f6" listening={false} />
             <Group listening={false}>
               {/* Connectors first (behind) */}
               {connectors.map((conn) => (

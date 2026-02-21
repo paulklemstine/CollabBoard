@@ -203,13 +203,18 @@ export function Minimap({ transform, objects = [], onPanTo }: MinimapProps) {
                     ? '#c084fc'
                     : '#8b5cf6';
 
+            const w = typeof obj.width === 'number' && Number.isFinite(obj.width) ? obj.width : 150;
+            const h = typeof obj.height === 'number' && Number.isFinite(obj.height) ? obj.height : 150;
+            const px = typeof obj.x === 'number' && Number.isFinite(obj.x) ? obj.x : 0;
+            const py = typeof obj.y === 'number' && Number.isFinite(obj.y) ? obj.y : 0;
+
             return (
               <Rect
                 key={index}
-                x={obj.x}
-                y={obj.y}
-                width={obj.width}
-                height={obj.height}
+                x={px}
+                y={py}
+                width={w}
+                height={h}
                 fill={fill}
                 opacity={0.75}
                 cornerRadius={obj.type === 'sticky' ? 6 : 2}

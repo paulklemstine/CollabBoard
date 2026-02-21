@@ -66,49 +66,59 @@ export function StickerComponent({
   const [isDeleteHovered, setIsDeleteHovered] = useState(false);
   const [isDuplicateHovered, setIsDuplicateHovered] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
-  const [localWidth, setLocalWidth] = useState(sticker.width);
-  const [localHeight, setLocalHeight] = useState(sticker.height);
+  const safeWidth = Number.isFinite(sticker.width) ? sticker.width : BASE_SIZE;
+  const safeHeight = Number.isFinite(sticker.height) ? sticker.height : BASE_SIZE;
+  const safeX = Number.isFinite(sticker.x) ? sticker.x : 0;
+  const safeY = Number.isFinite(sticker.y) ? sticker.y : 0;
+  const [localWidth, setLocalWidth] = useState(safeWidth);
+  const [localHeight, setLocalHeight] = useState(safeHeight);
   const gifImgRef = useRef<HTMLImageElement | null>(null);
 
   useEffect(() => {
     if (!isResizing) {
-      setLocalWidth(sticker.width);
-      setLocalHeight(sticker.height);
+      setLocalWidth(safeWidth);
+      setLocalHeight(safeHeight);
     }
-  }, [sticker.width, sticker.height, isResizing]);
+  }, [safeWidth, safeHeight, isResizing]);
 
   // HTML <img> overlay for GIF stickers — browser handles animation natively,
   // no Konva canvas redraws needed. Position synced via CSS matrix() transform.
   useEffect(() => {
     if (!sticker.gifUrl) return;
 
-    const group = groupRef.current;
-    if (!group) return;
-    const stage = group.getStage();
-    if (!stage) return;
-    const container = stage.container();
-
-    const img = document.createElement('img');
-    img.src = sticker.gifUrl;
-    img.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;transform-origin:0 0;';
-    container.appendChild(img);
-    gifImgRef.current = img;
-
+    // Defer overlay creation until the Konva Group is mounted and has a stage
     let rafId: number;
+    let img: HTMLImageElement | null = null;
+
+    const tryMount = () => {
+      const group = groupRef.current;
+      if (!group || !group.getStage()) {
+        rafId = requestAnimationFrame(tryMount);
+        return;
+      }
+      const container = group.getStage()!.container();
+      img = document.createElement('img');
+      img.src = sticker.gifUrl!;
+      img.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;transform-origin:0 0;';
+      container.appendChild(img);
+      gifImgRef.current = img;
+      rafId = requestAnimationFrame(sync);
+    };
 
     const sync = () => {
-      if (!groupRef.current) { rafId = requestAnimationFrame(sync); return; }
+      if (!groupRef.current || !img) { rafId = requestAnimationFrame(sync); return; }
       const m = groupRef.current.getAbsoluteTransform().getMatrix();
       img.style.transform = `matrix(${m[0]},${m[1]},${m[2]},${m[3]},${m[4]},${m[5]})`;
       img.style.width = `${localWidth}px`;
       img.style.height = `${localHeight}px`;
       rafId = requestAnimationFrame(sync);
     };
-    rafId = requestAnimationFrame(sync);
+
+    rafId = requestAnimationFrame(tryMount);
 
     return () => {
       cancelAnimationFrame(rafId);
-      img.remove();
+      if (img) img.remove();
       gifImgRef.current = null;
     };
   }, [sticker.gifUrl, localWidth, localHeight]);
@@ -200,8 +210,8 @@ export function StickerComponent({
   return (
     <Group
       ref={groupRef}
-      x={sticker.x + (dragOffset?.x ?? 0) + (groupDragOffset?.dx ?? 0) + (liveTransform?.orbitOffset.x ?? 0) + localWidth / 2}
-      y={sticker.y + (dragOffset?.y ?? 0) + (groupDragOffset?.dy ?? 0) + (liveTransform?.orbitOffset.y ?? 0) + localHeight / 2}
+      x={safeX + (dragOffset?.x ?? 0) + (groupDragOffset?.dx ?? 0) + (liveTransform?.orbitOffset.x ?? 0) + localWidth / 2}
+      y={safeY + (dragOffset?.y ?? 0) + (groupDragOffset?.dy ?? 0) + (liveTransform?.orbitOffset.y ?? 0) + localHeight / 2}
       offsetX={localWidth / 2}
       offsetY={localHeight / 2}
       scaleX={liveTransform?.scaleX ?? 1}

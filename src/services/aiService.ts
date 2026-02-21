@@ -1,7 +1,12 @@
 import { collection, addDoc, onSnapshot, doc } from 'firebase/firestore';
-import { db, auth } from './firebase';
+import { httpsCallable } from 'firebase/functions';
+import { db, auth, functions } from './firebase';
 import type { ViewportCenter } from '../components/AIChat/AIChat';
 import { detectTemplate, isClientExecutable, executeTemplateMatch } from './templateEngine';
+
+const processAICallable = httpsCallable(functions, 'processAIRequestCallable', {
+  timeout: 300_000,
+});
 
 export interface AICommandOutput {
   response: string;
@@ -43,6 +48,20 @@ export async function sendAICommand(
   });
 
   const requestDocRef = doc(db, `boards/${boardId}/aiRequests/${docRef.id}`);
+
+  // Fire callable immediately — bypasses Firestore trigger delivery latency (2-10s)
+  // The Firestore listener below picks up progress updates and the final result.
+  // Errors are handled by the listener (processAICore writes error status to Firestore).
+  processAICallable({
+    boardId,
+    requestId: docRef.id,
+    prompt,
+    ...(selectedIds && selectedIds.length > 0 ? { selectedIds } : {}),
+    ...(viewport ? { viewport } : {}),
+  }).catch(() => {
+    // Callable failed (e.g. cold start timeout, network error).
+    // The Firestore trigger acts as a fallback — it will pick up the pending doc.
+  });
 
   // Listen for the result via Firestore snapshot
   return new Promise<AICommandOutput>((resolve, reject) => {

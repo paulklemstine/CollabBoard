@@ -1154,6 +1154,7 @@ function BoardView({
           onSkip={tutorial.skipTutorial}
           onFinish={tutorial.finishTutorial}
           cursorPos={tutorial.cursorPos}
+          highlightSelector={tutorial.highlightSelector}
         />
       )}
     </div>

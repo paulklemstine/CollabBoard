@@ -20,6 +20,7 @@ export interface StepAnimation {
 export interface AnimationCallbacks {
   onDrawerChange: (drawer: string | null, tab?: string) => void;
   onCursorChange: (pos: { x: number; y: number; clicking: boolean } | null) => void;
+  onHighlightChange: (selector: string | null) => void;
   onSelect: (id: string) => void;
   onMultiSelect: (ids: string[]) => void;
   onClearSelection: () => void;
@@ -158,6 +159,10 @@ export async function runAnimation(
       }
 
       case 'cursor': {
+        // Highlight the target element (only for CSS selector targets)
+        const isSelector = cmd.target.startsWith('[');
+        callbacks.onHighlightChange(isSelector ? cmd.target : null);
+
         const pos = resolveTarget(cmd.target, createdObjects, callbacks);
         if (pos) {
           callbacks.onCursorChange({ x: pos.x, y: pos.y, clicking: false });
@@ -171,6 +176,7 @@ export async function runAnimation(
           }
         } else if (cmd.target === 'hide') {
           callbacks.onCursorChange(null);
+          callbacks.onHighlightChange(null);
         }
         break;
       }

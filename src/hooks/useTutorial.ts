@@ -30,6 +30,7 @@ export interface UseTutorialReturn {
   openDrawer: string | null;
   openDrawerTab: string | undefined;
   cursorPos: { x: number; y: number; clicking: boolean } | null;
+  highlightSelector: string | null;
 }
 
 export function useTutorial(
@@ -46,6 +47,7 @@ export function useTutorial(
   });
   const [drawerState, setDrawerState] = useState<{ drawer: string | null; tab?: string }>({ drawer: null });
   const [cursorPos, setCursorPos] = useState<{ x: number; y: number; clicking: boolean } | null>(null);
+  const [highlightSelector, setHighlightSelector] = useState<string | null>(null);
 
   const createdIdsRef = useRef<string[]>([]);
   const abortRef = useRef<AbortController | null>(null);
@@ -72,6 +74,10 @@ export function useTutorial(
     setCursorPos(pos);
   }, []);
 
+  const handleHighlightChange = useCallback((selector: string | null) => {
+    setHighlightSelector(selector);
+  }, []);
+
   const handleWorldToScreen = useCallback((worldX: number, worldY: number) => {
     return worldToScreen(worldX, worldY, stageTransformRef.current);
   }, []);
@@ -95,6 +101,7 @@ export function useTutorial(
     }
     setDrawerState({ drawer: null });
     setCursorPos(null);
+    setHighlightSelector(null);
     selectionRef.current?.clearSelection();
   }, []);
 
@@ -158,6 +165,7 @@ export function useTutorial(
     const callbacks: AnimationCallbacks = {
       onDrawerChange: handleDrawerChange,
       onCursorChange: handleCursorChange,
+      onHighlightChange: handleHighlightChange,
       worldToScreen: handleWorldToScreen,
       onSelect: handleSelect,
       onMultiSelect: handleMultiSelect,
@@ -191,5 +199,6 @@ export function useTutorial(
     openDrawer: drawerState.drawer,
     openDrawerTab: drawerState.tab,
     cursorPos,
+    highlightSelector,
   };
 }

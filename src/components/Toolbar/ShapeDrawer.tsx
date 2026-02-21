@@ -127,6 +127,7 @@ export function ShapeDrawer({
           </div>
         </button>
         <button
+          data-tutorial-id="shape-options"
           onClick={() => { setIsOpen((o) => !o); setTab('colors'); }}
           className="btn-lift px-1.5 py-2.5 rounded-r-xl text-sm text-gray-500 hover:text-violet-600 transition-all duration-200 border-l border-violet-200/60 flex items-center justify-center"
           style={{

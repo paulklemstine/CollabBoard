@@ -212,30 +212,29 @@ export async function runAnimation(
 function stickyAnimation(): StepAnimation {
   return {
     commands: [
-      // Cursor moves to Shapes button and clicks
+      // 1. Open the shapes drawer
       { type: 'cursor', target: '[data-tutorial-id="shape-tool"]', click: true },
       { type: 'ui', drawer: 'shape', tab: 'shapes' },
       { type: 'pause', ms: 800 },
-      // Cursor moves to Sticky option
+      // 2. Click the Sticky option — this creates the object
       { type: 'cursor', target: '[data-tutorial-id="shape-opt-sticky"]', click: true },
-      { type: 'pause', ms: 400 },
-      // Switch to colors tab
-      { type: 'ui', drawer: 'shape', tab: 'colors' },
-      { type: 'pause', ms: 800 },
-      // Close drawer
       { type: 'ui', drawer: null },
-      // Cursor moves to canvas and creates sticky
-      { type: 'cursor', target: 'screen:0.5,0.6', click: true },
       { type: 'create', obj: {
         type: 'sticky', x: 0.5, y: 0.6, width: 180, height: 180,
         text: 'My first idea!', color: '#fef08a', textColor: '#1e293b',
       } },
-      { type: 'pause', ms: 700 },
-      // Cursor moves to the sticky and selects it
+      { type: 'pause', ms: 800 },
+      // 3. Select the sticky on canvas
       { type: 'cursor', target: 'object:0', click: true },
       { type: 'select', targetIndex: 0 },
       { type: 'pause', ms: 600 },
-      // Cycle colors via updates
+      // 4. Move cursor over the options chevron, then open colors drawer
+      { type: 'cursor', target: '[data-tutorial-id="shape-options"]', click: false },
+      { type: 'pause', ms: 400 },
+      { type: 'cursor', target: '[data-tutorial-id="shape-options"]', click: true },
+      { type: 'ui', drawer: 'shape', tab: 'colors' },
+      { type: 'pause', ms: 600 },
+      // 5. Cycle colors on selected sticky
       { type: 'update', targetIndex: 0, props: { color: '#93c5fd' } },
       { type: 'pause', ms: 500 },
       { type: 'update', targetIndex: 0, props: { color: '#86efac' } },
@@ -244,12 +243,9 @@ function stickyAnimation(): StepAnimation {
       { type: 'pause', ms: 500 },
       { type: 'update', targetIndex: 0, props: { color: '#c4b5fd' } },
       { type: 'pause', ms: 500 },
-      { type: 'update', targetIndex: 0, props: { text: 'Colors & styles!' } },
-      { type: 'pause', ms: 600 },
-      { type: 'update', targetIndex: 0, props: { fontWeight: 'bold' } },
-      { type: 'pause', ms: 500 },
-      // Settle and deselect
-      { type: 'update', targetIndex: 0, props: { color: '#fef08a', fontWeight: 'normal', text: 'My first idea!' } },
+      // 6. Close drawer, settle
+      { type: 'ui', drawer: null },
+      { type: 'update', targetIndex: 0, props: { color: '#fef08a', text: 'My first idea!' } },
       { type: 'deselect' },
       { type: 'cursor', target: 'hide' },
     ],
@@ -259,51 +255,39 @@ function stickyAnimation(): StepAnimation {
 function textAnimation(): StepAnimation {
   return {
     commands: [
-      // Cursor moves to Text chevron and opens drawer
-      { type: 'cursor', target: '[data-tutorial-id="text-button"]', click: false },
-      { type: 'pause', ms: 300 },
-      // Open the text drawer by targeting the chevron area
+      // 1. Move cursor over text options chevron, then open drawer
+      { type: 'cursor', target: '[data-tutorial-id="text-options"]', click: false },
+      { type: 'pause', ms: 400 },
+      { type: 'cursor', target: '[data-tutorial-id="text-options"]', click: true },
       { type: 'ui', drawer: 'text' },
       { type: 'pause', ms: 600 },
-      // Cursor moves to Bold button
+      // 2. Click Bold option
       { type: 'cursor', target: '[data-tutorial-id="text-opt-bold"]', click: true },
       { type: 'pause', ms: 400 },
-      // Cursor moves to Serif font
+      // 3. Click Serif font
       { type: 'cursor', target: '[data-tutorial-id="text-opt-serif"]', click: true },
       { type: 'pause', ms: 400 },
-      // Close drawer
+      // 4. Close drawer, then click Text button to create
       { type: 'ui', drawer: null },
-      // Cursor to canvas — create title text
-      { type: 'cursor', target: 'screen:0.5,0.52', click: true },
+      { type: 'cursor', target: '[data-tutorial-id="text-button"]', click: true },
       { type: 'create', obj: {
-        type: 'text', x: 0.5, y: 0.52, width: 280, height: 50,
+        type: 'text', x: 0.5, y: 0.55, width: 280, height: 50,
         text: 'Bold Title', fontSize: 32,
         fontFamily: "'Inter', sans-serif", fontWeight: 'bold', fontStyle: 'normal',
         textAlign: 'center', color: '#7c3aed',
       } },
-      { type: 'pause', ms: 700 },
-      // Create subtitle
-      { type: 'cursor', target: 'screen:0.5,0.62', click: true },
-      { type: 'create', obj: {
-        type: 'text', x: 0.5, y: 0.62, width: 260, height: 40,
-        text: 'Elegant subtitle', fontSize: 22,
-        fontFamily: 'Georgia, serif', fontWeight: 'normal', fontStyle: 'italic',
-        textAlign: 'center', color: '#059669',
-      } },
-      { type: 'pause', ms: 700 },
-      // Create code snippet
-      { type: 'cursor', target: 'screen:0.5,0.7', click: true },
-      { type: 'create', obj: {
-        type: 'text', x: 0.5, y: 0.7, width: 240, height: 30,
-        text: 'code_snippet()', fontSize: 18,
-        fontFamily: "'Courier New', monospace", fontWeight: 'normal', fontStyle: 'normal',
-        textAlign: 'left', color: '#dc2626',
-      } },
       { type: 'pause', ms: 800 },
-      // Select title and cycle styles
+      // 5. Select the text on canvas
       { type: 'cursor', target: 'object:0', click: true },
       { type: 'select', targetIndex: 0 },
+      { type: 'pause', ms: 500 },
+      // 6. Move cursor over text options chevron, then open text drawer
+      { type: 'cursor', target: '[data-tutorial-id="text-options"]', click: false },
       { type: 'pause', ms: 400 },
+      { type: 'cursor', target: '[data-tutorial-id="text-options"]', click: true },
+      { type: 'ui', drawer: 'text' },
+      { type: 'pause', ms: 500 },
+      // 7. Cycle colors and styles while selected
       { type: 'update', targetIndex: 0, props: { color: '#dc2626' } },
       { type: 'pause', ms: 500 },
       { type: 'update', targetIndex: 0, props: { color: '#059669' } },
@@ -315,6 +299,7 @@ function textAnimation(): StepAnimation {
       { type: 'update', targetIndex: 0, props: { textAlign: 'right' } },
       { type: 'pause', ms: 400 },
       // Settle
+      { type: 'ui', drawer: null },
       { type: 'update', targetIndex: 0, props: { color: '#7c3aed', fontSize: 32, textAlign: 'center' } },
       { type: 'deselect' },
       { type: 'cursor', target: 'hide' },
@@ -325,59 +310,58 @@ function textAnimation(): StepAnimation {
 function shapeAnimation(): StepAnimation {
   return {
     commands: [
-      // Cursor to Shapes button
+      // 1. Open shapes drawer
       { type: 'cursor', target: '[data-tutorial-id="shape-tool"]', click: true },
-      // Show colors tab
-      { type: 'ui', drawer: 'shape', tab: 'colors' },
-      { type: 'pause', ms: 1000 },
-      // Switch to shapes tab
       { type: 'ui', drawer: 'shape', tab: 'shapes' },
-      { type: 'pause', ms: 600 },
-      // Cursor to Star option
+      { type: 'pause', ms: 800 },
+      // 2. Click Star option — creates shape, closes drawer
       { type: 'cursor', target: '[data-tutorial-id="shape-opt-star"]', click: true },
-      { type: 'pause', ms: 400 },
-      // Close drawer
       { type: 'ui', drawer: null },
-      // Create 3 shapes on canvas
-      { type: 'cursor', target: 'screen:0.35,0.6', click: true },
       { type: 'create', obj: {
         type: 'shape', shapeType: 'star', x: 0.35, y: 0.6,
         width: 130, height: 130, color: '#fca5a5', strokeColor: '#dc2626',
       } },
+      { type: 'pause', ms: 600 },
+      // 3. Reopen drawer, pick Circle
+      { type: 'cursor', target: '[data-tutorial-id="shape-tool"]', click: true },
+      { type: 'ui', drawer: 'shape', tab: 'shapes' },
       { type: 'pause', ms: 500 },
-      { type: 'cursor', target: 'screen:0.5,0.6', click: true },
+      { type: 'cursor', target: '[data-tutorial-id="shape-opt-circle"]', click: true },
+      { type: 'ui', drawer: null },
       { type: 'create', obj: {
         type: 'shape', shapeType: 'circle', x: 0.5, y: 0.6,
         width: 130, height: 130, color: '#93c5fd', strokeColor: '#2563eb',
       } },
+      { type: 'pause', ms: 600 },
+      // 4. Reopen drawer, pick Hexagon
+      { type: 'cursor', target: '[data-tutorial-id="shape-tool"]', click: true },
+      { type: 'ui', drawer: 'shape', tab: 'shapes' },
       { type: 'pause', ms: 500 },
-      { type: 'cursor', target: 'screen:0.65,0.6', click: true },
+      { type: 'cursor', target: '[data-tutorial-id="shape-opt-hexagon"]', click: true },
+      { type: 'ui', drawer: null },
       { type: 'create', obj: {
         type: 'shape', shapeType: 'hexagon', x: 0.65, y: 0.6,
         width: 130, height: 130, color: '#86efac', strokeColor: '#16a34a',
       } },
-      { type: 'pause', ms: 800 },
-      // Multiselect all 3 shapes
-      { type: 'multiselect', targetIndices: [0, 1, 2] },
-      { type: 'pause', ms: 1200 },
-      // Morph shapes while selected
-      { type: 'update', targetIndex: 0, props: { shapeType: 'diamond' } },
-      { type: 'update', targetIndex: 1, props: { shapeType: 'triangle' } },
-      { type: 'update', targetIndex: 2, props: { shapeType: 'arrow' } },
       { type: 'pause', ms: 700 },
-      { type: 'update', targetIndex: 0, props: { shapeType: 'pentagon' } },
-      { type: 'update', targetIndex: 1, props: { shapeType: 'cross' } },
-      { type: 'update', targetIndex: 2, props: { shapeType: 'octagon' } },
-      { type: 'pause', ms: 700 },
-      // Swap colors
+      // 5. Select first shape on canvas
+      { type: 'cursor', target: 'object:0', click: true },
+      { type: 'select', targetIndex: 0 },
+      { type: 'pause', ms: 500 },
+      // 6. Move cursor over shape options chevron, then open colors drawer
+      { type: 'cursor', target: '[data-tutorial-id="shape-options"]', click: false },
+      { type: 'pause', ms: 400 },
+      { type: 'cursor', target: '[data-tutorial-id="shape-options"]', click: true },
+      { type: 'ui', drawer: 'shape', tab: 'colors' },
+      { type: 'pause', ms: 600 },
+      // 7. Cycle colors on selected shape
       { type: 'update', targetIndex: 0, props: { color: '#c4b5fd', strokeColor: '#7c3aed' } },
-      { type: 'update', targetIndex: 1, props: { color: '#fde68a', strokeColor: '#d97706' } },
-      { type: 'update', targetIndex: 2, props: { color: '#fda4af', strokeColor: '#e11d48' } },
-      { type: 'pause', ms: 700 },
-      // Settle back
-      { type: 'update', targetIndex: 0, props: { shapeType: 'star', color: '#fca5a5', strokeColor: '#dc2626' } },
-      { type: 'update', targetIndex: 1, props: { shapeType: 'circle', color: '#93c5fd', strokeColor: '#2563eb' } },
-      { type: 'update', targetIndex: 2, props: { shapeType: 'hexagon', color: '#86efac', strokeColor: '#16a34a' } },
+      { type: 'pause', ms: 500 },
+      { type: 'update', targetIndex: 0, props: { color: '#fde68a', strokeColor: '#d97706' } },
+      { type: 'pause', ms: 500 },
+      // 8. Close drawer, settle
+      { type: 'ui', drawer: null },
+      { type: 'update', targetIndex: 0, props: { color: '#fca5a5', strokeColor: '#dc2626' } },
       { type: 'deselect' },
       { type: 'cursor', target: 'hide' },
     ],
@@ -387,15 +371,15 @@ function shapeAnimation(): StepAnimation {
 function stickerAnimation(): StepAnimation {
   return {
     commands: [
-      // Light cursor: point to canvas and create
-      { type: 'cursor', target: 'screen:0.5,0.6', click: true },
+      // 1. Cursor clicks toolbar to create sticker
+      { type: 'cursor', target: '[data-tutorial-id="toolbar"]', click: true },
       { type: 'create', obj: {
         type: 'sticker', x: 0.5, y: 0.6, width: 80, height: 80,
         emoji: '\u{1F680}', rotation: 0,
       } },
       { type: 'pause', ms: 600 },
       { type: 'cursor', target: 'hide' },
-      // Emoji cycling (no drawer needed)
+      // Emoji cycling
       { type: 'update', targetIndex: 0, props: { emoji: '\u{1F3AF}' } },
       { type: 'pause', ms: 400 },
       { type: 'update', targetIndex: 0, props: { emoji: '\u{1F4A1}' } },
@@ -427,32 +411,43 @@ function connectorAnimation(): StepAnimation {
   // Index 0 = sticky, 1 = shape, 2 = connector
   return {
     commands: [
-      // Cursor to Link chevron, open drawer
-      { type: 'cursor', target: '[data-tutorial-id="connector-tool"]', click: false },
-      { type: 'pause', ms: 300 },
-      { type: 'ui', drawer: 'connector' },
-      { type: 'pause', ms: 600 },
-      // Cursor to Curved option
-      { type: 'cursor', target: '[data-tutorial-id="connector-opt-curved"]', click: true },
-      { type: 'pause', ms: 400 },
-      // Cursor to End Arrow
-      { type: 'cursor', target: '[data-tutorial-id="connector-opt-end-arrow"]', click: true },
-      { type: 'pause', ms: 400 },
-      // Close drawer
+      // 1. First create two objects to connect
+      // Open shapes drawer, pick Sticky
+      { type: 'cursor', target: '[data-tutorial-id="shape-tool"]', click: true },
+      { type: 'ui', drawer: 'shape', tab: 'shapes' },
+      { type: 'pause', ms: 500 },
+      { type: 'cursor', target: '[data-tutorial-id="shape-opt-sticky"]', click: true },
       { type: 'ui', drawer: null },
-      // Create two objects on canvas
-      { type: 'cursor', target: 'screen:0.35,0.6', click: true },
       { type: 'create', obj: {
         type: 'sticky', x: 0.35, y: 0.6, width: 140, height: 140,
         text: 'Start', color: '#fef08a', textColor: '#1e293b',
       } },
-      { type: 'pause', ms: 400 },
-      { type: 'cursor', target: 'screen:0.65,0.6', click: true },
+      { type: 'pause', ms: 500 },
+      // Open shapes drawer, pick Circle
+      { type: 'cursor', target: '[data-tutorial-id="shape-tool"]', click: true },
+      { type: 'ui', drawer: 'shape', tab: 'shapes' },
+      { type: 'pause', ms: 500 },
+      { type: 'cursor', target: '[data-tutorial-id="shape-opt-circle"]', click: true },
+      { type: 'ui', drawer: null },
       { type: 'create', obj: {
         type: 'shape', shapeType: 'circle', x: 0.65, y: 0.6,
         width: 120, height: 120, color: '#c4b5fd', strokeColor: '#7c3aed',
       } },
+      { type: 'pause', ms: 500 },
+      // 2. Move cursor over connector options chevron, then open drawer
+      { type: 'cursor', target: '[data-tutorial-id="connector-options"]', click: false },
       { type: 'pause', ms: 400 },
+      { type: 'cursor', target: '[data-tutorial-id="connector-options"]', click: true },
+      { type: 'ui', drawer: 'connector' },
+      { type: 'pause', ms: 600 },
+      // Pick Curved style
+      { type: 'cursor', target: '[data-tutorial-id="connector-opt-curved"]', click: true },
+      { type: 'pause', ms: 400 },
+      // Pick End Arrow
+      { type: 'cursor', target: '[data-tutorial-id="connector-opt-end-arrow"]', click: true },
+      { type: 'pause', ms: 400 },
+      // Close drawer
+      { type: 'ui', drawer: null },
       // Create connector between them
       { type: 'create', fromIndex: 0, toIndex: 1, obj: {
         type: 'connector', x: 0, y: 0, width: 0, height: 0,

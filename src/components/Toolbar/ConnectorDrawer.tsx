@@ -97,6 +97,7 @@ export function ConnectorDrawer({
           </div>
         </button>
         <button
+          data-tutorial-id="connector-options"
           onClick={() => setIsOpen((o) => !o)}
           className={`btn-lift px-1.5 py-2.5 rounded-r-xl text-sm transition-all duration-200 border-l border-violet-200/60 flex items-center justify-center ${
             connectMode

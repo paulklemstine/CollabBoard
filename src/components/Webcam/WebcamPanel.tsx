@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect } from 'react';
 
 interface WebcamPanelProps {
   label: string;
@@ -9,7 +9,6 @@ interface WebcamPanelProps {
 
 export function WebcamPanel({ label, stream, isMine, onClose }: WebcamPanelProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -21,8 +20,6 @@ export function WebcamPanel({ label, stream, isMine, onClose }: WebcamPanelProps
     <div
       className="relative rounded-xl overflow-hidden shadow-lg backdrop-blur-md bg-gray-900/80 border border-white/10 transition-shadow hover:shadow-xl"
       style={{ width: 180, height: 135 + 28 }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
     >
       {/* Video area */}
       <div className="relative" style={{ width: 180, height: 135 }}>
@@ -41,11 +38,11 @@ export function WebcamPanel({ label, stream, isMine, onClose }: WebcamPanelProps
           </div>
         )}
 
-        {/* Close button (own webcam only) */}
-        {isMine && onClose && isHovered && (
+        {/* Close button (own webcam only) — always visible */}
+        {isMine && onClose && (
           <button
             onClick={onClose}
-            className="absolute top-1 right-1 w-6 h-6 flex items-center justify-center rounded-full bg-red-500/80 hover:bg-red-500 text-white text-xs transition-colors"
+            className="absolute top-1.5 right-1.5 w-6 h-6 flex items-center justify-center rounded-full bg-red-500/80 hover:bg-red-500 text-white text-xs transition-colors shadow-md"
             title="Stop webcam"
           >
             ✕

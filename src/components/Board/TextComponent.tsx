@@ -544,10 +544,13 @@ export function TextComponent({
           }}
           onDragMove={(e) => {
             e.cancelBubble = true;
-            const newWidth = Math.max(MIN_WIDTH, e.target.x() + resizeHandleSizeRef.current);
-            const newHeight = Math.max(minHeight, e.target.y() + resizeHandleSizeRef.current);
+            const hs = resizeHandleSizeRef.current;
+            const newWidth = Math.max(MIN_WIDTH, e.target.x() + hs);
+            const newHeight = Math.max(minHeight, e.target.y() + hs);
             setLocalWidth(newWidth);
             setLocalHeight(newHeight);
+            // Clamp handle to component edge so it doesn't detach at min size
+            e.target.position({ x: newWidth - hs, y: newHeight - hs });
             const now = Date.now();
             if (now - lastResizeUpdate.current >= DRAG_THROTTLE_MS) {
               lastResizeUpdate.current = now;

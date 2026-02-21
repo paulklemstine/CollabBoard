@@ -131,6 +131,11 @@ export function SelectionOverlay({
       const scaleX = Math.max(0.1, (resizeStartRef.current.width + dx) / resizeStartRef.current.width);
       const scaleY = Math.max(0.1, (resizeStartRef.current.height + dy) / resizeStartRef.current.height);
 
+      // Clamp handle position so it doesn't detach at min scale
+      const clampedX = resizeStartRef.current.x + (scaleX - 1) * resizeStartRef.current.width;
+      const clampedY = resizeStartRef.current.y + (scaleY - 1) * resizeStartRef.current.height;
+      e.target.position({ x: clampedX, y: clampedY });
+
       onGroupResizeMove(scaleX, scaleY);
     },
     [box, onGroupResizeMove]

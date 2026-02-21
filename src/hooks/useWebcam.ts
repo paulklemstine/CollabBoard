@@ -17,6 +17,38 @@ interface UseWebcamReturn {
   stopStreaming: () => void;
 }
 
+/**
+ * Create a minimal MediaStream with dummy audio + video tracks.
+ * An empty MediaStream has no media sections in the SDP offer, which
+ * prevents the answerer from sending media back. This dummy stream
+ * ensures proper WebRTC negotiation for receiving remote streams.
+ */
+function createDummyStream(): MediaStream {
+  const stream = new MediaStream();
+
+  // Black video track via off-screen canvas
+  const canvas = document.createElement('canvas');
+  canvas.width = 2;
+  canvas.height = 2;
+  const canvasStream = canvas.captureStream(0);
+  for (const track of canvasStream.getVideoTracks()) {
+    stream.addTrack(track);
+  }
+
+  // Silent audio track via Web Audio API
+  try {
+    const audioCtx = new AudioContext();
+    const dest = audioCtx.createMediaStreamDestination();
+    for (const track of dest.stream.getAudioTracks()) {
+      stream.addTrack(track);
+    }
+  } catch {
+    // AudioContext may be unavailable; video track alone is sufficient
+  }
+
+  return stream;
+}
+
 // ICE servers for NAT traversal
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
@@ -79,7 +111,7 @@ export function useWebcam(
       // Answer incoming calls (viewers calling us)
       peer.on('call', (call) => {
         const stream = localStreamRef.current;
-        call.answer(stream ?? new MediaStream());
+        call.answer(stream ?? createDummyStream());
       });
     });
   }, []);
@@ -184,7 +216,7 @@ export function useWebcam(
           // Ensure our peer exists (does NOT write to RTDB)
           try {
             const peer = await ensurePeer();
-            const call = peer.call(remotePeerId, new MediaStream());
+            const call = peer.call(remotePeerId, createDummyStream());
             activeCallsRef.current.set(streamerId, call);
 
             call.on('stream', (remoteStream) => {

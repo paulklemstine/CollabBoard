@@ -424,7 +424,8 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
 
   const handleResizeDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
     e.cancelBubble = true;
-    let newWidth = Math.max(MIN_WIDTH, e.target.x() + resizeHandleSizeRef.current);
+    const hs = resizeHandleSizeRef.current;
+    let newWidth = Math.max(MIN_WIDTH, e.target.x() + hs);
     let newHeight: number;
 
     if (shape.shapeType === 'circle') {
@@ -432,11 +433,17 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
     } else if (shape.shapeType === 'line') {
       newHeight = localHeight; // lock height for lines
     } else {
-      newHeight = Math.max(MIN_HEIGHT, e.target.y() + resizeHandleSizeRef.current);
+      newHeight = Math.max(MIN_HEIGHT, e.target.y() + hs);
     }
 
     setLocalWidth(newWidth);
     setLocalHeight(newHeight);
+    // Clamp handle to component edge so it doesn't detach at min size
+    if (shape.shapeType === 'line') {
+      e.target.position({ x: newWidth - 20, y: localHeight / 2 - 20 });
+    } else {
+      e.target.position({ x: newWidth - hs, y: newHeight - hs });
+    }
 
     const now = Date.now();
     if (now - lastResizeUpdate.current >= DRAG_THROTTLE_MS && onResize) {

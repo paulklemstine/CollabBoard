@@ -188,6 +188,8 @@ export function StickerComponent({
     const newSize = Math.max(MIN_SIZE, Math.max(e.target.x() + hs, e.target.y() + hs));
     setLocalWidth(newSize);
     setLocalHeight(newSize);
+    // Clamp handle to component edge so it doesn't detach at min size
+    e.target.position({ x: newSize - hs, y: newSize - hs });
 
     const now = Date.now();
     if (now - lastResizeUpdate.current >= DRAG_THROTTLE_MS && onResize) {

@@ -22,6 +22,34 @@ async function getGeminiClient(): Promise<GoogleGenAIType> {
   return _geminiClient;
 }
 
+// Primary and fallback models — if the primary is overloaded (503), retry with fallback
+const PRIMARY_MODEL = 'gemini-2.5-flash-preview-05-20';
+const FALLBACK_MODEL = 'gemini-2.5-flash-preview-04-17';
+
+/** Call generateContent with automatic fallback on 503 UNAVAILABLE. */
+async function generateWithFallback(
+  ai: GoogleGenAIType,
+  params: { contents: unknown; config: unknown },
+): Promise<any> {
+  try {
+    return await (ai.models as any).generateContent({
+      model: PRIMARY_MODEL,
+      ...params,
+    });
+  } catch (err: unknown) {
+    const is503 =
+      err instanceof Error &&
+      (err.message.includes('503') || err.message.includes('UNAVAILABLE') || err.message.includes('high demand'));
+    if (!is503) throw err;
+
+    console.warn(`Primary model ${PRIMARY_MODEL} unavailable, falling back to ${FALLBACK_MODEL}`);
+    return await (ai.models as any).generateContent({
+      model: FALLBACK_MODEL,
+      ...params,
+    });
+  }
+}
+
 // ---- Helpers ----
 
 function safeJsonParse(str: string): Record<string, unknown> {
@@ -3006,8 +3034,7 @@ async function processAICore(
     let lastResponseText: string | undefined;
 
     for (let round = 0; round < 3; round++) {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+      const response = await generateWithFallback(ai, {
         contents: messages,
         config: {
           systemInstruction: SYSTEM_PROMPT,
@@ -3099,8 +3126,7 @@ async function processAICore(
         const correctionMsg = `You created ${objectsCreated.length} objects but the user requested ${requestedCount}. Please create ${deficit} more to reach the exact count.`;
         messages.push({ role: 'user', parts: [{ text: correctionMsg }] });
 
-        const correctionResponse = await ai.models.generateContent({
-          model: 'gemini-3-flash-preview',
+        const correctionResponse = await generateWithFallback(ai, {
           contents: messages,
           config: {
             systemInstruction: SYSTEM_PROMPT,

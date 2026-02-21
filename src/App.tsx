@@ -123,8 +123,6 @@ function BoardView({
   const [copied, setCopied] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const stageContainerRef = useRef<HTMLDivElement | null>(null);
-  const lastCaptureRef = useRef(0);
-  const MIN_CAPTURE_INTERVAL = 60_000; // 1 minute between captures
 
   // Track visit so private boards persist in user's "My Boards"
   useEffect(() => {
@@ -493,7 +491,6 @@ function BoardView({
   const capturePreviewBlob = useCallback(async (): Promise<Blob | null> => {
     const el = stageContainerRef.current;
     if (!el || !zoomControls) return null;
-    if (Date.now() - lastCaptureRef.current < MIN_CAPTURE_INTERVAL) return null;
     try {
       const sourceCanvas = el.querySelector('canvas');
       if (!sourceCanvas) return null;
@@ -573,7 +570,6 @@ function BoardView({
     uploadBytes(sRef, blob, { contentType: 'image/jpeg' })
       .then((snapshot) => getDownloadURL(snapshot.ref))
       .then((url) => updateBoardMetadata(boardId, { thumbnailUrl: url }))
-      .then(() => { lastCaptureRef.current = Date.now(); })
       .catch(() => {}); // fire-and-forget
   }, [boardId]);
 

@@ -441,6 +441,32 @@ function compactBoardObject(obj: any): Record<string, unknown> {
   return compact;
 }
 
+// ---- Visibility guard ----
+
+/** Prevent shapes from having both fill and border/stroke transparent (invisible). */
+function ensureNotInvisible(data: Record<string, unknown>): void {
+  if (data.type === 'shape') {
+    const fill = data.color as string | undefined;
+    const stroke = data.strokeColor as string | undefined;
+    if ((!fill || fill === 'transparent') && (!stroke || stroke === 'transparent')) {
+      data.strokeColor = '#4f46e5';
+    }
+  } else if (data.type === 'sticky') {
+    const fill = data.color as string | undefined;
+    const border = data.borderColor as string | undefined;
+    if ((!fill || fill === 'transparent') && (!border || border === 'transparent')) {
+      data.color = '#fef9c3';
+    }
+  } else if (data.type === 'text') {
+    const bg = data.bgColor as string | undefined;
+    const border = data.borderColor as string | undefined;
+    if ((!bg || bg === 'transparent') && (!border || border === 'transparent')) {
+      // Text is still visible via its text content — but ensure at least a border
+      data.borderColor = '#94a3b8';
+    }
+  }
+}
+
 // ---- Tool execution ----
 
 interface ToolInput {
@@ -1859,6 +1885,7 @@ function buildObjectData(
       if (params.fontWeight && params.fontWeight !== 'normal') data.fontWeight = params.fontWeight;
       if (params.fontStyle && params.fontStyle !== 'normal') data.fontStyle = params.fontStyle;
       if (params.textAlign && params.textAlign !== 'left') data.textAlign = params.textAlign;
+      ensureNotInvisible(data);
       return data;
     }
 
@@ -1897,6 +1924,7 @@ function buildObjectData(
         rotation: shapeRotation,
       };
       if (params.borderColor) data.borderColor = params.borderColor;
+      ensureNotInvisible(data);
       return data;
     }
 
@@ -1967,6 +1995,7 @@ function buildObjectData(
         bgColor: params.bgColor ?? 'transparent',
       };
       if (params.borderColor) data.borderColor = params.borderColor;
+      ensureNotInvisible(data);
       return data;
     }
 
@@ -2183,6 +2212,7 @@ async function executeTool(
       if (input.fontWeight && input.fontWeight !== 'normal') data.fontWeight = input.fontWeight;
       if (input.fontStyle && input.fontStyle !== 'normal') data.fontStyle = input.fontStyle;
       if (input.textAlign && input.textAlign !== 'left') data.textAlign = input.textAlign;
+      ensureNotInvisible(data);
       if (input.aiLabel) data.aiLabel = input.aiLabel;
       if (resolvedGroupId) data.aiGroupId = resolvedGroupId;
       await docRef.set(data);
@@ -2230,6 +2260,7 @@ async function executeTool(
         parentId: input.parentId ?? '',
       };
       if (input.borderColor) data.borderColor = input.borderColor;
+      ensureNotInvisible(data);
       if (input.aiLabel) data.aiLabel = input.aiLabel;
       if (resolvedGroupId) data.aiGroupId = resolvedGroupId;
       await docRef.set(data);
@@ -2310,6 +2341,7 @@ async function executeTool(
         parentId: input.parentId ?? '',
       };
       if (input.borderColor) data.borderColor = input.borderColor;
+      ensureNotInvisible(data);
       if (input.aiLabel) data.aiLabel = input.aiLabel;
       if (resolvedGroupId) data.aiGroupId = resolvedGroupId;
       await docRef.set(data);
@@ -2411,6 +2443,19 @@ async function executeTool(
       if (input.strokeColor !== undefined) colorUpdates.strokeColor = input.strokeColor;
       if (input.bgColor !== undefined) colorUpdates.bgColor = input.bgColor;
       if (input.borderColor !== undefined) colorUpdates.borderColor = input.borderColor;
+      // Prevent invisible result: merge proposed updates with current state and check
+      const snap = await docRef.get();
+      if (snap.exists) {
+        const current = snap.data() as Record<string, unknown>;
+        const merged = { ...current, ...colorUpdates };
+        ensureNotInvisible(merged);
+        // Copy any fixes back into the update
+        for (const key of ['color', 'strokeColor', 'borderColor', 'bgColor']) {
+          if (merged[key] !== (current[key] ?? undefined) && merged[key] !== colorUpdates[key]) {
+            colorUpdates[key] = merged[key];
+          }
+        }
+      }
       await docRef.update(colorUpdates);
       return JSON.stringify({ success: true });
     }

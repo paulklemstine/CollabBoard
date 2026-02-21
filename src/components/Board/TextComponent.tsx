@@ -157,7 +157,19 @@ export function TextComponent({
     textObj.fontStyle === 'italic' ? 'italic' : '',
   ].filter(Boolean).join(' ') || 'normal';
 
-  // Inline editing overlay
+  // Stable refs for editing overlay — prevents textarea recreation on Firestore updates
+  const onTextChangeRef = useRef(onTextChange);
+  onTextChangeRef.current = onTextChange;
+  const onResizeRef = useRef(onResize);
+  onResizeRef.current = onResize;
+  const textObjRef = useRef(textObj);
+  textObjRef.current = textObj;
+  const localWidthRef = useRef(localWidth);
+  localWidthRef.current = localWidth;
+  const localHeightRef = useRef(localHeight);
+  localHeightRef.current = localHeight;
+
+  // Inline editing overlay — only create/destroy when isEditing toggles
   useEffect(() => {
     if (!isEditing) return;
     const stage = textRef.current?.getStage();
@@ -168,19 +180,20 @@ export function TextComponent({
     const textPosition = textNode.absolutePosition();
     const stageBox = container.getBoundingClientRect();
     const scale = stage.scaleX();
-    const rotation = (textObj.rotation || 0) + (parentRotation || 0);
+    const obj = textObjRef.current;
+    const rotation = (obj.rotation || 0) + (parentRotation || 0);
 
-    textarea.value = textObj.text;
+    textarea.value = obj.text;
     textarea.style.position = 'absolute';
     textarea.style.top = `${stageBox.top + textPosition.y}px`;
     textarea.style.left = `${stageBox.left + textPosition.x}px`;
-    textarea.style.width = `${(localWidth - 16) * scale}px`;
-    textarea.style.height = `${(localHeight - 8) * scale}px`;
-    textarea.style.fontSize = `${textObj.fontSize * scale}px`;
-    textarea.style.fontFamily = textObj.fontFamily;
-    textarea.style.fontWeight = textObj.fontWeight;
-    textarea.style.fontStyle = textObj.fontStyle;
-    textarea.style.textAlign = textObj.textAlign;
+    textarea.style.width = `${(localWidthRef.current - 16) * scale}px`;
+    textarea.style.height = `${(localHeightRef.current - 8) * scale}px`;
+    textarea.style.fontSize = `${obj.fontSize * scale}px`;
+    textarea.style.fontFamily = obj.fontFamily;
+    textarea.style.fontWeight = obj.fontWeight;
+    textarea.style.fontStyle = obj.fontStyle;
+    textarea.style.textAlign = obj.textAlign;
     textarea.style.padding = '4px';
     textarea.style.border = 'none';
     textarea.style.outline = 'none';
@@ -189,7 +202,7 @@ export function TextComponent({
     textarea.style.background = 'transparent';
     textarea.style.zIndex = '1000';
     textarea.style.lineHeight = '1.4';
-    textarea.style.color = textObj.color;
+    textarea.style.color = obj.color;
     textarea.style.transformOrigin = 'top left';
     textarea.style.transform = `rotate(${rotation}deg)`;
 
@@ -200,9 +213,9 @@ export function TextComponent({
       textarea.style.height = `${scrollH}px`;
       // Grow the component panel to match (convert screen px back to world px)
       const neededH = scrollH / scale + 8; // add padding
-      if (neededH > localHeight) {
+      if (neededH > localHeightRef.current) {
         setLocalHeight(neededH);
-        onResize?.(textObj.id, localWidth, neededH);
+        onResizeRef.current?.(textObjRef.current.id, localWidthRef.current, neededH);
       }
     };
 
@@ -214,11 +227,11 @@ export function TextComponent({
     const handleInput = () => {
       autoGrow();
       clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => onTextChange(textObj.id, textarea.value), 300);
+      debounceTimer = setTimeout(() => onTextChangeRef.current(textObjRef.current.id, textarea.value), 300);
     };
     const handleBlur = () => {
       clearTimeout(debounceTimer);
-      onTextChange(textObj.id, textarea.value);
+      onTextChangeRef.current(textObjRef.current.id, textarea.value);
       autoGrow(); // final resize
       setIsEditing(false);
       textarea.remove();
@@ -238,7 +251,9 @@ export function TextComponent({
       textarea.removeEventListener('keydown', handleKeyDown);
       if (textarea.parentNode) textarea.remove();
     };
-  }, [isEditing, textObj.id, textObj.text, textObj.rotation, textObj.fontSize, textObj.fontFamily, textObj.fontWeight, textObj.fontStyle, textObj.textAlign, textObj.color, localWidth, localHeight, onTextChange, parentRotation]);
+  // Only recreate textarea when editing starts/stops — use refs for everything else
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditing]);
 
   const hasBg = textObj.bgColor && textObj.bgColor !== 'transparent';
   const hasBorder = textObj.borderColor && textObj.borderColor !== 'transparent';

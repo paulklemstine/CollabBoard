@@ -153,6 +153,17 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
     ? calculateGroupObjectTransform(note, selectionBox, groupTransformPreview)
     : null;
 
+  // Stable refs for editing overlay — prevents textarea recreation on Firestore updates
+  const onTextChangeRef = useRef(onTextChange);
+  onTextChangeRef.current = onTextChange;
+  const noteRef = useRef(note);
+  noteRef.current = note;
+  const localWidthRef = useRef(localWidth);
+  localWidthRef.current = localWidth;
+  const localHeightRef = useRef(localHeight);
+  localHeightRef.current = localHeight;
+
+  // Inline editing overlay — only create/destroy when isEditing toggles
   useEffect(() => {
     if (!isEditing) return;
 
@@ -165,23 +176,24 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
     const textPosition = textNode.absolutePosition();
     const stageBox = container.getBoundingClientRect();
     const scale = stage.scaleX();
+    const n = noteRef.current;
 
-    const textColor = note.textColor || getContrastTextColor(note.color);
+    const textColor = n.textColor || getContrastTextColor(n.color);
 
     // Calculate display rotation (note rotation + parent rotation)
-    const rotation = (note.rotation || 0) + (parentRotation || 0);
+    const rotation = (n.rotation || 0) + (parentRotation || 0);
 
-    textarea.value = note.text;
+    textarea.value = n.text;
     textarea.style.position = 'absolute';
     textarea.style.top = `${stageBox.top + textPosition.y}px`;
     textarea.style.left = `${stageBox.left + textPosition.x}px`;
-    textarea.style.width = `${(localWidth - 20) * scale}px`;
-    textarea.style.height = `${(localHeight - 20) * scale}px`;
-    textarea.style.fontSize = `${(note.fontSize ?? 15) * scale}px`;
-    textarea.style.fontFamily = note.fontFamily || "'Inter', sans-serif";
-    textarea.style.fontWeight = note.fontWeight === 'bold' ? '700' : '400';
-    textarea.style.fontStyle = note.fontStyle === 'italic' ? 'italic' : 'normal';
-    textarea.style.textAlign = note.textAlign || 'left';
+    textarea.style.width = `${(localWidthRef.current - 20) * scale}px`;
+    textarea.style.height = `${(localHeightRef.current - 20) * scale}px`;
+    textarea.style.fontSize = `${(n.fontSize ?? 15) * scale}px`;
+    textarea.style.fontFamily = n.fontFamily || "'Inter', sans-serif";
+    textarea.style.fontWeight = n.fontWeight === 'bold' ? '700' : '400';
+    textarea.style.fontStyle = n.fontStyle === 'italic' ? 'italic' : 'normal';
+    textarea.style.textAlign = n.textAlign || 'left';
     textarea.style.padding = '4px';
     textarea.style.border = 'none';
     textarea.style.outline = 'none';
@@ -201,13 +213,13 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
     const handleInput = () => {
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
-        onTextChange(note.id, textarea.value);
+        onTextChangeRef.current(noteRef.current.id, textarea.value);
       }, 300);
     };
 
     const handleBlur = () => {
       clearTimeout(debounceTimer);
-      onTextChange(note.id, textarea.value);
+      onTextChangeRef.current(noteRef.current.id, textarea.value);
       setIsEditing(false);
       textarea.remove();
     };
@@ -229,7 +241,9 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
       textarea.removeEventListener('keydown', handleKeyDown);
       if (textarea.parentNode) textarea.remove();
     };
-  }, [isEditing, note.id, note.text, note.rotation, note.color, localWidth, localHeight, onTextChange, parentRotation]);
+  // Only recreate textarea when editing starts/stops — use refs for everything else
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditing]);
 
   return (
     <Group

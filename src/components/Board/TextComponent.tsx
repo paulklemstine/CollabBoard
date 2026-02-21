@@ -82,11 +82,12 @@ export function TextComponent({
     const naturalH = node.height();
     node.height(prevH); // restore
     const neededH = Math.max(minHeight, naturalH + 8); // padding + min
-    if (Math.abs(neededH - localHeight) > 1) {
+    if (Math.abs(neededH - localHeightRef.current) > 1) {
       setLocalHeight(neededH);
-      onResize?.(textObj.id, localWidth, neededH);
+      onResizeRef.current?.(textObj.id, localWidthRef.current, neededH);
     }
-  }, [textObj.text, textObj.fontSize, textObj.fontFamily, textObj.fontWeight, textObj.fontStyle, localWidth, localHeight, isEditing, isResizing]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [textObj.text, textObj.fontSize, textObj.fontFamily, textObj.fontWeight, textObj.fontStyle, localWidth, isEditing, isResizing]);
 
   // Drop bounce + flash pulse for new objects
   useEffect(() => {
@@ -213,8 +214,10 @@ export function TextComponent({
       textarea.style.height = '0';
       const scrollH = textarea.scrollHeight;
       textarea.style.height = `${scrollH}px`;
-      // Grow or shrink the component panel to match (convert screen px back to world px)
-      const neededH = Math.max(minHeight, scrollH / scale + 8); // add padding, clamp to min
+      // scrollHeight includes CSS padding (4px top + 4px bottom = 8px).
+      // Subtract it before converting to world coords, then add Konva padding back.
+      const contentWorldH = (scrollH - 8) / scale;
+      const neededH = Math.max(minHeight, contentWorldH + 8); // +8 for Konva padding (y=4 top + 4 bottom)
       if (Math.abs(neededH - localHeightRef.current) > 1) {
         localHeightRef.current = neededH;
         setLocalHeight(neededH);

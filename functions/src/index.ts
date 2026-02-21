@@ -3,23 +3,29 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import type Anthropic from '@anthropic-ai/sdk';
+import type { GoogleGenAI as GoogleGenAIType } from '@google/genai';
 
 initializeApp();
 const db = getFirestore();
 
-const anthropicApiKey = defineSecret('ANTHROPIC_API_KEY');
+const googleAiApiKey = defineSecret('GOOGLE_AI_API_KEY');
 const giphyApiKey = defineSecret('GIPHY_API_KEY');
 
-// ---- Cached Anthropic client singleton (import once per function instance, reuse across warm invocations) ----
-let _anthropicClient: Anthropic | null = null;
+// ---- Cached Gemini client singleton (import once per function instance, reuse across warm invocations) ----
+let _geminiClient: GoogleGenAIType | null = null;
 
-async function getAnthropicClient(): Promise<Anthropic> {
-  if (!_anthropicClient) {
-    const { default: AnthropicSDK } = await import('@anthropic-ai/sdk');
-    _anthropicClient = new AnthropicSDK({ apiKey: anthropicApiKey.value() });
+async function getGeminiClient(): Promise<GoogleGenAIType> {
+  if (!_geminiClient) {
+    const { GoogleGenAI } = await import('@google/genai');
+    _geminiClient = new GoogleGenAI({ apiKey: googleAiApiKey.value() });
   }
-  return _anthropicClient;
+  return _geminiClient;
+}
+
+// ---- Helpers ----
+
+function safeJsonParse(str: string): Record<string, unknown> {
+  try { return JSON.parse(str); } catch { return { result: str }; }
 }
 
 // ---- GIPHY search (server-side, no SDK needed) ----
@@ -2852,7 +2858,7 @@ async function executeTool(
 }
 
 // ---- Shared secrets config for both trigger and callable ----
-const functionSecrets = [anthropicApiKey, giphyApiKey];
+const functionSecrets = [googleAiApiKey, giphyApiKey];
 
 // Read-only tools that return data but don't modify the board
 const READ_ONLY_TOOLS = new Set([
@@ -2927,8 +2933,8 @@ async function processAICore(
     }
   }
 
-  // Anthropic SDK client (cached singleton, lazy import)
-  const anthropic = await getAnthropicClient();
+  // Gemini client (cached singleton, lazy import)
+  const ai = await getGeminiClient();
 
   try {
     // Build context — single board state read, reused for both context and selection
@@ -2971,51 +2977,55 @@ async function processAICore(
       }
     }
 
-    // Anthropic SDK tools (same definitions, cast for API compatibility)
-    const anthropicTools: Anthropic.Tool[] = tools.map(t => ({
-      name: t.name,
-      description: t.description,
-      input_schema: t.input_schema as Anthropic.Tool['input_schema'],
-    }));
+    // Gemini tool definitions — convert input_schema to parametersJsonSchema
+    const geminiTools = [{
+      functionDeclarations: tools.map(t => ({
+        name: t.name,
+        description: t.description,
+        parametersJsonSchema: t.input_schema,
+      })),
+    }];
 
-    const messages: Anthropic.MessageParam[] = [
-      { role: 'user', content: userMessage },
+    const messages: Array<{ role: string; parts: Array<Record<string, unknown>> }> = [
+      { role: 'user', parts: [{ text: userMessage }] },
     ];
 
     await requestRef.update({ progress: 'Thinking...' });
 
     // Tool execution loop — max 3 rounds to keep latency bounded
     const allToolCalls: { name: string; args: ToolInput }[] = [];
-    let lastResponse: Anthropic.Message | null = null;
+    let lastResponseText: string | undefined;
 
     for (let round = 0; round < 3; round++) {
-      const response = await anthropic.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 4096,
-        system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
-        tools: anthropicTools,
-        messages,
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: messages,
+        config: {
+          systemInstruction: SYSTEM_PROMPT,
+          tools: geminiTools,
+        },
       });
-      lastResponse = response;
 
-      const toolUseBlocks = response.content.filter(
-        (b): b is Anthropic.ContentBlock & { type: 'tool_use' } => b.type === 'tool_use',
-      );
-      if (toolUseBlocks.length === 0) break;
+      const fnCalls = response.functionCalls ?? [];
+      if (fnCalls.length === 0) {
+        lastResponseText = response.text;
+        break;
+      }
 
       await requestRef.update({
-        progress: `Executing ${toolUseBlocks.length} action${toolUseBlocks.length > 1 ? 's' : ''}...`,
+        progress: `Executing ${fnCalls.length} action${fnCalls.length > 1 ? 's' : ''}...`,
       });
 
-      const allReadOnly = toolUseBlocks.every(tc => READ_ONLY_TOOLS.has(tc.name));
+      const allReadOnly = fnCalls.every(fc => READ_ONLY_TOOLS.has(fc.name!));
 
       const results = await Promise.all(
-        toolUseBlocks.map(async (toolBlock) => {
+        fnCalls.map(async (fc) => {
+          const name = fc.name!;
           try {
-            const args = (toolBlock.input && typeof toolBlock.input === 'object') ? toolBlock.input as ToolInput : {} as ToolInput;
+            const args = (fc.args && typeof fc.args === 'object') ? fc.args as ToolInput : {} as ToolInput;
             let result: string;
-            if (toolBlock.name === 'executePlan') {
-              const planArgs = toolBlock.input as any;
+            if (name === 'executePlan') {
+              const planArgs = fc.args as any;
               console.log(`executePlan raw args keys: ${Object.keys(planArgs || {}).join(', ')}`);
               result = await executeExecutePlan(
                 planArgs.operations ?? [],
@@ -3029,7 +3039,7 @@ async function processAICore(
               );
             } else {
               result = await executeTool(
-                toolBlock.name,
+                name,
                 args,
                 boardId,
                 userId,
@@ -3039,26 +3049,27 @@ async function processAICore(
                 viewport,
               );
             }
-            return { id: toolBlock.id, name: toolBlock.name, result };
+            return { name, result };
           } catch (toolErr: unknown) {
             const errMsg = toolErr instanceof Error ? toolErr.message : 'Tool execution failed';
-            console.error(`Tool ${toolBlock.name} error:`, toolErr);
-            return { id: toolBlock.id, name: toolBlock.name, result: JSON.stringify({ error: errMsg }) };
+            console.error(`Tool ${name} error:`, toolErr);
+            return { name, result: JSON.stringify({ error: errMsg }) };
           }
         }),
       );
 
-      allToolCalls.push(...toolUseBlocks.map(tc => ({ name: tc.name, args: tc.input as ToolInput })));
+      allToolCalls.push(...fnCalls.map(fc => ({ name: fc.name!, args: (fc.args ?? {}) as ToolInput })));
 
       if (allReadOnly && round < 2) {
-        // Feed assistant response + tool results back for next round
-        messages.push({ role: 'assistant', content: response.content });
+        // Feed model response + tool results back for next round
+        messages.push({
+          role: 'model',
+          parts: fnCalls.map(fc => ({ functionCall: { name: fc.name, args: fc.args } })),
+        });
         messages.push({
           role: 'user',
-          content: results.map(r => ({
-            type: 'tool_result' as const,
-            tool_use_id: r.id,
-            content: r.result,
+          parts: results.map(r => ({
+            functionResponse: { name: r.name, response: safeJsonParse(r.result) },
           })),
         });
         await requestRef.update({ progress: 'Planning actions...' });
@@ -3077,39 +3088,36 @@ async function processAICore(
       if (deficit > 0 && deficit <= 500) {
         await requestRef.update({ progress: `Created ${objectsCreated.length}/${requestedCount}, creating ${deficit} more...` });
         const correctionMsg = `You created ${objectsCreated.length} objects but the user requested ${requestedCount}. Please create ${deficit} more to reach the exact count.`;
-        if (lastResponse) {
-          messages.push({ role: 'assistant', content: lastResponse.content });
-        }
-        messages.push({ role: 'user', content: correctionMsg });
+        messages.push({ role: 'user', parts: [{ text: correctionMsg }] });
 
-        const correctionResponse = await anthropic.messages.create({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 4096,
-          system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
-          tools: anthropicTools,
-          messages,
+        const correctionResponse = await ai.models.generateContent({
+          model: 'gemini-3-flash-preview',
+          contents: messages,
+          config: {
+            systemInstruction: SYSTEM_PROMPT,
+            tools: geminiTools,
+          },
         });
 
-        const corrToolBlocks = correctionResponse.content.filter(
-          (b): b is Anthropic.ContentBlock & { type: 'tool_use' } => b.type === 'tool_use',
-        );
-        if (corrToolBlocks.length > 0) {
+        const corrFnCalls = correctionResponse.functionCalls ?? [];
+        if (corrFnCalls.length > 0) {
           await Promise.all(
-            corrToolBlocks.map(async (toolBlock) => {
+            corrFnCalls.map(async (fc) => {
+              const name = fc.name!;
               try {
-                const args = (toolBlock.input && typeof toolBlock.input === 'object') ? toolBlock.input as ToolInput : {} as ToolInput;
-                if (toolBlock.name === 'executePlan') {
-                  const planArgs = toolBlock.input as any;
+                const args = (fc.args && typeof fc.args === 'object') ? fc.args as ToolInput : {} as ToolInput;
+                if (name === 'executePlan') {
+                  const planArgs = fc.args as any;
                   await executeExecutePlan(planArgs.operations ?? [], boardId, userId, objectsCreated, groupLabels, undefined, undefined, viewport);
                 } else {
-                  await executeTool(toolBlock.name, args, boardId, userId, objectsCreated, groupLabels, selectedIds, viewport);
+                  await executeTool(name, args, boardId, userId, objectsCreated, groupLabels, selectedIds, viewport);
                 }
               } catch (toolErr: unknown) {
-                console.error(`Correction tool ${toolBlock.name} error:`, toolErr);
+                console.error(`Correction tool ${name} error:`, toolErr);
               }
             }),
           );
-          allToolCalls.push(...corrToolBlocks.map(tc => ({ name: tc.name, args: tc.input as ToolInput })));
+          allToolCalls.push(...corrFnCalls.map(fc => ({ name: fc.name!, args: (fc.args ?? {}) as ToolInput })));
         }
       }
     }
@@ -3127,11 +3135,8 @@ async function processAICore(
         count > 1 ? `${label} x${count}` : label,
       );
       responseText = `Done! ${parts.join(', ')}.`;
-    } else if (lastResponse) {
-      const textBlocks = lastResponse.content.filter(
-        (b): b is Anthropic.TextBlock => b.type === 'text',
-      );
-      responseText = textBlocks.map(b => b.text).join('\n') || 'Done!';
+    } else if (lastResponseText) {
+      responseText = lastResponseText;
     } else {
       responseText = 'Done!';
     }

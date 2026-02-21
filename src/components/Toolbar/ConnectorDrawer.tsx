@@ -69,6 +69,7 @@ export function ConnectorDrawer({
       {/* Split button: main click toggles connect mode, arrow opens drawer */}
       <div className="flex items-stretch">
         <button
+          data-tutorial-id="connector-tool"
           onClick={onToggleConnectMode}
           className={`btn-lift px-3.5 py-2.5 rounded-l-xl text-sm font-bold transition-all duration-200 ${
             connectMode

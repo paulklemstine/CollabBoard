@@ -29,6 +29,8 @@ interface ToolbarProps {
   onCurveStyleChange: (style: 'straight' | 'curved') => void;
   selectedObject?: AnyBoardObject | null;
   onUpdateSelectedObject?: (updates: Partial<AnyBoardObject>) => void;
+  onToggleWebcam?: () => void;
+  isWebcamStreaming?: boolean;
   onUndo?: () => void;
   onRedo?: () => void;
   canUndo?: boolean;
@@ -57,6 +59,8 @@ export function Toolbar({
   onCurveStyleChange,
   selectedObject,
   onUpdateSelectedObject,
+  onToggleWebcam,
+  isWebcamStreaming,
   onUndo,
   onRedo,
   canUndo,
@@ -247,10 +251,12 @@ export function Toolbar({
           style={{
             boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)',
           }}
+          data-tutorial-id="toolbar"
           className="flex gap-1.5 glass-playful rounded-2xl p-2.5 items-center animate-float-up"
         >
       {/* Undo/Redo */}
       <button
+        data-tutorial-id="undo-redo"
         onClick={onUndo}
         disabled={!canUndo}
         className={`btn-lift w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200 ${
@@ -332,6 +338,30 @@ export function Toolbar({
 
       {divider}
 
+      {/* Webcam */}
+      {onToggleWebcam && (
+        <button
+          onClick={onToggleWebcam}
+          className={`btn-lift w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200 ${
+            isWebcamStreaming
+              ? 'text-white'
+              : 'text-gray-700 hover:text-violet-600 hover:bg-violet-50/60'
+          }`}
+          style={isWebcamStreaming ? {
+            background: '#ef4444',
+            boxShadow: '0 4px 16px rgba(239, 68, 68, 0.3)',
+          } : undefined}
+          title={isWebcamStreaming ? 'Stop webcam' : 'Start webcam'}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill={isWebcamStreaming ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M23 7l-7 5 7 5V7z" />
+            <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+          </svg>
+        </button>
+      )}
+
+      {divider}
+
       {/* Chat Drawer */}
       <ChatDrawer messages={chatMessages} currentUserId={chatCurrentUserId} onSend={onChatSend} />
 
@@ -339,6 +369,7 @@ export function Toolbar({
 
       {/* Flow AI */}
       <button
+        data-tutorial-id="ai-button"
         onClick={onToggleAI}
         className={`btn-lift px-3.5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
           aiOpen

@@ -104,6 +104,7 @@ export function ShapeDrawer({
       {/* Split button */}
       <div className="flex items-stretch">
         <button
+          data-tutorial-id="shape-tool"
           onClick={() => { setIsOpen((o) => !o); setTab('shapes'); }}
           className="btn-lift px-3.5 py-2.5 rounded-l-xl text-sm font-bold text-gray-700 hover:text-violet-600 transition-all duration-200"
           style={{

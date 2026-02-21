@@ -753,18 +753,68 @@ type TemplateMatch = {
   nodes: string[];
 } | {
   type: 'template';
-  templateType: 'swot' | 'kanban' | 'retrospective' | 'eisenhower' | 'mind-map';
+  templateType: 'swot' | 'kanban' | 'retrospective' | 'eisenhower' | 'mind-map' | 'timeline' | 'journey' | 'pros-cons';
 } | {
   type: 'bulk-create';
   count: number;
   objectType: 'sticky' | 'shape' | 'text' | 'sticker' | 'frame' | 'random';
+} | {
+  type: 'single-create';
+  objectType: 'sticky' | 'shape' | 'text' | 'frame';
+  label?: string;
+  color?: string;
+  shapeType?: string;
+} | {
+  type: 'grid-create';
+  rows: number;
+  cols: number;
+  labels?: string[];
+} | {
+  type: 'clear-board';
+} | {
+  type: 'numbered-flowchart';
+  stepCount: number;
+  topic?: string;
 }
 
 function detectTemplate(prompt: string): TemplateMatch | null {
+  const lower = prompt.toLowerCase().trim();
+
   // Flowchart arrow syntax: "A -> B -> C" or "A --> B" or "A → B"
   const arrowParts = prompt.split(/\s*(?:->|-->|→)\s*/);
   if (arrowParts.length >= 2 && arrowParts.every(p => p.trim().length > 0 && p.trim().length < 100)) {
     return { type: 'flowchart', nodes: arrowParts.map(p => p.trim()) };
+  }
+
+  // Clear / delete all: "clear the board", "delete everything", "remove all objects"
+  if (/^(?:clear|clean|wipe)\s+(?:the\s+)?(?:board|canvas|everything|all)/i.test(lower)
+    || /^(?:delete|remove)\s+(?:everything|all\b)/i.test(lower)) {
+    return { type: 'clear-board' };
+  }
+
+  // Grid pattern: "create a 3x4 grid of stickies", "make a 2x3 grid"
+  const gridMatch = lower.match(/(\d+)\s*[x×by]\s*(\d+)\s*(?:grid\s*(?:of\s*)?)?(?:sticky|stickies|note|notes|card|cards)?/);
+  if (gridMatch) {
+    const rows = parseInt(gridMatch[1], 10);
+    const cols = parseInt(gridMatch[2], 10);
+    if (rows >= 1 && rows <= 50 && cols >= 1 && cols <= 50 && rows * cols <= 500) {
+      // Check for labels like "for pros and cons" — match "for X and Y" at end
+      const labelMatch = prompt.match(/\bfor\s+(.+)$/i);
+      let labels: string[] | undefined;
+      if (labelMatch) {
+        labels = labelMatch[1].split(/\s+and\s+|,\s*/i).map(s => s.trim()).filter(Boolean);
+      }
+      return { type: 'grid-create', rows, cols, labels };
+    }
+  }
+
+  // Numbered flowchart: "create a flowchart with 5 steps", "make a 5-step flowchart"
+  const flowchartNumMatch = lower.match(/(?:create|make|build|generate)\s+(?:a\s+)?(?:(\d+)[- ]?step\s+)?flowchart(?:\s+with\s+(\d+)\s+(?:step|stage|node)s?)?/);
+  if (flowchartNumMatch) {
+    const stepCount = parseInt(flowchartNumMatch[1] || flowchartNumMatch[2] || '5', 10);
+    if (stepCount >= 2 && stepCount <= 20) {
+      return { type: 'numbered-flowchart', stepCount };
+    }
   }
 
   // Bulk creation: "create 10 stickies", "add 50 random objects", "generate 20 cards"
@@ -800,6 +850,53 @@ function detectTemplate(prompt: string): TemplateMatch | null {
   if (/\bretro(?:spective)?\b/i.test(prompt)) return { type: 'template', templateType: 'retrospective' };
   if (/\beisenhower\b/i.test(prompt)) return { type: 'template', templateType: 'eisenhower' };
   if (/\bmind\s*map\b/i.test(prompt)) return { type: 'template', templateType: 'mind-map' };
+  if (/\bpros?\s*(?:and|&|\/)\s*cons?\b/i.test(prompt)) return { type: 'template', templateType: 'pros-cons' };
+  if (/\btimeline\b/i.test(prompt)) {
+    const stageMatch = prompt.match(/(\d+)\s*(?:stage|step|phase|point)s?/i);
+    return { type: 'template', templateType: 'timeline' };
+  }
+  if (/\b(?:user\s*)?journey\s*map\b/i.test(prompt)) return { type: 'template', templateType: 'journey' };
+
+  // Single object creation: "add a sticky note", "create a rectangle", "add a frame called Sprint Planning"
+  const singleMatch = lower.match(
+    /^(?:create|add|make|place|put)\s+(?:a\s+|an\s+)?(?:(yellow|blue|green|pink|purple|orange|red)\s+)?(sticky\s*note|sticky|note|card|rectangle|rect|circle|ellipse|triangle|diamond|shape|line|frame|text\s*(?:box|element)?|text)\b/,
+  );
+  if (singleMatch) {
+    const colorName = singleMatch[1];
+    const typeStr = singleMatch[2];
+
+    // Parse optional label: "called X", "that says X", "titled X", or quoted text
+    const labelMatch = prompt.match(/(?:called|titled|named|saying|that\s+says|labeled)\s+['"]?(.+?)['"]?\s*$/i)
+      || prompt.match(/'([^']+)'/)
+      || prompt.match(/"([^"]+)"/);
+    const label = labelMatch ? labelMatch[1].trim() : undefined;
+
+    const COLOR_MAP: Record<string, string> = {
+      yellow: '#fef9c3', blue: '#dbeafe', green: '#dcfce7', pink: '#fce7f3',
+      purple: '#f3e8ff', orange: '#ffedd5', red: '#fecaca',
+    };
+    const color = colorName ? COLOR_MAP[colorName] : undefined;
+
+    if (/sticky|note|card/.test(typeStr)) {
+      return { type: 'single-create', objectType: 'sticky', label, color };
+    } else if (/frame/.test(typeStr)) {
+      return { type: 'single-create', objectType: 'frame', label };
+    } else if (/text/.test(typeStr)) {
+      return { type: 'single-create', objectType: 'text', label };
+    } else if (/rect/.test(typeStr)) {
+      return { type: 'single-create', objectType: 'shape', shapeType: 'rect', color };
+    } else if (/circle|ellipse/.test(typeStr)) {
+      return { type: 'single-create', objectType: 'shape', shapeType: 'circle', color };
+    } else if (/triangle/.test(typeStr)) {
+      return { type: 'single-create', objectType: 'shape', shapeType: 'triangle', color };
+    } else if (/diamond/.test(typeStr)) {
+      return { type: 'single-create', objectType: 'shape', shapeType: 'diamond', color };
+    } else if (/line/.test(typeStr)) {
+      return { type: 'single-create', objectType: 'shape', shapeType: 'line', color };
+    } else {
+      return { type: 'single-create', objectType: 'shape', shapeType: 'rect', color };
+    }
+  }
 
   return null;
 }
@@ -1048,6 +1145,102 @@ async function executeTemplate(
       }
       break;
     }
+
+    case 'timeline': {
+      const stageCount = 5;
+      const stageWidth = 200;
+      const stageGap = 80;
+      const stageLabels = ['Phase 1', 'Phase 2', 'Phase 3', 'Phase 4', 'Phase 5'];
+      const stageColors = ['#dbeafe', '#dcfce7', '#fef9c3', '#ffedd5', '#f3e8ff'];
+      const nodeIds: string[] = [];
+
+      for (let i = 0; i < stageCount; i++) {
+        const sx = startX + i * (stageWidth + stageGap);
+        const sy = startY + 100;
+        const stageRef = objectsRef.doc();
+        nodeIds.push(stageRef.id);
+        batch.set(stageRef, {
+          type: 'sticky', text: stageLabels[i], x: sx, y: sy,
+          width: stageWidth, height: stageWidth, color: stageColors[i], textColor: '#1e293b',
+          rotation: 0, createdBy: userId, updatedAt: now, parentId: '',
+          aiLabel: stageLabels[i], aiGroupId: 'timeline',
+        });
+        objectsCreated.push(stageRef.id);
+      }
+
+      // Connect stages with arrows
+      for (let i = 0; i < stageCount - 1; i++) {
+        const connRef = objectsRef.doc();
+        batch.set(connRef, {
+          type: 'connector', fromId: nodeIds[i], toId: nodeIds[i + 1],
+          style: 'straight', lineType: 'solid', startArrow: false, endArrow: true,
+          strokeWidth: 2, color: '#6366f1',
+          x: 0, y: 0, width: 0, height: 0,
+          rotation: 0, createdBy: userId, updatedAt: now, parentId: '',
+        });
+        objectsCreated.push(connRef.id);
+      }
+      break;
+    }
+
+    case 'journey': {
+      const stages = ['Awareness', 'Consideration', 'Decision', 'Onboarding', 'Retention'];
+      const journeyColors = ['#dbeafe', '#dcfce7', '#fef9c3', '#ffedd5', '#f3e8ff'];
+      const journeyPrompts = ['How do users discover us?', 'What do users evaluate?', 'What triggers the decision?', 'First experience?', 'What keeps users coming back?'];
+      const colWidth = 250;
+      const gap = 20;
+
+      for (let i = 0; i < stages.length; i++) {
+        const fx = startX + i * (colWidth + gap);
+        const fy = startY;
+        const frameRef = objectsRef.doc();
+        batch.set(frameRef, {
+          type: 'frame', title: stages[i], x: fx, y: fy,
+          width: colWidth, height: 400, rotation: 0,
+          createdBy: userId, updatedAt: now, parentId: '', sentToBack: true,
+        });
+        objectsCreated.push(frameRef.id);
+
+        const stickyRef = objectsRef.doc();
+        batch.set(stickyRef, {
+          type: 'sticky', text: journeyPrompts[i], x: fx + 20, y: fy + 20,
+          width: 200, height: 180, color: journeyColors[i], textColor: '#1e293b',
+          rotation: 0, createdBy: userId, updatedAt: now, parentId: frameRef.id,
+        });
+        objectsCreated.push(stickyRef.id);
+      }
+      break;
+    }
+
+    case 'pros-cons': {
+      const pcFrameWidth = 400;
+      const pcFrameHeight = 500;
+      const pcGap = 30;
+      const pcTitles = ['Pros', 'Cons'];
+      const pcColors = ['#dcfce7', '#fce7f3'];
+      const pcPrompts = ['Add advantages here', 'Add disadvantages here'];
+
+      for (let i = 0; i < 2; i++) {
+        const fx = startX + i * (pcFrameWidth + pcGap);
+        const fy = startY;
+        const frameRef = objectsRef.doc();
+        batch.set(frameRef, {
+          type: 'frame', title: pcTitles[i], x: fx, y: fy,
+          width: pcFrameWidth, height: pcFrameHeight, rotation: 0,
+          createdBy: userId, updatedAt: now, parentId: '', sentToBack: true,
+        });
+        objectsCreated.push(frameRef.id);
+
+        const stickyRef = objectsRef.doc();
+        batch.set(stickyRef, {
+          type: 'sticky', text: pcPrompts[i], x: fx + 20, y: fy + 20,
+          width: 180, height: 180, color: pcColors[i], textColor: '#1e293b',
+          rotation: 0, createdBy: userId, updatedAt: now, parentId: frameRef.id,
+        });
+        objectsCreated.push(stickyRef.id);
+      }
+      break;
+    }
   }
 
   await batch.commit();
@@ -1055,6 +1248,7 @@ async function executeTemplate(
   const templateNames: Record<string, string> = {
     'swot': 'SWOT analysis', 'kanban': 'Kanban board', 'retrospective': 'retrospective',
     'eisenhower': 'Eisenhower matrix', 'mind-map': 'mind map',
+    'timeline': 'timeline', 'journey': 'user journey map', 'pros-cons': 'pros and cons',
   };
   return `Done! Created ${templateNames[templateType] || templateType}.`;
 }
@@ -1164,6 +1358,158 @@ async function executeBulkCreate(
 
   const typeLabel = objectType === 'random' ? 'objects' : `${objectType}${count !== 1 ? 's' : ''}`;
   return `Done! Created ${count} ${typeLabel}.`;
+}
+
+async function executeSingleCreate(
+  objectType: 'sticky' | 'shape' | 'text' | 'frame',
+  boardId: string,
+  userId: string,
+  objectsCreated: string[],
+  viewport?: { x: number; y: number; width: number; height: number },
+  label?: string,
+  color?: string,
+  shapeType?: string,
+): Promise<string> {
+  const objectsRef = db.collection(`boards/${boardId}/objects`);
+  const now = Date.now();
+  const x = viewport ? Math.round(viewport.x - 100) : 200;
+  const y = viewport ? Math.round(viewport.y - 100) : 200;
+  const docRef = objectsRef.doc();
+
+  let data: Record<string, unknown>;
+  switch (objectType) {
+    case 'sticky':
+      data = {
+        type: 'sticky', text: label ?? '', x, y,
+        width: 200, height: 200, color: color ?? '#fef9c3', textColor: '#1e293b',
+        rotation: 0, createdBy: userId, updatedAt: now, parentId: '',
+      };
+      break;
+    case 'shape':
+      data = {
+        type: 'shape', shapeType: shapeType ?? 'rect', x, y,
+        width: 120, height: 120, color: color ?? '#dbeafe',
+        strokeColor: '#4f46e5', rotation: 0,
+        createdBy: userId, updatedAt: now, parentId: '',
+      };
+      break;
+    case 'text':
+      data = {
+        type: 'text', text: label ?? 'Text', x, y,
+        width: 300, height: 50, fontSize: 24,
+        fontFamily: "'Inter', sans-serif", fontWeight: 'normal',
+        fontStyle: 'normal', textAlign: 'left',
+        color: '#1e293b', bgColor: 'transparent',
+        rotation: 0, createdBy: userId, updatedAt: now, parentId: '',
+      };
+      break;
+    case 'frame':
+      data = {
+        type: 'frame', title: label ?? 'Frame', x, y,
+        width: 400, height: 300,
+        rotation: 0, createdBy: userId, updatedAt: now, parentId: '',
+        sentToBack: true,
+      };
+      break;
+    default:
+      data = {
+        type: 'sticky', text: label ?? '', x, y,
+        width: 200, height: 200, color: '#fef9c3', textColor: '#1e293b',
+        rotation: 0, createdBy: userId, updatedAt: now, parentId: '',
+      };
+  }
+
+  await docRef.set(data);
+  objectsCreated.push(docRef.id);
+
+  const typeLabel = objectType === 'frame' ? `frame "${label || 'Frame'}"` : objectType;
+  return `Done! Created ${typeLabel}${label && objectType !== 'frame' ? ` with text "${label}"` : ''}.`;
+}
+
+async function executeGridCreate(
+  rows: number,
+  cols: number,
+  boardId: string,
+  userId: string,
+  objectsCreated: string[],
+  viewport?: { x: number; y: number; width: number; height: number },
+  labels?: string[],
+): Promise<string> {
+  const objectsRef = db.collection(`boards/${boardId}/objects`);
+  const now = Date.now();
+  const cellW = 220;
+  const cellH = 220;
+  const totalW = cols * cellW;
+  const totalH = rows * cellH;
+  const baseX = viewport ? Math.round(viewport.x - viewport.width / 2 + (viewport.width - totalW) / 2) : 100;
+  const baseY = viewport ? Math.round(viewport.y - viewport.height / 2 + (viewport.height - totalH) / 2) : 100;
+
+  const colors = ['#fef9c3', '#dbeafe', '#dcfce7', '#fce7f3', '#f3e8ff', '#ffedd5'];
+  const total = rows * cols;
+  const batchSize = 450;
+
+  for (let batchStart = 0; batchStart < total; batchStart += batchSize) {
+    const batchEnd = Math.min(batchStart + batchSize, total);
+    const batch = db.batch();
+
+    for (let i = batchStart; i < batchEnd; i++) {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x = baseX + col * cellW;
+      const y = baseY + row * cellH;
+
+      // If labels provided, use column labels as header text
+      const text = labels && labels[col] ? labels[col] : '';
+
+      const docRef = objectsRef.doc();
+      batch.set(docRef, {
+        type: 'sticky', text, x, y,
+        width: 200, height: 200, color: colors[i % colors.length], textColor: '#1e293b',
+        rotation: 0, createdBy: userId, updatedAt: now, parentId: '',
+      });
+      objectsCreated.push(docRef.id);
+    }
+
+    await batch.commit();
+  }
+
+  return `Done! Created ${rows}x${cols} grid (${total} sticky notes).`;
+}
+
+async function executeClearBoard(
+  boardId: string,
+  objectsCreated: string[],
+): Promise<string> {
+  const snapshot = await db.collection(`boards/${boardId}/objects`).get();
+  if (snapshot.empty) return 'Board is already empty.';
+
+  const batchSize = 450;
+  const docs = snapshot.docs;
+  let deleted = 0;
+
+  for (let i = 0; i < docs.length; i += batchSize) {
+    const batch = db.batch();
+    const chunk = docs.slice(i, i + batchSize);
+    for (const doc of chunk) {
+      batch.delete(doc.ref);
+      deleted++;
+    }
+    await batch.commit();
+  }
+
+  return `Done! Cleared ${deleted} objects from the board.`;
+}
+
+async function executeNumberedFlowchart(
+  stepCount: number,
+  boardId: string,
+  userId: string,
+  objectsCreated: string[],
+  viewport?: { x: number; y: number; width: number; height: number },
+  topic?: string,
+): Promise<string> {
+  const nodes = Array.from({ length: stepCount }, (_, i) => `Step ${i + 1}`);
+  return executeFlowchart(nodes, boardId, userId, objectsCreated, viewport);
 }
 
 function buildObjectData(
@@ -2140,6 +2486,14 @@ async function processAICore(
         responseText = await executeFlowchart(templateMatch.nodes, boardId, userId, objectsCreated, viewport);
       } else if (templateMatch.type === 'bulk-create') {
         responseText = await executeBulkCreate(templateMatch.count, templateMatch.objectType, boardId, userId, objectsCreated, viewport);
+      } else if (templateMatch.type === 'single-create') {
+        responseText = await executeSingleCreate(templateMatch.objectType, boardId, userId, objectsCreated, viewport, templateMatch.label, templateMatch.color, templateMatch.shapeType);
+      } else if (templateMatch.type === 'grid-create') {
+        responseText = await executeGridCreate(templateMatch.rows, templateMatch.cols, boardId, userId, objectsCreated, viewport, templateMatch.labels);
+      } else if (templateMatch.type === 'clear-board') {
+        responseText = await executeClearBoard(boardId, objectsCreated);
+      } else if (templateMatch.type === 'numbered-flowchart') {
+        responseText = await executeNumberedFlowchart(templateMatch.stepCount, boardId, userId, objectsCreated, viewport, templateMatch.topic);
       } else {
         responseText = await executeTemplate(templateMatch.templateType, boardId, userId, objectsCreated, viewport);
       }
@@ -2469,6 +2823,44 @@ export const processAIRequestCallable = onCall(
   },
 );
 
+// ---- GIPHY proxy callable (lightweight, no auth required) ----
+
+export const searchGiphyCallable = onCall(
+  {
+    secrets: [giphyApiKey],
+    timeoutSeconds: 15,
+    memory: '128MiB',
+    maxInstances: 10,
+  },
+  async (request) => {
+    const { query, limit } = request.data as { query?: string; limit?: number };
+    const q = (query ?? '').trim();
+    if (!q) {
+      throw new HttpsError('invalid-argument', 'Missing search query.');
+    }
+
+    const key = giphyApiKey.value();
+    if (!key) {
+      throw new HttpsError('unavailable', 'GIPHY API key not configured.');
+    }
+
+    const url = `https://api.giphy.com/v1/stickers/search?api_key=${encodeURIComponent(key)}&q=${encodeURIComponent(q)}&limit=${limit ?? 18}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      throw new HttpsError('internal', `GIPHY API returned ${res.status}`);
+    }
+
+    const json = await res.json();
+    return {
+      data: (json.data ?? []).map((gif: Record<string, unknown>) => ({
+        id: gif.id,
+        title: gif.title,
+        images: gif.images,
+      })),
+    };
+  },
+);
+
 // ---- Exports for testing ----
-export { detectTemplate, buildObjectData, requestNeedsContext, resolveFontFamily, computeAutoOrigin, executeBulkCreate };
+export { detectTemplate, buildObjectData, requestNeedsContext, resolveFontFamily, computeAutoOrigin, executeBulkCreate, executeSingleCreate, executeGridCreate, executeClearBoard, executeNumberedFlowchart };
 export type { TemplateMatch };

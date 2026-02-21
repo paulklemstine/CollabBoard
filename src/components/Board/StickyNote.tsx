@@ -261,7 +261,7 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
       rotation={(note.rotation || 0) + (parentRotation || 0) + (liveTransform?.rotationDelta ?? 0)}
       draggable={!groupDragOffset}
       onDragMove={handleDragMove}
-      onDragStart={(e) => {
+      onDragStart={() => {
       }}
       onDragEnd={(e) => {
         onDragEnd(note.id, e.target.x() - localWidth / 2, e.target.y() - localHeight / 2);
@@ -270,11 +270,11 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
       onTap={() => onClick?.(note.id)}
       onDblClick={() => setIsEditing(true)}
       onDblTap={() => setIsEditing(true)}
-      onMouseEnter={(e) => {
+      onMouseEnter={() => {
         setIsMouseHovered(true);
         onConnectorHoverEnter?.(note.id);
       }}
-      onMouseLeave={(e) => {
+      onMouseLeave={() => {
         setIsMouseHovered(false);
         onConnectorHoverLeave?.();
       }}
@@ -359,11 +359,11 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
             e.cancelBubble = true;
             onDuplicate(note.id);
           }}
-          onMouseEnter={(e) => {
+          onMouseEnter={() => {
             setIsMouseHovered(true);
             setIsDuplicateHovered(true);
           }}
-          onMouseLeave={(e) => {
+          onMouseLeave={() => {
             setIsDuplicateHovered(false);
           }}
         >
@@ -394,11 +394,11 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
           y={0}
           onClick={() => onDelete(note.id)}
           onTap={() => onDelete(note.id)}
-          onMouseEnter={(e) => {
+          onMouseEnter={() => {
             setIsMouseHovered(true);
             setIsDeleteHovered(true);
           }}
-          onMouseLeave={(e) => {
+          onMouseLeave={() => {
             setIsDeleteHovered(false);
           }}
         >
@@ -457,15 +457,16 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
           x={0}
           y={localHeight - hl.size}
           draggable
-          onMouseEnter={(e) => {
+          onMouseEnter={() => {
             setIsMouseHovered(true);
             setIsRotateHovered(true);
           }}
-          onMouseLeave={(e) => {
+          onMouseLeave={() => {
             setIsRotateHovered(false);
           }}
           onDragStart={(e) => {
             e.cancelBubble = true;
+            const stage = e.target.getStage();
             if (!stage) return;
             const pointer = stage.getPointerPosition();
             if (!pointer) return;
@@ -478,6 +479,7 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
           onDragMove={(e) => {
             e.cancelBubble = true;
             if (!rotateStartRef.current) return;
+            const stage = e.target.getStage();
             if (!stage) return;
             const pointer = stage.getPointerPosition();
             if (!pointer) return;
@@ -492,6 +494,7 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
           onDragEnd={(e) => {
             e.cancelBubble = true;
             if (rotateStartRef.current) {
+              const stage = e.target.getStage();
               if (stage) {
                 const pointer = stage.getPointerPosition();
                 if (pointer) {
@@ -534,11 +537,11 @@ export function StickyNoteComponent({ note, onDragMove, onDragEnd, onTextChange,
           x={localWidth - hl.size}
           y={localHeight - hl.size}
           draggable
-          onMouseEnter={(e) => {
+          onMouseEnter={() => {
             setIsMouseHovered(true);
             setIsResizeHovered(true);
           }}
-          onMouseLeave={(e) => {
+          onMouseLeave={() => {
             setIsResizeHovered(false);
           }}
           onDragStart={(e) => {

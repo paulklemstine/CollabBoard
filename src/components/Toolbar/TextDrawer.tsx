@@ -208,7 +208,7 @@ export function TextDrawer({
             </div>
 
             {/* Color */}
-            <ColorPanel label="Color" color={textColor} onChange={onTextColorChange} showTransparent />
+            <ColorPanel label="Color" color={textColor} onChange={onTextColorChange} />
           </div>
         </div>
       )}

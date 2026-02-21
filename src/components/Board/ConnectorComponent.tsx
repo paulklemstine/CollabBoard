@@ -181,10 +181,10 @@ export function ConnectorComponent({ connector, objects, onDelete }: ConnectorCo
           shadowOffsetY={2}
           onClick={(e) => { e.cancelBubble = true; onDelete(connector.id); }}
           onTap={(e) => { e.cancelBubble = true; onDelete(connector.id); }}
-          onMouseEnter={(e) => {
+          onMouseEnter={() => {
             setIsDeleteHovered(true);
           }}
-          onMouseLeave={(e) => {
+          onMouseLeave={() => {
             setIsDeleteHovered(false);
           }}
         />

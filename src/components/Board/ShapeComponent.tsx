@@ -182,6 +182,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
   const handleEndpointDragMove = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
     e.cancelBubble = true;
     if (!endpointDragRef.current || !onLineEndpointMove) return;
+    const stage = e.target.getStage();
     if (!stage) return;
     const pointer = stage.getPointerPosition();
     if (!pointer) return;
@@ -211,6 +212,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
   const handleEndpointDragEnd = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
     e.cancelBubble = true;
     if (!endpointDragRef.current || !onLineEndpointMove) return;
+    const stage = e.target.getStage();
     if (!stage) return;
     const pointer = stage.getPointerPosition();
     if (!pointer) return;
@@ -462,18 +464,18 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
       rotation={effectiveRotation + (parentRotation || 0) + (liveTransform?.rotationDelta ?? 0)}
       draggable={!groupDragOffset && !isEndpointDragging}
       onDragMove={handleDragMove}
-      onDragStart={(e) => {
+      onDragStart={() => {
       }}
       onDragEnd={(e) => {
         onDragEnd(shape.id, e.target.x() - localWidth / 2, e.target.y() - localHeight / 2);
       }}
       onClick={() => onClick?.(shape.id)}
       onTap={() => onClick?.(shape.id)}
-      onMouseEnter={(e) => {
+      onMouseEnter={() => {
         setIsMouseHovered(true);
         onConnectorHoverEnter?.(shape.id);
       }}
-      onMouseLeave={(e) => {
+      onMouseLeave={() => {
         setIsMouseHovered(false);
         onConnectorHoverLeave?.();
       }}
@@ -541,11 +543,11 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
             x={-28}
             y={localHeight / 2 - 28}
             draggable
-            onMouseEnter={(e) => {
+            onMouseEnter={() => {
               setIsMouseHovered(true);
               setIsLeftEndpointHovered(true);
             }}
-            onMouseLeave={(e) => {
+            onMouseLeave={() => {
               setIsLeftEndpointHovered(false);
             }}
             onDragStart={(e) => {
@@ -585,11 +587,11 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
             x={localWidth - 28}
             y={localHeight / 2 - 28}
             draggable
-            onMouseEnter={(e) => {
+            onMouseEnter={() => {
               setIsMouseHovered(true);
               setIsRightEndpointHovered(true);
             }}
-            onMouseLeave={(e) => {
+            onMouseLeave={() => {
               setIsRightEndpointHovered(false);
             }}
             onDragStart={(e) => {
@@ -638,11 +640,11 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
             e.cancelBubble = true;
             onDuplicate(shape.id);
           }}
-          onMouseEnter={(e) => {
+          onMouseEnter={() => {
             setIsMouseHovered(true);
             setIsDuplicateHovered(true);
           }}
-          onMouseLeave={(e) => {
+          onMouseLeave={() => {
             setIsDuplicateHovered(false);
           }}
         >
@@ -677,11 +679,11 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
             e.cancelBubble = true;
             onDelete(shape.id);
           }}
-          onMouseEnter={(e) => {
+          onMouseEnter={() => {
             setIsMouseHovered(true);
             setIsDeleteHovered(true);
           }}
-          onMouseLeave={(e) => {
+          onMouseLeave={() => {
             setIsDeleteHovered(false);
           }}
         >
@@ -718,11 +720,11 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
             e.cancelBubble = true;
             onDuplicate(shape.id);
           }}
-          onMouseEnter={(e) => {
+          onMouseEnter={() => {
             setIsMouseHovered(true);
             setIsDuplicateHovered(true);
           }}
-          onMouseLeave={(e) => {
+          onMouseLeave={() => {
             setIsDuplicateHovered(false);
           }}
         >
@@ -757,11 +759,11 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
             e.cancelBubble = true;
             onDelete(shape.id);
           }}
-          onMouseEnter={(e) => {
+          onMouseEnter={() => {
             setIsMouseHovered(true);
             setIsDeleteHovered(true);
           }}
-          onMouseLeave={(e) => {
+          onMouseLeave={() => {
             setIsDeleteHovered(false);
           }}
         >
@@ -789,15 +791,16 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
           x={0}
           y={localHeight - hl.size}
           draggable
-          onMouseEnter={(e) => {
+          onMouseEnter={() => {
             setIsMouseHovered(true);
             setIsRotateHovered(true);
           }}
-          onMouseLeave={(e) => {
+          onMouseLeave={() => {
             setIsRotateHovered(false);
           }}
           onDragStart={(e) => {
             e.cancelBubble = true;
+            const stage = e.target.getStage();
             if (!stage) return;
             const pointer = stage.getPointerPosition();
             if (!pointer) return;
@@ -810,6 +813,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
           onDragMove={(e) => {
             e.cancelBubble = true;
             if (!rotateStartRef.current) return;
+            const stage = e.target.getStage();
             if (!stage) return;
             const pointer = stage.getPointerPosition();
             if (!pointer) return;
@@ -824,6 +828,7 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
           onDragEnd={(e) => {
             e.cancelBubble = true;
             if (rotateStartRef.current) {
+              const stage = e.target.getStage();
               if (stage) {
                 const pointer = stage.getPointerPosition();
                 if (pointer) {
@@ -864,11 +869,11 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
           x={handleX}
           y={handleY}
           draggable
-          onMouseEnter={(e) => {
+          onMouseEnter={() => {
             setIsMouseHovered(true);
             setIsResizeHovered(true);
           }}
-          onMouseLeave={(e) => {
+          onMouseLeave={() => {
             setIsResizeHovered(false);
           }}
           onDragStart={(e) => {

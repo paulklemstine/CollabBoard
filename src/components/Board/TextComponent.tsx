@@ -274,7 +274,7 @@ export function TextComponent({
       rotation={(textObj.rotation || 0) + (parentRotation || 0) + (liveTransform?.rotationDelta ?? 0)}
       draggable={!groupDragOffset}
       onDragMove={handleDragMove}
-      onDragStart={(e) => {
+      onDragStart={() => {
       }}
       onDragEnd={(e) => {
         onDragEnd(textObj.id, e.target.x() - localWidth / 2, e.target.y() - localHeight / 2);
@@ -283,11 +283,11 @@ export function TextComponent({
       onTap={() => onClick?.(textObj.id)}
       onDblClick={() => setIsEditing(true)}
       onDblTap={() => setIsEditing(true)}
-      onMouseEnter={(e) => {
+      onMouseEnter={() => {
         setIsMouseHovered(true);
         onConnectorHoverEnter?.(textObj.id);
-        const stage = e.target.getStage();      }}
-      onMouseLeave={(e) => {
+      }}
+      onMouseLeave={() => {
         setIsMouseHovered(false);
         onConnectorHoverLeave?.();
       }}
@@ -433,13 +433,13 @@ export function TextComponent({
             e.cancelBubble = true;
             onDuplicate(textObj.id);
           }}
-          onMouseEnter={(e) => {
+          onMouseEnter={() => {
             setIsMouseHovered(true);
             setIsDuplicateHovered(true);
           }}
-          onMouseLeave={(e) => {
+          onMouseLeave={() => {
             setIsDuplicateHovered(false);
-            const stage = e.target.getStage();          }}
+          }}
         >
           <Rect width={hl.size} height={hl.size} fill={isDuplicateHovered ? '#22c55e' : '#94a3b8'} opacity={isDuplicateHovered ? 1 : 0.4} cornerRadius={hl.cornerRadius} />
           <Text x={0} y={0} width={hl.size} height={hl.size} text={"\uD83D\uDCCB"} fontSize={hl.fontSize} align="center" verticalAlign="middle" listening={false} />
@@ -452,13 +452,13 @@ export function TextComponent({
           y={0}
           onClick={() => onDelete(textObj.id)}
           onTap={() => onDelete(textObj.id)}
-          onMouseEnter={(e) => {
+          onMouseEnter={() => {
             setIsMouseHovered(true);
             setIsDeleteHovered(true);
           }}
-          onMouseLeave={(e) => {
+          onMouseLeave={() => {
             setIsDeleteHovered(false);
-            const stage = e.target.getStage();          }}
+          }}
         >
           <Rect width={hl.size} height={hl.size} fill={isDeleteHovered ? '#ef4444' : '#94a3b8'} opacity={isDeleteHovered ? 1 : 0.4} cornerRadius={hl.cornerRadius} />
           <Text x={0} y={0} width={hl.size} height={hl.size} text="❌" fontSize={hl.fontSize} align="center" verticalAlign="middle" listening={false} />
@@ -470,15 +470,16 @@ export function TextComponent({
           x={0}
           y={localHeight - hl.size}
           draggable
-          onMouseEnter={(e) => {
+          onMouseEnter={() => {
             setIsMouseHovered(true);
             setIsRotateHovered(true);
           }}
-          onMouseLeave={(e) => {
+          onMouseLeave={() => {
             setIsRotateHovered(false);
           }}
           onDragStart={(e) => {
             e.cancelBubble = true;
+            const stage = e.target.getStage();
             if (!stage) return;
             const pointer = stage.getPointerPosition();
             if (!pointer) return;
@@ -491,6 +492,7 @@ export function TextComponent({
           onDragMove={(e) => {
             e.cancelBubble = true;
             if (!rotateStartRef.current) return;
+            const stage = e.target.getStage();
             if (!stage) return;
             const pointer = stage.getPointerPosition();
             if (!pointer) return;
@@ -505,6 +507,7 @@ export function TextComponent({
           onDragEnd={(e) => {
             e.cancelBubble = true;
             if (rotateStartRef.current) {
+              const stage = e.target.getStage();
               if (stage) {
                 const pointer = stage.getPointerPosition();
                 if (pointer) {
@@ -531,13 +534,13 @@ export function TextComponent({
           x={localWidth - hl.size}
           y={localHeight - hl.size}
           draggable
-          onMouseEnter={(e) => {
+          onMouseEnter={() => {
             setIsMouseHovered(true);
             setIsResizeHovered(true);
           }}
-          onMouseLeave={(e) => {
+          onMouseLeave={() => {
             setIsResizeHovered(false);
-            const stage = e.target.getStage();          }}
+          }}
           onDragStart={(e) => {
             e.cancelBubble = true;
             setIsResizing(true);

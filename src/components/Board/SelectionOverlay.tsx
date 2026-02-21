@@ -165,6 +165,7 @@ export function SelectionOverlay({
       e.cancelBubble = true;
       if (!box) return;
 
+      const stage = e.target.getStage();
       if (!stage) return;
       const pointer = stage.getPointerPosition();
       if (!pointer) return;
@@ -185,6 +186,7 @@ export function SelectionOverlay({
       e.cancelBubble = true;
       if (!rotateStartRef.current || !box) return;
 
+      const stage = e.target.getStage();
       if (!stage) return;
       const pointer = stage.getPointerPosition();
       if (!pointer) return;
@@ -212,6 +214,7 @@ export function SelectionOverlay({
       e.cancelBubble = true;
       if (!rotateStartRef.current || !box) return;
 
+      const stage = e.target.getStage();
       if (!stage) return;
       const pointer = stage.getPointerPosition();
       if (!pointer) return;
@@ -264,10 +267,6 @@ export function SelectionOverlay({
           onDragStart={handleBBoxDragStart}
           onDragMove={handleBBoxDragMove}
           onDragEnd={handleBBoxDragEnd}
-          onMouseEnter={(e) => {
-          }}
-          onMouseLeave={(e) => {
-          }}
         >
           {/* Dashed selection border — marching ants */}
           <Rect
@@ -285,10 +284,6 @@ export function SelectionOverlay({
             x={displayWidth - hl.size}
             y={displayHeight - hl.size}
             draggable
-            onMouseEnter={(e) => {
-            }}
-            onMouseLeave={(e) => {
-            }}
             onDragStart={handleResizeDragStart}
             onDragMove={handleResizeDragMove}
             onDragEnd={handleResizeDragEnd}
@@ -316,10 +311,6 @@ export function SelectionOverlay({
             x={0}
             y={displayHeight - hl.size}
             draggable
-            onMouseEnter={(e) => {
-            }}
-            onMouseLeave={(e) => {
-            }}
             onDragStart={handleRotateDragStart}
             onDragMove={handleRotateDragMove}
             onDragEnd={handleRotateDragEnd}
@@ -355,10 +346,10 @@ export function SelectionOverlay({
                 e.cancelBubble = true;
                 onDuplicateSelected();
               }}
-              onMouseEnter={(e) => {
+              onMouseEnter={() => {
                 setIsDuplicateHovered(true);
               }}
-              onMouseLeave={(e) => {
+              onMouseLeave={() => {
                 setIsDuplicateHovered(false);
               }}
             >
@@ -393,10 +384,10 @@ export function SelectionOverlay({
               e.cancelBubble = true;
               onDeleteSelected();
             }}
-            onMouseEnter={(e) => {
+            onMouseEnter={() => {
               setIsDeleteHovered(true);
             }}
-            onMouseLeave={(e) => {
+            onMouseLeave={() => {
               setIsDeleteHovered(false);
             }}
           >

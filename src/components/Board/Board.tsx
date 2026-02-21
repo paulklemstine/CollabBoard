@@ -61,6 +61,7 @@ export function Board({ boardId: _boardId, onMouseMove, onTransformChange, onSta
 
   const handleWheel = useCallback((e: Konva.KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
+    const stage = e.target.getStage();
     if (!stage) return;
 
     const oldScale = stage.scaleX();
@@ -240,7 +241,7 @@ export function Board({ boardId: _boardId, onMouseMove, onTransformChange, onSta
   }, [notifyTransform]);
 
   const handleMouseLeave = useCallback(() => {
-    const stage = stageRef.current;
+    // intentional no-op: cursor logic was removed
   }, []);
 
   // Notify parent of zoom controls

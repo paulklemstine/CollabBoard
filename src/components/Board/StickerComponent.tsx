@@ -5,6 +5,7 @@ import type { Sticker } from '../../types/board';
 import { calculateGroupObjectTransform } from '../../utils/groupTransform';
 import type { GroupTransformPreview, SelectionBox } from '../../hooks/useMultiSelect';
 import { useMarchingAnts } from '../../hooks/useMarchingAnts';
+import { getHandleLayout, MAX_HANDLE_SIZE } from '../../utils/handleLayout';
 
 const DRAG_THROTTLE_MS = 50;
 const MIN_SIZE = 50;
@@ -57,6 +58,7 @@ export function StickerComponent({
   const rotateStartRef = useRef<{ angle: number; rotation: number } | null>(null);
   const prevSelectedRef = useRef(false);
   const selectionRectRef = useRef<Konva.Rect>(null);
+  const resizeHandleSizeRef = useRef(MAX_HANDLE_SIZE);
   useMarchingAnts(selectionRectRef, !!isSelected && !selectionBox);
   const lastDragUpdate = useRef(0);
   const lastResizeUpdate = useRef(0);
@@ -182,7 +184,8 @@ export function StickerComponent({
   const handleResizeDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
     e.cancelBubble = true;
     // Enforce square for stickers
-    const newSize = Math.max(MIN_SIZE, Math.max(e.target.x() + 20, e.target.y() + 20));
+    const hs = resizeHandleSizeRef.current;
+    const newSize = Math.max(MIN_SIZE, Math.max(e.target.x() + hs, e.target.y() + hs));
     setLocalWidth(newSize);
     setLocalHeight(newSize);
 
@@ -195,18 +198,22 @@ export function StickerComponent({
 
   const handleResizeDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
     e.cancelBubble = true;
-    const newSize = Math.max(MIN_SIZE, Math.max(e.target.x() + 20, e.target.y() + 20));
+    const hs = resizeHandleSizeRef.current;
+    const newSize = Math.max(MIN_SIZE, Math.max(e.target.x() + hs, e.target.y() + hs));
     setLocalWidth(newSize);
     setLocalHeight(newSize);
     (onResizeEnd ?? onResize)?.(sticker.id, newSize, newSize);
     setIsResizing(false);
-    e.target.position({ x: newSize - 20, y: newSize - 20 });
+    const newHl = getHandleLayout(newSize, newSize);
+    e.target.position({ x: newSize - newHl.size, y: newSize - newHl.size });
   };
 
   // Calculate live transform offsets for multi-select
   const liveTransform = groupTransformPreview && selectionBox
     ? calculateGroupObjectTransform(sticker, selectionBox, groupTransformPreview)
     : null;
+
+  const hl = getHandleLayout(localWidth, localHeight);
 
   // Scale emoji font size proportionally - make it larger to fill space better
   const fontSize = (localWidth / BASE_SIZE) * BASE_FONT_SIZE;
@@ -226,17 +233,17 @@ export function StickerComponent({
       rotation={(sticker.rotation || 0) + (parentRotation || 0) + (liveTransform?.rotationDelta ?? 0)}
       draggable={!groupDragOffset}
       onDragMove={handleDragMove}
-      onDragStart={(e) => {
+      onDragStart={() => {
       }}
       onDragEnd={(e) => {
         onDragEnd(sticker.id, e.target.x() - localWidth / 2, e.target.y() - localHeight / 2);
       }}
       onClick={() => onClick?.(sticker.id)}
       onTap={() => onClick?.(sticker.id)}
-      onMouseEnter={(e) => {
+      onMouseEnter={() => {
         setIsMouseHovered(true);
       }}
-      onMouseLeave={(e) => {
+      onMouseLeave={() => {
         setIsMouseHovered(false);
       }}
     >
@@ -329,8 +336,8 @@ export function StickerComponent({
       {/* Duplicate button (top-left) */}
       {onDuplicate && isMouseHovered && (
         <Group
-          x={-20}
-          y={-20}
+          x={0}
+          y={0}
           onClick={(e) => {
             e.cancelBubble = true;
             onDuplicate(sticker.id);
@@ -339,37 +346,37 @@ export function StickerComponent({
             e.cancelBubble = true;
             onDuplicate(sticker.id);
           }}
-          onMouseEnter={(e) => {
+          onMouseEnter={() => {
             setIsMouseHovered(true);
             setIsDuplicateHovered(true);
           }}
-          onMouseLeave={(e) => {
+          onMouseLeave={() => {
             setIsDuplicateHovered(false);
           }}
         >
           <Rect
-            width={40}
-            height={40}
+            width={hl.size}
+            height={hl.size}
             fill={isDuplicateHovered ? '#22c55e' : '#94a3b8'}
             opacity={isDuplicateHovered ? 1 : 0.4}
-            cornerRadius={8}
+            cornerRadius={hl.cornerRadius}
           />
           <Text
             text={"\uD83D\uDCCB"}
-            fontSize={24}
-            width={40}
-            height={40}
+            fontSize={hl.fontSize}
+            width={hl.size}
+            height={hl.size}
             align="center"
             verticalAlign="middle"
             listening={false}
           />
         </Group>
       )}
-      {/* Delete button */}
+      {/* Delete button (top-right) */}
       {onDelete && isMouseHovered && (
         <Group
-          x={localWidth - 20}
-          y={-20}
+          x={localWidth - hl.size}
+          y={0}
           onClick={(e) => {
             e.cancelBubble = true;
             onDelete(sticker.id);
@@ -378,26 +385,26 @@ export function StickerComponent({
             e.cancelBubble = true;
             onDelete(sticker.id);
           }}
-          onMouseEnter={(e) => {
+          onMouseEnter={() => {
             setIsMouseHovered(true);
             setIsDeleteHovered(true);
           }}
-          onMouseLeave={(e) => {
+          onMouseLeave={() => {
             setIsDeleteHovered(false);
           }}
         >
           <Rect
-            width={40}
-            height={40}
+            width={hl.size}
+            height={hl.size}
             fill={isDeleteHovered ? '#ef4444' : '#94a3b8'}
             opacity={isDeleteHovered ? 1 : 0.4}
-            cornerRadius={8}
+            cornerRadius={hl.cornerRadius}
           />
           <Text
             text="❌"
-            fontSize={24}
-            width={40}
-            height={40}
+            fontSize={hl.fontSize}
+            width={hl.size}
+            height={hl.size}
             align="center"
             verticalAlign="middle"
             listening={false}
@@ -407,18 +414,19 @@ export function StickerComponent({
       {/* Rotate handle (bottom-left) */}
       {onRotate && isMouseHovered && (
         <Group
-          x={-20}
-          y={localHeight - 20}
+          x={0}
+          y={localHeight - hl.size}
           draggable
-          onMouseEnter={(e) => {
+          onMouseEnter={() => {
             setIsMouseHovered(true);
             setIsRotateHovered(true);
           }}
-          onMouseLeave={(e) => {
+          onMouseLeave={() => {
             setIsRotateHovered(false);
           }}
           onDragStart={(e) => {
             e.cancelBubble = true;
+            const stage = e.target.getStage();
             if (!stage) return;
             const pointer = stage.getPointerPosition();
             if (!pointer) return;
@@ -431,6 +439,7 @@ export function StickerComponent({
           onDragMove={(e) => {
             e.cancelBubble = true;
             if (!rotateStartRef.current) return;
+            const stage = e.target.getStage();
             if (!stage) return;
             const pointer = stage.getPointerPosition();
             if (!pointer) return;
@@ -440,11 +449,12 @@ export function StickerComponent({
             const currentAngle = Math.atan2(pointer.y - center.y, pointer.x - center.x) * (180 / Math.PI);
             const delta = currentAngle - rotateStartRef.current.angle;
             onRotate(sticker.id, rotateStartRef.current.rotation + delta);
-            e.target.position({ x: -20, y: localHeight - 20 });
+            e.target.position({ x: 0, y: localHeight - hl.size });
           }}
           onDragEnd={(e) => {
             e.cancelBubble = true;
             if (rotateStartRef.current) {
+              const stage = e.target.getStage();
               if (stage) {
                 const pointer = stage.getPointerPosition();
                 if (pointer) {
@@ -458,59 +468,60 @@ export function StickerComponent({
               }
             }
             rotateStartRef.current = null;
-            e.target.position({ x: -20, y: localHeight - 20 });
+            e.target.position({ x: 0, y: localHeight - hl.size });
           }}
         >
           <Rect
-            width={40}
-            height={40}
+            width={hl.size}
+            height={hl.size}
             fill={isRotateHovered ? '#8b5cf6' : '#94a3b8'}
             opacity={isRotateHovered ? 1 : 0.4}
-            cornerRadius={8}
+            cornerRadius={hl.cornerRadius}
           />
           <Text
             text="🔄"
-            fontSize={24}
-            width={40}
-            height={40}
+            fontSize={hl.fontSize}
+            width={hl.size}
+            height={hl.size}
             align="center"
             verticalAlign="middle"
             listening={false}
           />
         </Group>
       )}
-      {/* Resize handle */}
+      {/* Resize handle (bottom-right) */}
       {onResize && isMouseHovered && (
         <Group
-          x={localWidth - 20}
-          y={localHeight - 20}
+          x={localWidth - hl.size}
+          y={localHeight - hl.size}
           draggable
-          onMouseEnter={(e) => {
+          onMouseEnter={() => {
             setIsMouseHovered(true);
             setIsResizeHovered(true);
           }}
-          onMouseLeave={(e) => {
+          onMouseLeave={() => {
             setIsResizeHovered(false);
           }}
           onDragStart={(e) => {
             e.cancelBubble = true;
             setIsResizing(true);
+            resizeHandleSizeRef.current = hl.size;
           }}
           onDragMove={handleResizeDragMove}
           onDragEnd={handleResizeDragEnd}
         >
           <Rect
-            width={40}
-            height={40}
+            width={hl.size}
+            height={hl.size}
             fill={isResizeHovered ? '#3b82f6' : '#94a3b8'}
             opacity={isResizeHovered ? 1 : 0.4}
-            cornerRadius={8}
+            cornerRadius={hl.cornerRadius}
           />
           <Text
             text="↔️"
-            fontSize={24}
-            width={40}
-            height={40}
+            fontSize={hl.fontSize}
+            width={hl.size}
+            height={hl.size}
             align="center"
             verticalAlign="middle"
             listening={false}

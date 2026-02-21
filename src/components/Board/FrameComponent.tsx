@@ -310,7 +310,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
       rotation={displayRotation}
       draggable={!groupDragOffset}
       onDragMove={handleDragMove}
-      onDragStart={(e) => {
+      onDragStart={() => {
       }}
       onDragEnd={(e) => {
         // Subtract dragOffset to get the actual position (not the visual position)
@@ -320,11 +320,11 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
       }}
       onClick={() => onClick?.(frame.id)}
       onTap={() => onClick?.(frame.id)}
-      onMouseEnter={(e) => {
+      onMouseEnter={() => {
         setIsMouseHovered(true);
         onConnectorHoverEnter?.(frame.id);
       }}
-      onMouseLeave={(e) => {
+      onMouseLeave={() => {
         setIsMouseHovered(false);
         onConnectorHoverLeave?.();
       }}
@@ -527,11 +527,11 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
             e.cancelBubble = true;
             onDissolve(frame.id);
           }}
-          onMouseEnter={(e) => {
+          onMouseEnter={() => {
             setIsMouseHovered(true);
             setIsDissolveHovered(true);
           }}
-          onMouseLeave={(e) => {
+          onMouseLeave={() => {
             setIsDissolveHovered(false);
           }}
         >
@@ -568,11 +568,11 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
             e.cancelBubble = true;
             onDuplicate(frame.id);
           }}
-          onMouseEnter={(e) => {
+          onMouseEnter={() => {
             setIsMouseHovered(true);
             setIsDuplicateHovered(true);
           }}
-          onMouseLeave={(e) => {
+          onMouseLeave={() => {
             setIsDuplicateHovered(false);
           }}
         >
@@ -609,11 +609,11 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
             e.cancelBubble = true;
             onDelete(frame.id);
           }}
-          onMouseEnter={(e) => {
+          onMouseEnter={() => {
             setIsMouseHovered(true);
             setIsDeleteHovered(true);
           }}
-          onMouseLeave={(e) => {
+          onMouseLeave={() => {
             setIsDeleteHovered(false);
           }}
         >
@@ -643,15 +643,16 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
           x={0}
           y={localHeight - hl.size}
           draggable
-          onMouseEnter={(e) => {
+          onMouseEnter={() => {
             setIsMouseHovered(true);
             setIsRotateHovered(true);
           }}
-          onMouseLeave={(e) => {
+          onMouseLeave={() => {
             setIsRotateHovered(false);
           }}
           onDragStart={(e) => {
             e.cancelBubble = true;
+            const stage = e.target.getStage();
             if (!stage) return;
             const pointer = stage.getPointerPosition();
             if (!pointer) return;
@@ -664,6 +665,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
           onDragMove={(e) => {
             e.cancelBubble = true;
             if (!rotateStartRef.current) return;
+            const stage = e.target.getStage();
             if (!stage) return;
             const pointer = stage.getPointerPosition();
             if (!pointer) return;
@@ -678,6 +680,7 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
           onDragEnd={(e) => {
             e.cancelBubble = true;
             if (rotateStartRef.current) {
+              const stage = e.target.getStage();
               if (stage) {
                 const pointer = stage.getPointerPosition();
                 if (pointer) {
@@ -720,11 +723,11 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
           x={localWidth - hl.size}
           y={localHeight - hl.size}
           draggable
-          onMouseEnter={(e) => {
+          onMouseEnter={() => {
             setIsMouseHovered(true);
             setIsResizeHovered(true);
           }}
-          onMouseLeave={(e) => {
+          onMouseLeave={() => {
             setIsResizeHovered(false);
           }}
           onDragStart={(e) => {

@@ -586,8 +586,10 @@ function BoardView({
   // Capture preview on board exit — fade overlay hides zoom-to-fit flicker
   const [isCapturing, setIsCapturing] = useState(false);
   const handleNavigateBack = useCallback(async () => {
+    // Clear selection so outlines/handles don't appear in the preview
+    clearSelection();
     setIsCapturing(true);
-    // Wait for fade overlay to become opaque
+    // Wait for fade overlay to become opaque + selection visuals to clear
     await new Promise(r => setTimeout(r, 200));
     const blob = await capturePreviewBlob();
     console.log('[preview] blob result:', blob ? `${blob.size} bytes` : 'null');
@@ -596,7 +598,7 @@ function BoardView({
       uploadPreview(blob);
     }
     onNavigateBack();
-  }, [capturePreviewBlob, uploadPreview, onNavigateBack, boardId]);
+  }, [clearSelection, capturePreviewBlob, uploadPreview, onNavigateBack, boardId]);
 
   const handleMouseMove = useCallback(
     (x: number, y: number) => {

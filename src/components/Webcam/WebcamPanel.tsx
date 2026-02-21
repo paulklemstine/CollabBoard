@@ -14,6 +14,7 @@ export function WebcamPanel({ label, stream, isMine, onClose }: WebcamPanelProps
     const video = videoRef.current;
     if (!video || !stream) return;
     video.srcObject = stream;
+    video.play().catch(() => {});
   }, [stream]);
 
   return (

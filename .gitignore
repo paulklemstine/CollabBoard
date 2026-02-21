@@ -28,6 +28,9 @@ dist-ssr
 .serena/
 .firebase/*
 .playwright-mcp/
+playwright-report/
+test-results/
 tmp/*
+CLAUDE.md.backup
 functions/lib/
 nul

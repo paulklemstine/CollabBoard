@@ -311,12 +311,8 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
       draggable={!groupDragOffset}
       onDragMove={handleDragMove}
       onDragStart={(e) => {
-        const stage = e.target.getStage();
-        if (stage) stage.container().style.cursor = 'grabbing';
       }}
       onDragEnd={(e) => {
-        const stage = e.target.getStage();
-        if (stage) stage.container().style.cursor = isMouseHovered ? 'grab' : 'default';
         // Subtract dragOffset to get the actual position (not the visual position)
         const actualX = e.target.x() - localWidth / 2 - (dragOffset?.x || 0);
         const actualY = e.target.y() - localHeight / 2 - (dragOffset?.y || 0);
@@ -327,16 +323,10 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
       onMouseEnter={(e) => {
         setIsMouseHovered(true);
         onConnectorHoverEnter?.(frame.id);
-        const stage = e.target.getStage();
-        if (stage && !isDeleteHovered && !isResizeHovered && !isRotateHovered) {
-          stage.container().style.cursor = 'grab';
-        }
       }}
       onMouseLeave={(e) => {
         setIsMouseHovered(false);
         onConnectorHoverLeave?.();
-        const stage = e.target.getStage();
-        if (stage) stage.container().style.cursor = 'default';
       }}
     >
       {/* Hit expansion — prevents onMouseLeave race when reaching action buttons */}
@@ -540,15 +530,9 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
           onMouseEnter={(e) => {
             setIsMouseHovered(true);
             setIsDissolveHovered(true);
-            const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'pointer';
           }}
           onMouseLeave={(e) => {
             setIsDissolveHovered(false);
-            const stage = e.target.getStage();
-            if (stage && isMouseHovered && !isDeleteHovered && !isResizeHovered && !isRotateHovered) {
-              stage.container().style.cursor = 'grab';
-            }
           }}
         >
           <Rect
@@ -587,15 +571,9 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
           onMouseEnter={(e) => {
             setIsMouseHovered(true);
             setIsDuplicateHovered(true);
-            const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'pointer';
           }}
           onMouseLeave={(e) => {
             setIsDuplicateHovered(false);
-            const stage = e.target.getStage();
-            if (stage && isMouseHovered && !isDeleteHovered && !isResizeHovered && !isRotateHovered) {
-              stage.container().style.cursor = 'grab';
-            }
           }}
         >
           <Rect
@@ -634,15 +612,9 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
           onMouseEnter={(e) => {
             setIsMouseHovered(true);
             setIsDeleteHovered(true);
-            const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'pointer';
           }}
           onMouseLeave={(e) => {
             setIsDeleteHovered(false);
-            const stage = e.target.getStage();
-            if (stage && isMouseHovered && !isResizeHovered && !isRotateHovered) {
-              stage.container().style.cursor = 'grab';
-            }
           }}
         >
           <Rect
@@ -674,17 +646,12 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
           onMouseEnter={(e) => {
             setIsMouseHovered(true);
             setIsRotateHovered(true);
-            const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'alias';
           }}
           onMouseLeave={(e) => {
             setIsRotateHovered(false);
-            const stage = e.target.getStage();
-            if (stage && isMouseHovered) stage.container().style.cursor = 'grab';
           }}
           onDragStart={(e) => {
             e.cancelBubble = true;
-            const stage = e.target.getStage();
             if (!stage) return;
             const pointer = stage.getPointerPosition();
             if (!pointer) return;
@@ -697,7 +664,6 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
           onDragMove={(e) => {
             e.cancelBubble = true;
             if (!rotateStartRef.current) return;
-            const stage = e.target.getStage();
             if (!stage) return;
             const pointer = stage.getPointerPosition();
             if (!pointer) return;
@@ -712,7 +678,6 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
           onDragEnd={(e) => {
             e.cancelBubble = true;
             if (rotateStartRef.current) {
-              const stage = e.target.getStage();
               if (stage) {
                 const pointer = stage.getPointerPosition();
                 if (pointer) {
@@ -758,15 +723,9 @@ export function FrameComponent({ frame, onDragMove, onDragEnd, onDelete, onDupli
           onMouseEnter={(e) => {
             setIsMouseHovered(true);
             setIsResizeHovered(true);
-            const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'nwse-resize';
           }}
           onMouseLeave={(e) => {
             setIsResizeHovered(false);
-            const stage = e.target.getStage();
-            if (stage && isMouseHovered && !isDeleteHovered) {
-              stage.container().style.cursor = 'grab';
-            }
           }}
           onDragStart={(e) => {
             e.cancelBubble = true;

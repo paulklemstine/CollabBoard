@@ -227,27 +227,17 @@ export function StickerComponent({
       draggable={!groupDragOffset}
       onDragMove={handleDragMove}
       onDragStart={(e) => {
-        const stage = e.target.getStage();
-        if (stage) stage.container().style.cursor = 'grabbing';
       }}
       onDragEnd={(e) => {
-        const stage = e.target.getStage();
-        if (stage) stage.container().style.cursor = isMouseHovered ? 'grab' : 'default';
         onDragEnd(sticker.id, e.target.x() - localWidth / 2, e.target.y() - localHeight / 2);
       }}
       onClick={() => onClick?.(sticker.id)}
       onTap={() => onClick?.(sticker.id)}
       onMouseEnter={(e) => {
         setIsMouseHovered(true);
-        const stage = e.target.getStage();
-        if (stage && !isDeleteHovered && !isResizeHovered && !isRotateHovered) {
-          stage.container().style.cursor = 'grab';
-        }
       }}
       onMouseLeave={(e) => {
         setIsMouseHovered(false);
-        const stage = e.target.getStage();
-        if (stage) stage.container().style.cursor = 'default';
       }}
     >
       {/* Hit expansion — prevents onMouseLeave race when reaching action buttons */}
@@ -265,6 +255,22 @@ export function StickerComponent({
           text={sticker.emoji}
           fontSize={fontSize}
           x={-localWidth * 0.10}
+          listening={false}
+        />
+      )}
+      {/* Hover highlight */}
+      {isMouseHovered && !isSelected && (
+        <Rect
+          x={panelX}
+          width={localWidth - panelX + localWidth * 0.05}
+          height={panelHeight}
+          fill="transparent"
+          stroke="#a78bfa"
+          strokeWidth={2}
+          cornerRadius={16}
+          shadowColor="#8b5cf6"
+          shadowBlur={16}
+          shadowOpacity={0.35}
           listening={false}
         />
       )}
@@ -336,15 +342,9 @@ export function StickerComponent({
           onMouseEnter={(e) => {
             setIsMouseHovered(true);
             setIsDuplicateHovered(true);
-            const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'pointer';
           }}
           onMouseLeave={(e) => {
             setIsDuplicateHovered(false);
-            const stage = e.target.getStage();
-            if (stage && isMouseHovered && !isDeleteHovered && !isResizeHovered && !isRotateHovered) {
-              stage.container().style.cursor = 'grab';
-            }
           }}
         >
           <Rect
@@ -381,15 +381,9 @@ export function StickerComponent({
           onMouseEnter={(e) => {
             setIsMouseHovered(true);
             setIsDeleteHovered(true);
-            const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'pointer';
           }}
           onMouseLeave={(e) => {
             setIsDeleteHovered(false);
-            const stage = e.target.getStage();
-            if (stage && isMouseHovered && !isResizeHovered && !isRotateHovered) {
-              stage.container().style.cursor = 'grab';
-            }
           }}
         >
           <Rect
@@ -419,17 +413,12 @@ export function StickerComponent({
           onMouseEnter={(e) => {
             setIsMouseHovered(true);
             setIsRotateHovered(true);
-            const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'alias';
           }}
           onMouseLeave={(e) => {
             setIsRotateHovered(false);
-            const stage = e.target.getStage();
-            if (stage && isMouseHovered) stage.container().style.cursor = 'grab';
           }}
           onDragStart={(e) => {
             e.cancelBubble = true;
-            const stage = e.target.getStage();
             if (!stage) return;
             const pointer = stage.getPointerPosition();
             if (!pointer) return;
@@ -442,7 +431,6 @@ export function StickerComponent({
           onDragMove={(e) => {
             e.cancelBubble = true;
             if (!rotateStartRef.current) return;
-            const stage = e.target.getStage();
             if (!stage) return;
             const pointer = stage.getPointerPosition();
             if (!pointer) return;
@@ -457,7 +445,6 @@ export function StickerComponent({
           onDragEnd={(e) => {
             e.cancelBubble = true;
             if (rotateStartRef.current) {
-              const stage = e.target.getStage();
               if (stage) {
                 const pointer = stage.getPointerPosition();
                 if (pointer) {
@@ -501,13 +488,9 @@ export function StickerComponent({
           onMouseEnter={(e) => {
             setIsMouseHovered(true);
             setIsResizeHovered(true);
-            const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'nwse-resize';
           }}
           onMouseLeave={(e) => {
             setIsResizeHovered(false);
-            const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'grab';
           }}
           onDragStart={(e) => {
             e.cancelBubble = true;

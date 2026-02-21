@@ -143,7 +143,7 @@ export function FancyColorPicker({ selectedColor, onSelectColor }: FancyColorPic
     <div className="flex flex-col gap-3 p-3.5" style={{ width: 224 }}>
       {/* Saturation-Value area */}
       <div
-        className="relative h-[148px] rounded-xl overflow-hidden cursor-crosshair select-none touch-none"
+        className="relative h-[148px] rounded-xl overflow-hidden select-none touch-none"
         style={{ background: `hsl(${Math.round(hue)}, 100%, 50%)` }}
         onPointerDown={handleSVPointerDown}
       >
@@ -163,7 +163,7 @@ export function FancyColorPicker({ selectedColor, onSelectColor }: FancyColorPic
 
       {/* Hue bar */}
       <div
-        className="relative h-3 rounded-full cursor-pointer select-none touch-none"
+        className="relative h-3 rounded-full select-none touch-none"
         style={{
           background: 'linear-gradient(to right, #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%)',
         }}

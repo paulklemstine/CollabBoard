@@ -62,7 +62,6 @@ export function ColorPanel({ label, color, onChange, showTransparent = false, di
               background: TRANSPARENT_BG,
               boxShadow: isTransparent ? '0 0 0 2px white, 0 0 0 3.5px #6366f1' : 'none',
               opacity: disableTransparent ? 0.35 : 1,
-              cursor: disableTransparent ? 'not-allowed' : 'pointer',
             }}
             title={disableTransparent ? 'Cannot make both fill and border transparent' : 'Transparent'}
           />

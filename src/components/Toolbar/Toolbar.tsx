@@ -264,7 +264,7 @@ export function Toolbar({
         onClick={onUndo}
         disabled={!canUndo}
         className={`btn-lift w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200 ${
-          canUndo ? 'text-violet-600 hover:bg-violet-50/60' : 'text-gray-300 cursor-not-allowed'
+          canUndo ? 'text-violet-600 hover:bg-violet-50/60' : 'text-gray-300'
         }`}
         title="Undo (Ctrl+Z)"
       >
@@ -277,7 +277,7 @@ export function Toolbar({
         onClick={onRedo}
         disabled={!canRedo}
         className={`btn-lift w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200 ${
-          canRedo ? 'text-violet-600 hover:bg-violet-50/60' : 'text-gray-300 cursor-not-allowed'
+          canRedo ? 'text-violet-600 hover:bg-violet-50/60' : 'text-gray-300'
         }`}
         title="Redo (Ctrl+Shift+Z)"
       >
@@ -328,7 +328,7 @@ export function Toolbar({
       {divider}
 
       {/* Sticker Drawer */}
-      <StickerDrawer onAddSticker={onAddSticker} onAddGifSticker={onAddGifSticker} />
+      <StickerDrawer onAddSticker={onAddSticker} onAddGifSticker={onAddGifSticker} forceOpen={forceOpenDrawer === 'sticker'} />
 
       {divider}
 

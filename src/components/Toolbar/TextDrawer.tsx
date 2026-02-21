@@ -116,7 +116,7 @@ export function TextDrawer({
                 step={1}
                 value={fontSize}
                 onChange={(e) => onFontSizeChange(Number(e.target.value))}
-                className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-violet-500"
+                className="w-full h-1.5 rounded-full appearance-none accent-violet-500"
                 style={{ background: `linear-gradient(to right, #8b5cf6 ${((fontSize - 8) / 88) * 100}%, #e5e7eb ${((fontSize - 8) / 88) * 100}%)` }}
               />
             </div>

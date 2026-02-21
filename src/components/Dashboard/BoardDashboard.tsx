@@ -137,7 +137,7 @@ export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboar
                         <button
                           onClick={() => setOpenSpacesPage(p => Math.max(0, p - 1))}
                           disabled={page === 0}
-                          className="p-1 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          className="p-1 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30"
                           title="Previous page"
                         >
                           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -148,7 +148,7 @@ export function BoardDashboard({ user, onSelectBoard, onSignOut }: BoardDashboar
                         <button
                           onClick={() => setOpenSpacesPage(p => Math.min(totalPages - 1, p + 1))}
                           disabled={page >= totalPages - 1}
-                          className="p-1 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          className="p-1 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30"
                           title="Next page"
                         >
                           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

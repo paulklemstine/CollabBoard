@@ -377,38 +377,40 @@ function shapeAnimation(): StepAnimation {
 function stickerAnimation(): StepAnimation {
   return {
     commands: [
-      // 1. Cursor clicks toolbar to create sticker
-      { type: 'cursor', target: '[data-tutorial-id="toolbar"]', click: true },
+      // 1. Open the sticker drawer
+      { type: 'cursor', target: '[data-tutorial-id="sticker-button"]', click: true },
+      { type: 'ui', drawer: 'sticker' },
+      { type: 'pause', ms: 800 },
+      // 2. Click a sticker to place it (close drawer)
+      { type: 'ui', drawer: null },
       { type: 'create', obj: {
-        type: 'sticker', x: 0.5, y: 0.6, width: 80, height: 80,
+        type: 'sticker', x: 0.45, y: 0.6, width: 80, height: 80,
         emoji: '\u{1F680}', rotation: 0,
       } },
       { type: 'pause', ms: 600 },
+      // 3. Reopen drawer and pick another sticker
+      { type: 'cursor', target: '[data-tutorial-id="sticker-button"]', click: true },
+      { type: 'ui', drawer: 'sticker' },
+      { type: 'pause', ms: 600 },
+      { type: 'ui', drawer: null },
+      { type: 'create', obj: {
+        type: 'sticker', x: 0.55, y: 0.6, width: 80, height: 80,
+        emoji: '\u{2B50}', rotation: 0,
+      } },
+      { type: 'pause', ms: 600 },
       { type: 'cursor', target: 'hide' },
-      // Emoji cycling
-      { type: 'update', targetIndex: 0, props: { emoji: '\u{1F3AF}' } },
-      { type: 'pause', ms: 400 },
-      { type: 'update', targetIndex: 0, props: { emoji: '\u{1F4A1}' } },
-      { type: 'pause', ms: 400 },
-      { type: 'update', targetIndex: 0, props: { emoji: '\u{1F525}' } },
-      { type: 'pause', ms: 400 },
-      { type: 'update', targetIndex: 0, props: { emoji: '\u{2B50}' } },
-      { type: 'pause', ms: 400 },
-      { type: 'update', targetIndex: 0, props: { emoji: '\u{1F3A8}' } },
-      { type: 'pause', ms: 400 },
-      { type: 'update', targetIndex: 0, props: { rotation: -8, emoji: '\u{1F680}' } },
+      // 4. Fun animations: wobble and resize
+      { type: 'update', targetIndex: 0, props: { rotation: -8 } },
+      { type: 'update', targetIndex: 1, props: { rotation: 8 } },
       { type: 'pause', ms: 300 },
       { type: 'update', targetIndex: 0, props: { rotation: 8 } },
+      { type: 'update', targetIndex: 1, props: { rotation: -8 } },
       { type: 'pause', ms: 300 },
-      { type: 'update', targetIndex: 0, props: { rotation: -12 } },
-      { type: 'pause', ms: 300 },
-      { type: 'update', targetIndex: 0, props: { rotation: 12 } },
-      { type: 'pause', ms: 300 },
-      { type: 'update', targetIndex: 0, props: { width: 120, height: 120, rotation: 0 } },
-      { type: 'pause', ms: 350 },
-      { type: 'update', targetIndex: 0, props: { width: 60, height: 60 } },
-      { type: 'pause', ms: 350 },
+      { type: 'update', targetIndex: 0, props: { rotation: 0, width: 100, height: 100 } },
+      { type: 'update', targetIndex: 1, props: { rotation: 0, width: 100, height: 100 } },
+      { type: 'pause', ms: 400 },
       { type: 'update', targetIndex: 0, props: { width: 80, height: 80 } },
+      { type: 'update', targetIndex: 1, props: { width: 80, height: 80 } },
     ],
   };
 }

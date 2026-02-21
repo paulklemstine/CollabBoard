@@ -47,7 +47,7 @@ export function BoardCard({ board, onSelect, onDelete, canDelete, isOwner, onTog
     <>
       <div
         onClick={() => onSelect(board.id)}
-        className="rounded-2xl overflow-hidden cursor-pointer hover:scale-[1.02] transition-all duration-200 shadow-lg hover:shadow-xl group bg-white/70 backdrop-blur-sm"
+        className="rounded-2xl overflow-hidden hover:scale-[1.02] transition-all duration-200 shadow-lg hover:shadow-xl group bg-white/70 backdrop-blur-sm"
         role="button"
         tabIndex={0}
         onKeyDown={(e) => {

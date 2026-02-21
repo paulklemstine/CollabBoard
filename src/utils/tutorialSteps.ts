@@ -45,8 +45,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'create-sticker',
     title: 'Stickers & GIFs',
-    description: 'A sticker is placed from the toolbar, then watch it cycle through emojis, wobble, and resize!',
-    targetSelector: '[data-tutorial-id="toolbar"]',
+    description: 'Watch the cursor open the Stickers drawer and pick emoji stickers to place on the board. There are also GIFs!',
+    targetSelector: '[data-tutorial-id="sticker-button"]',
     animationKey: 'sticker',
   },
   {
@@ -67,7 +67,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: 'cam-chat',
     title: 'Cam & Chat',
     description: 'Use the Cam button to share your webcam, and Chat to message your team \u2014 all without leaving the board!',
-    targetSelector: '[data-tutorial-id="toolbar"]',
+    targetSelector: '[data-tutorial-id="cam-button"], [data-tutorial-id="chat-button"]',
   },
   {
     id: 'collaboration',

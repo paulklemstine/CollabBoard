@@ -275,12 +275,8 @@ export function TextComponent({
       draggable={!groupDragOffset}
       onDragMove={handleDragMove}
       onDragStart={(e) => {
-        const stage = e.target.getStage();
-        if (stage) stage.container().style.cursor = 'grabbing';
       }}
       onDragEnd={(e) => {
-        const stage = e.target.getStage();
-        if (stage) stage.container().style.cursor = isMouseHovered ? 'grab' : 'default';
         onDragEnd(textObj.id, e.target.x() - localWidth / 2, e.target.y() - localHeight / 2);
       }}
       onClick={() => onClick?.(textObj.id)}
@@ -290,15 +286,10 @@ export function TextComponent({
       onMouseEnter={(e) => {
         setIsMouseHovered(true);
         onConnectorHoverEnter?.(textObj.id);
-        const stage = e.target.getStage();
-        if (stage && !isDeleteHovered && !isResizeHovered && !isRotateHovered)
-          stage.container().style.cursor = 'grab';
-      }}
+        const stage = e.target.getStage();      }}
       onMouseLeave={(e) => {
         setIsMouseHovered(false);
         onConnectorHoverLeave?.();
-        const stage = e.target.getStage();
-        if (stage) stage.container().style.cursor = 'default';
       }}
     >
       {/* Hit expansion — prevents onMouseLeave race when reaching action buttons */}
@@ -322,16 +313,18 @@ export function TextComponent({
           strokeWidth={hasBorder ? 2 : 0}
         />
       )}
-      {/* Hover outline (when no bg) */}
-      {!hasBg && isMouseHovered && (
+      {/* Hover highlight */}
+      {isMouseHovered && !isSelected && !isConnectorHighlighted && (
         <Rect
           width={localWidth}
           height={localHeight}
           fill="transparent"
-          stroke="#94a3b8"
-          strokeWidth={1}
-          dash={[4, 3]}
-          cornerRadius={4}
+          stroke="#a78bfa"
+          strokeWidth={2}
+          cornerRadius={6}
+          shadowColor="#8b5cf6"
+          shadowBlur={16}
+          shadowOpacity={0.35}
           listening={false}
         />
       )}
@@ -443,15 +436,10 @@ export function TextComponent({
           onMouseEnter={(e) => {
             setIsMouseHovered(true);
             setIsDuplicateHovered(true);
-            const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'pointer';
           }}
           onMouseLeave={(e) => {
             setIsDuplicateHovered(false);
-            const stage = e.target.getStage();
-            if (stage && isMouseHovered && !isDeleteHovered && !isResizeHovered && !isRotateHovered)
-              stage.container().style.cursor = 'grab';
-          }}
+            const stage = e.target.getStage();          }}
         >
           <Rect width={hl.size} height={hl.size} fill={isDuplicateHovered ? '#22c55e' : '#94a3b8'} opacity={isDuplicateHovered ? 1 : 0.4} cornerRadius={hl.cornerRadius} />
           <Text x={0} y={0} width={hl.size} height={hl.size} text={"\uD83D\uDCCB"} fontSize={hl.fontSize} align="center" verticalAlign="middle" listening={false} />
@@ -467,15 +455,10 @@ export function TextComponent({
           onMouseEnter={(e) => {
             setIsMouseHovered(true);
             setIsDeleteHovered(true);
-            const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'pointer';
           }}
           onMouseLeave={(e) => {
             setIsDeleteHovered(false);
-            const stage = e.target.getStage();
-            if (stage && isMouseHovered && !isResizeHovered && !isRotateHovered)
-              stage.container().style.cursor = 'grab';
-          }}
+            const stage = e.target.getStage();          }}
         >
           <Rect width={hl.size} height={hl.size} fill={isDeleteHovered ? '#ef4444' : '#94a3b8'} opacity={isDeleteHovered ? 1 : 0.4} cornerRadius={hl.cornerRadius} />
           <Text x={0} y={0} width={hl.size} height={hl.size} text="❌" fontSize={hl.fontSize} align="center" verticalAlign="middle" listening={false} />
@@ -490,17 +473,12 @@ export function TextComponent({
           onMouseEnter={(e) => {
             setIsMouseHovered(true);
             setIsRotateHovered(true);
-            const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'alias';
           }}
           onMouseLeave={(e) => {
             setIsRotateHovered(false);
-            const stage = e.target.getStage();
-            if (stage && isMouseHovered) stage.container().style.cursor = 'grab';
           }}
           onDragStart={(e) => {
             e.cancelBubble = true;
-            const stage = e.target.getStage();
             if (!stage) return;
             const pointer = stage.getPointerPosition();
             if (!pointer) return;
@@ -513,7 +491,6 @@ export function TextComponent({
           onDragMove={(e) => {
             e.cancelBubble = true;
             if (!rotateStartRef.current) return;
-            const stage = e.target.getStage();
             if (!stage) return;
             const pointer = stage.getPointerPosition();
             if (!pointer) return;
@@ -528,7 +505,6 @@ export function TextComponent({
           onDragEnd={(e) => {
             e.cancelBubble = true;
             if (rotateStartRef.current) {
-              const stage = e.target.getStage();
               if (stage) {
                 const pointer = stage.getPointerPosition();
                 if (pointer) {
@@ -558,15 +534,10 @@ export function TextComponent({
           onMouseEnter={(e) => {
             setIsMouseHovered(true);
             setIsResizeHovered(true);
-            const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'nwse-resize';
           }}
           onMouseLeave={(e) => {
             setIsResizeHovered(false);
-            const stage = e.target.getStage();
-            if (stage && isMouseHovered && !isDeleteHovered)
-              stage.container().style.cursor = 'grab';
-          }}
+            const stage = e.target.getStage();          }}
           onDragStart={(e) => {
             e.cancelBubble = true;
             setIsResizing(true);

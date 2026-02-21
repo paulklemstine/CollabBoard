@@ -183,13 +183,9 @@ export function ConnectorComponent({ connector, objects, onDelete }: ConnectorCo
           onTap={(e) => { e.cancelBubble = true; onDelete(connector.id); }}
           onMouseEnter={(e) => {
             setIsDeleteHovered(true);
-            const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'pointer';
           }}
           onMouseLeave={(e) => {
             setIsDeleteHovered(false);
-            const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'default';
           }}
         />
         <Text

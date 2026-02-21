@@ -182,7 +182,6 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
   const handleEndpointDragMove = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
     e.cancelBubble = true;
     if (!endpointDragRef.current || !onLineEndpointMove) return;
-    const stage = e.target.getStage();
     if (!stage) return;
     const pointer = stage.getPointerPosition();
     if (!pointer) return;
@@ -212,7 +211,6 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
   const handleEndpointDragEnd = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
     e.cancelBubble = true;
     if (!endpointDragRef.current || !onLineEndpointMove) return;
-    const stage = e.target.getStage();
     if (!stage) return;
     const pointer = stage.getPointerPosition();
     if (!pointer) return;
@@ -465,12 +463,8 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
       draggable={!groupDragOffset && !isEndpointDragging}
       onDragMove={handleDragMove}
       onDragStart={(e) => {
-        const stage = e.target.getStage();
-        if (stage) stage.container().style.cursor = 'grabbing';
       }}
       onDragEnd={(e) => {
-        const stage = e.target.getStage();
-        if (stage) stage.container().style.cursor = isMouseHovered ? 'grab' : 'default';
         onDragEnd(shape.id, e.target.x() - localWidth / 2, e.target.y() - localHeight / 2);
       }}
       onClick={() => onClick?.(shape.id)}
@@ -478,16 +472,10 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
       onMouseEnter={(e) => {
         setIsMouseHovered(true);
         onConnectorHoverEnter?.(shape.id);
-        const stage = e.target.getStage();
-        if (stage && !isDeleteHovered && !isResizeHovered && !isRotateHovered && !isLeftEndpointHovered && !isRightEndpointHovered) {
-          stage.container().style.cursor = 'grab';
-        }
       }}
       onMouseLeave={(e) => {
         setIsMouseHovered(false);
         onConnectorHoverLeave?.();
-        const stage = e.target.getStage();
-        if (stage) stage.container().style.cursor = 'default';
       }}
     >
       {/* Hit expansion — prevents onMouseLeave race when reaching action buttons */}
@@ -556,13 +544,9 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
             onMouseEnter={(e) => {
               setIsMouseHovered(true);
               setIsLeftEndpointHovered(true);
-              const stage = e.target.getStage();
-              if (stage) stage.container().style.cursor = 'crosshair';
             }}
             onMouseLeave={(e) => {
               setIsLeftEndpointHovered(false);
-              const stage = e.target.getStage();
-              if (stage && isMouseHovered) stage.container().style.cursor = 'grab';
             }}
             onDragStart={(e) => {
               e.cancelBubble = true;
@@ -604,13 +588,9 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
             onMouseEnter={(e) => {
               setIsMouseHovered(true);
               setIsRightEndpointHovered(true);
-              const stage = e.target.getStage();
-              if (stage) stage.container().style.cursor = 'crosshair';
             }}
             onMouseLeave={(e) => {
               setIsRightEndpointHovered(false);
-              const stage = e.target.getStage();
-              if (stage && isMouseHovered) stage.container().style.cursor = 'grab';
             }}
             onDragStart={(e) => {
               e.cancelBubble = true;
@@ -661,13 +641,9 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
           onMouseEnter={(e) => {
             setIsMouseHovered(true);
             setIsDuplicateHovered(true);
-            const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'pointer';
           }}
           onMouseLeave={(e) => {
             setIsDuplicateHovered(false);
-            const stage = e.target.getStage();
-            if (stage && isMouseHovered) stage.container().style.cursor = 'grab';
           }}
         >
           <Rect
@@ -704,13 +680,9 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
           onMouseEnter={(e) => {
             setIsMouseHovered(true);
             setIsDeleteHovered(true);
-            const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'pointer';
           }}
           onMouseLeave={(e) => {
             setIsDeleteHovered(false);
-            const stage = e.target.getStage();
-            if (stage && isMouseHovered) stage.container().style.cursor = 'grab';
           }}
         >
           <Rect
@@ -749,15 +721,9 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
           onMouseEnter={(e) => {
             setIsMouseHovered(true);
             setIsDuplicateHovered(true);
-            const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'pointer';
           }}
           onMouseLeave={(e) => {
             setIsDuplicateHovered(false);
-            const stage = e.target.getStage();
-            if (stage && isMouseHovered && !isDeleteHovered && !isResizeHovered && !isRotateHovered) {
-              stage.container().style.cursor = 'grab';
-            }
           }}
         >
           <Rect
@@ -794,15 +760,9 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
           onMouseEnter={(e) => {
             setIsMouseHovered(true);
             setIsDeleteHovered(true);
-            const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'pointer';
           }}
           onMouseLeave={(e) => {
             setIsDeleteHovered(false);
-            const stage = e.target.getStage();
-            if (stage && isMouseHovered && !isResizeHovered && !isRotateHovered) {
-              stage.container().style.cursor = 'grab';
-            }
           }}
         >
           <Rect
@@ -832,17 +792,12 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
           onMouseEnter={(e) => {
             setIsMouseHovered(true);
             setIsRotateHovered(true);
-            const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'alias';
           }}
           onMouseLeave={(e) => {
             setIsRotateHovered(false);
-            const stage = e.target.getStage();
-            if (stage && isMouseHovered) stage.container().style.cursor = 'grab';
           }}
           onDragStart={(e) => {
             e.cancelBubble = true;
-            const stage = e.target.getStage();
             if (!stage) return;
             const pointer = stage.getPointerPosition();
             if (!pointer) return;
@@ -855,7 +810,6 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
           onDragMove={(e) => {
             e.cancelBubble = true;
             if (!rotateStartRef.current) return;
-            const stage = e.target.getStage();
             if (!stage) return;
             const pointer = stage.getPointerPosition();
             if (!pointer) return;
@@ -870,7 +824,6 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
           onDragEnd={(e) => {
             e.cancelBubble = true;
             if (rotateStartRef.current) {
-              const stage = e.target.getStage();
               if (stage) {
                 const pointer = stage.getPointerPosition();
                 if (pointer) {
@@ -914,15 +867,9 @@ export function ShapeComponent({ shape, onDragMove, onDragEnd, onDelete, onDupli
           onMouseEnter={(e) => {
             setIsMouseHovered(true);
             setIsResizeHovered(true);
-            const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'nwse-resize';
           }}
           onMouseLeave={(e) => {
             setIsResizeHovered(false);
-            const stage = e.target.getStage();
-            if (stage && isMouseHovered && !isDeleteHovered) {
-              stage.container().style.cursor = 'grab';
-            }
           }}
           onDragStart={(e) => {
             e.cancelBubble = true;

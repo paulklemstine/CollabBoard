@@ -34,7 +34,7 @@ export function CreateBoardForm({ onCreateBoard }: CreateBoardFormProps) {
       <button
         type="submit"
         disabled={!name.trim() || creating}
-        className="btn-lift btn-shimmer px-6 py-3 rounded-xl text-white font-semibold text-sm shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+        className="btn-lift btn-shimmer px-6 py-3 rounded-xl text-white font-semibold text-sm shadow-lg disabled:opacity-50"
         style={{
           background: 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 50%, #a78bfa 100%)',
         }}

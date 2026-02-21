@@ -146,7 +146,6 @@ export function ResetPage() {
               padding: '0.75rem 2rem',
               borderRadius: '0.5rem',
               fontSize: '1rem',
-              cursor: 'pointer',
               fontFamily: 'monospace',
               fontWeight: 'bold',
             }}

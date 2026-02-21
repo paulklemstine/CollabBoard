@@ -24,18 +24,26 @@ export function TutorialSpotlight({ targetSelector }: TutorialSpotlightProps) {
     }
 
     const update = () => {
-      const el = document.querySelector(targetSelector);
-      if (el) {
-        const rect = el.getBoundingClientRect();
-        setTarget({
-          x: rect.left - PADDING,
-          y: rect.top - PADDING,
-          width: rect.width + PADDING * 2,
-          height: rect.height + PADDING * 2,
-        });
-      } else {
+      const els = document.querySelectorAll(targetSelector);
+      if (els.length === 0) {
         setTarget(null);
+        return;
       }
+      // Compute bounding box across all matched elements
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      els.forEach((el) => {
+        const rect = el.getBoundingClientRect();
+        minX = Math.min(minX, rect.left);
+        minY = Math.min(minY, rect.top);
+        maxX = Math.max(maxX, rect.right);
+        maxY = Math.max(maxY, rect.bottom);
+      });
+      setTarget({
+        x: minX - PADDING,
+        y: minY - PADDING,
+        width: (maxX - minX) + PADDING * 2,
+        height: (maxY - minY) + PADDING * 2,
+      });
     };
 
     update();

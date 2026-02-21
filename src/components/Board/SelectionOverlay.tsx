@@ -165,7 +165,6 @@ export function SelectionOverlay({
       e.cancelBubble = true;
       if (!box) return;
 
-      const stage = e.target.getStage();
       if (!stage) return;
       const pointer = stage.getPointerPosition();
       if (!pointer) return;
@@ -186,7 +185,6 @@ export function SelectionOverlay({
       e.cancelBubble = true;
       if (!rotateStartRef.current || !box) return;
 
-      const stage = e.target.getStage();
       if (!stage) return;
       const pointer = stage.getPointerPosition();
       if (!pointer) return;
@@ -214,7 +212,6 @@ export function SelectionOverlay({
       e.cancelBubble = true;
       if (!rotateStartRef.current || !box) return;
 
-      const stage = e.target.getStage();
       if (!stage) return;
       const pointer = stage.getPointerPosition();
       if (!pointer) return;
@@ -268,12 +265,8 @@ export function SelectionOverlay({
           onDragMove={handleBBoxDragMove}
           onDragEnd={handleBBoxDragEnd}
           onMouseEnter={(e) => {
-            const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'move';
           }}
           onMouseLeave={(e) => {
-            const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'default';
           }}
         >
           {/* Dashed selection border — marching ants */}
@@ -293,12 +286,8 @@ export function SelectionOverlay({
             y={displayHeight - hl.size}
             draggable
             onMouseEnter={(e) => {
-              const stage = e.target.getStage();
-              if (stage) stage.container().style.cursor = 'nwse-resize';
             }}
             onMouseLeave={(e) => {
-              const stage = e.target.getStage();
-              if (stage) stage.container().style.cursor = 'move';
             }}
             onDragStart={handleResizeDragStart}
             onDragMove={handleResizeDragMove}
@@ -328,12 +317,8 @@ export function SelectionOverlay({
             y={displayHeight - hl.size}
             draggable
             onMouseEnter={(e) => {
-              const stage = e.target.getStage();
-              if (stage) stage.container().style.cursor = 'alias';
             }}
             onMouseLeave={(e) => {
-              const stage = e.target.getStage();
-              if (stage) stage.container().style.cursor = 'move';
             }}
             onDragStart={handleRotateDragStart}
             onDragMove={handleRotateDragMove}
@@ -372,13 +357,9 @@ export function SelectionOverlay({
               }}
               onMouseEnter={(e) => {
                 setIsDuplicateHovered(true);
-                const stage = e.target.getStage();
-                if (stage) stage.container().style.cursor = 'pointer';
               }}
               onMouseLeave={(e) => {
                 setIsDuplicateHovered(false);
-                const stage = e.target.getStage();
-                if (stage) stage.container().style.cursor = 'move';
               }}
             >
               <Rect
@@ -414,13 +395,9 @@ export function SelectionOverlay({
             }}
             onMouseEnter={(e) => {
               setIsDeleteHovered(true);
-              const stage = e.target.getStage();
-              if (stage) stage.container().style.cursor = 'pointer';
             }}
             onMouseLeave={(e) => {
               setIsDeleteHovered(false);
-              const stage = e.target.getStage();
-              if (stage) stage.container().style.cursor = 'move';
             }}
           >
             <Rect

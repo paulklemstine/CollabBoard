@@ -6,10 +6,12 @@ type StickerTab = 'emoji' | 'gif';
 interface StickerDrawerProps {
   onAddSticker: (emoji: string) => void;
   onAddGifSticker?: (gifUrl: string) => void;
+  forceOpen?: boolean;
 }
 
-export function StickerDrawer({ onAddSticker, onAddGifSticker }: StickerDrawerProps) {
+export function StickerDrawer({ onAddSticker, onAddGifSticker, forceOpen }: StickerDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const effectiveOpen = isOpen || !!forceOpen;
   const [page, setPage] = useState(0);
   const [tab, setTab] = useState<StickerTab>('emoji');
   const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -106,6 +108,7 @@ export function StickerDrawer({ onAddSticker, onAddGifSticker }: StickerDrawerPr
     >
       {/* Trigger Button */}
       <button
+        data-tutorial-id="sticker-button"
         onClick={() => setIsOpen((o) => !o)}
         className="btn-lift px-3.5 py-2.5 rounded-xl text-sm font-bold text-gray-700 hover:text-violet-600 transition-all duration-200"
         style={{
@@ -120,7 +123,7 @@ export function StickerDrawer({ onAddSticker, onAddGifSticker }: StickerDrawerPr
       </button>
 
       {/* Drawer */}
-      {isOpen && (
+      {effectiveOpen && (
         <div
           className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 animate-bounce-in"
           style={{ zIndex: 1001 }}
@@ -167,7 +170,7 @@ export function StickerDrawer({ onAddSticker, onAddGifSticker }: StickerDrawerPr
                   setPage((p) => Math.max(0, p - 1));
                 }}
                 disabled={page === 0}
-                className="flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200 hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed bg-white/40 border border-violet-200/60"
+                className="flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200 hover:scale-110 disabled:opacity-30 bg-white/40 border border-violet-200/60"
                 title="Previous page"
               >
                 <span style={{ fontSize: '20px' }}>←</span>
@@ -197,7 +200,7 @@ export function StickerDrawer({ onAddSticker, onAddGifSticker }: StickerDrawerPr
                   setPage((p) => Math.min(totalPages - 1, p + 1));
                 }}
                 disabled={page === totalPages - 1}
-                className="flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200 hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed bg-white/40 border border-violet-200/60"
+                className="flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200 hover:scale-110 disabled:opacity-30 bg-white/40 border border-violet-200/60"
                 title="Next page"
               >
                 <span style={{ fontSize: '20px' }}>→</span>

@@ -1,57 +1,28 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { searchGiphy, type GiphyGif } from '../../services/giphyService';
 
-interface GiphyImage {
-  url?: string;
-}
-
-interface GiphyGif {
-  id: string;
-  title?: string;
-  images?: {
-    fixed_height?: GiphyImage;
-    fixed_height_small?: GiphyImage;
-    fixed_width?: GiphyImage;
-    original?: GiphyImage;
-  };
-}
-
-const GIPHY_API_KEY = import.meta.env.VITE_GIPHY_API_KEY as string;
-
-async function searchGiphyDirect(query: string, limit = 18): Promise<GiphyGif[]> {
-  const url = `https://api.giphy.com/v1/stickers/search?api_key=${encodeURIComponent(GIPHY_API_KEY)}&q=${encodeURIComponent(query)}&limit=${limit}`;
-  const resp = await fetch(url);
-  if (!resp.ok) throw new Error(`GIPHY ${resp.status}`);
-  const json = await resp.json();
-  return json.data ?? [];
-}
-
-// Module-level preload: fires immediately on import, retries until success.
-// By the time a user opens the GIF drawer, results are already cached.
 const DEFAULT_QUERY = 'kittens';
+
+// Module-level preload: fires after a short delay to avoid TLS 0-RTT issues.
+// By the time a user opens the GIF drawer, results are already cached.
 let preloadedGifs: GiphyGif[] | null = null;
 let preloadPromise: Promise<GiphyGif[]> | null = null;
 
 function preloadDefaultGifs(): Promise<GiphyGif[]> {
   if (preloadedGifs) return Promise.resolve(preloadedGifs);
   if (preloadPromise) return preloadPromise;
-  preloadPromise = (async () => {
-    for (let attempt = 0; attempt < 5; attempt++) {
-      try {
-        const data = await searchGiphyDirect(DEFAULT_QUERY);
-        preloadedGifs = data;
-        return data;
-      } catch {
-        await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
-      }
-    }
-    preloadPromise = null; // allow retry on next call
+  preloadPromise = searchGiphy(DEFAULT_QUERY).then((data) => {
+    preloadedGifs = data;
+    return data;
+  }).catch(() => {
+    preloadPromise = null;
     return [];
-  })();
+  });
   return preloadPromise;
 }
 
-// Kick off preload immediately
-preloadDefaultGifs();
+// Kick off preload after initial page load
+setTimeout(preloadDefaultGifs, 2000);
 
 function getGifUrl(gif: GiphyGif): string {
   const img = gif.images?.fixed_height ?? gif.images?.fixed_width ?? gif.images?.original;
@@ -75,7 +46,7 @@ export function GifPicker({ onSelect, onClose }: GifPickerProps) {
   const [error, setError] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const fetchGifs = useCallback(async (query: string, retries = 2) => {
+  const fetchGifs = useCallback(async (query: string) => {
     const q = query.trim() || DEFAULT_QUERY;
 
     // If this is the default query and we have preloaded data, use it
@@ -99,20 +70,14 @@ export function GifPicker({ onSelect, onClose }: GifPickerProps) {
       }
     }
 
-    for (let attempt = 0; attempt <= retries; attempt++) {
-      try {
-        const data = await searchGiphyDirect(q);
-        setGifs(data);
-        setLoading(false);
-        return;
-      } catch {
-        if (attempt < retries) {
-          await new Promise(r => setTimeout(r, 500));
-        }
-      }
+    try {
+      const data = await searchGiphy(q);
+      setGifs(data);
+      setLoading(false);
+    } catch {
+      setError(true);
+      setLoading(false);
     }
-    setError(true);
-    setLoading(false);
   }, []);
 
   // On mount: if preload hasn't resolved yet, wait for it
@@ -141,7 +106,7 @@ export function GifPicker({ onSelect, onClose }: GifPickerProps) {
   useEffect(() => {
     if (!search) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => fetchGifs(search), 300);
+    debounceRef.current = setTimeout(() => fetchGifs(search), 400);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [search, fetchGifs]);
 

@@ -107,7 +107,7 @@ export async function batchDeleteObjects(
 
 export async function getBoardObjects(boardId: string): Promise<AnyBoardObject[]> {
   const snapshot = await getDocs(objectsCollection(boardId));
-  return snapshot.docs.map((d) => ({ ...d.data(), id: d.id }) as AnyBoardObject);
+  return snapshot.docs.map((d) => sanitizeObject({ ...d.data(), id: d.id } as AnyBoardObject));
 }
 
 /** Ensure core numeric fields are valid numbers so Konva never receives NaN. */

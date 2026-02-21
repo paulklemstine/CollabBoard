@@ -3164,6 +3164,7 @@ export const processAIRequestCallable = onCall(
     timeoutSeconds: 300,
     memory: '512MiB',
     maxInstances: 10,
+    invoker: 'public',
   },
   async (request) => {
     const userId = request.auth?.uid;
@@ -3202,6 +3203,7 @@ export const searchGiphyCallable = onCall(
     timeoutSeconds: 15,
     memory: '128MiB',
     maxInstances: 10,
+    invoker: 'public',
   },
   async (request) => {
     const { query, limit } = request.data as { query?: string; limit?: number };
@@ -3229,6 +3231,62 @@ export const searchGiphyCallable = onCall(
         images: gif.images,
       })),
     };
+  },
+);
+
+// ---- GIPHY cache trigger (Firestore-based proxy, bypasses Cloud Run CORS) ----
+
+export const resolveGiphySearch = onDocumentCreated(
+  {
+    document: 'giphyCache/{queryId}',
+    secrets: [giphyApiKey],
+    timeoutSeconds: 15,
+    memory: '128MiB',
+    maxInstances: 10,
+  },
+  async (event) => {
+    const data = event.data?.data();
+    if (!data || data.status !== 'pending') return;
+
+    const query = (data.query as string || '').trim();
+    const limit = (data.limit as number) || 18;
+    if (!query) {
+      await event.data!.ref.update({ status: 'error', error: 'Empty query' });
+      return;
+    }
+
+    const key = giphyApiKey.value().trim();
+    if (!key) {
+      await event.data!.ref.update({ status: 'error', error: 'GIPHY API key not configured' });
+      return;
+    }
+
+    try {
+      const url = `https://api.giphy.com/v1/stickers/search?api_key=${encodeURIComponent(key)}&q=${encodeURIComponent(query)}&limit=${limit}`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        await event.data!.ref.update({ status: 'error', error: `GIPHY API ${res.status}` });
+        return;
+      }
+
+      const json = await res.json();
+      const results = (json.data ?? []).map((gif: Record<string, unknown>) => ({
+        id: gif.id,
+        title: gif.title,
+        images: gif.images,
+      }));
+
+      await event.data!.ref.update({
+        status: 'complete',
+        results,
+        cachedAt: Date.now(),
+      });
+    } catch (err) {
+      await event.data!.ref.update({
+        status: 'error',
+        error: err instanceof Error ? err.message : 'Unknown error',
+      });
+    }
   },
 );
 

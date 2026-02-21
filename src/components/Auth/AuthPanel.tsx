@@ -110,10 +110,10 @@ export function AuthPanel({ user, onSignOut, onAuthChange }: AuthPanelProps) {
             Flow Space
           </h2>
           <p className="text-sm text-gray-400 mt-1 font-medium">
-            Collaborate visually, in real time.
+            Where ideas spark and friends build — together, in real time.
           </p>
           <p className="text-xs text-gray-400/90 mt-2 max-w-[280px] mx-auto leading-relaxed">
-            Add sticky notes, draw shapes, and use AI assistance. Everyone sees changes live.
+            Throw down sticky notes, sketch wild shapes, and let AI surprise you. Your crew sees everything live.
           </p>
         </div>
 

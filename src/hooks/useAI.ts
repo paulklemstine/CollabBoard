@@ -13,6 +13,8 @@ export function useAI(boardId: string, onObjectsCreated?: (ids: string[]) => voi
   const selectedIdsRef = useRef(selectedIds);
   selectedIdsRef.current = selectedIds;
 
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const sendCommand = useCallback(
     async (prompt: string, viewport?: ViewportCenter) => {
       const trimmed = prompt.trim();
@@ -30,8 +32,11 @@ export function useAI(boardId: string, onObjectsCreated?: (ids: string[]) => voi
       setProgress(null);
       setError(null);
 
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
       try {
-        const result = await sendAICommand(boardId, trimmed, (p) => setProgress(p), selectedIdsRef.current, viewport);
+        const result = await sendAICommand(boardId, trimmed, (p) => setProgress(p), selectedIdsRef.current, viewport, controller.signal);
 
         const assistantMessage: AIMessage = {
           id: `assistant-${Date.now()}`,
@@ -51,12 +56,18 @@ export function useAI(boardId: string, onObjectsCreated?: (ids: string[]) => voi
           err instanceof Error ? err.message : 'Something went wrong. Please try again.';
         setError(message);
       } finally {
+        abortControllerRef.current = null;
         setIsLoading(false);
         setProgress(null);
       }
     },
     [boardId, isLoading],
   );
+
+  const cancelRequest = useCallback(() => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+  }, []);
 
   const clearMessages = useCallback(() => {
     setMessages([]);
@@ -67,5 +78,5 @@ export function useAI(boardId: string, onObjectsCreated?: (ids: string[]) => voi
     setError(null);
   }, []);
 
-  return { messages, isLoading, error, progress, sendCommand, clearMessages, dismissError };
+  return { messages, isLoading, error, progress, sendCommand, cancelRequest, clearMessages, dismissError };
 }

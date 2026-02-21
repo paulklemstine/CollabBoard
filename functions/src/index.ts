@@ -307,6 +307,8 @@ Examples:
 Compact board state keys: w=width, h=height, pid=parentId, rot=rotation, sel=selected.
 
 Canvas: infinite, X→right, Y→down. (0,0)=top-left of ~1200x800 viewport.
+Placement: ALWAYS place new objects within the user's viewport. NEVER overlap objects — space them at least 20px apart. Only children inside a frame may share the frame's bounding box.
+Sticky notes: text param is REQUIRED — every sticky MUST have meaningful text content. Never create empty stickies.
 
 Frames: ALWAYS set parentId on children when creating objects inside a frame — use the frame's tempId. Coords are ABSOLUTE. Title bar renders ABOVE frame.y. Position children at frameX+20, frameY+20. Use embedInFrame for bulk. updateParent auto-repositions.
 
@@ -820,7 +822,8 @@ function detectTemplate(prompt: string): TemplateMatch | null {
   }
 
   // Clear / delete all: "clear the board", "delete everything", "remove all objects"
-  if (/^(?:clear|clean|wipe)\s+(?:the\s+)?(?:board|canvas|everything|all)/i.test(lower)
+  if (/^(?:clear|clean|wipe)$/i.test(lower)
+    || /^(?:clear|clean|wipe)\s+(?:the\s+)?(?:board|canvas|everything|all)/i.test(lower)
     || /^(?:delete|remove)\s+everything/i.test(lower)
     || /^(?:delete|remove)\s+all\s*$/i.test(lower)
     || /^(?:delete|remove)\s+all\s+(?:objects?|things?|items?|of\s+(?:them|it))/i.test(lower)) {
@@ -890,7 +893,7 @@ function detectTemplate(prompt: string): TemplateMatch | null {
     const rows = parseInt(gridMatch[1], 10);
     const cols = parseInt(gridMatch[2], 10);
     if (rows >= 1 && rows <= 50 && cols >= 1 && cols <= 50 && rows * cols <= 500) {
-      const labelMatch = prompt.match(/\bfor\s+(.+)$/i);
+      const labelMatch = prompt.match(/\b(?:for|about|on|with)\s+(.+)$/i);
       let labels: string[] | undefined;
       if (labelMatch) {
         labels = labelMatch[1].split(/\s+and\s+|,\s*/i).map(s => s.trim()).filter(Boolean);
@@ -917,12 +920,16 @@ function detectTemplate(prompt: string): TemplateMatch | null {
     }
   }
 
-  // Numbered flowchart: "create a flowchart with 5 steps", "make a 5-step flowchart"
+  // Numbered flowchart — only match generic requests (no topic/description after "flowchart")
   const flowchartNumMatch = lower.match(/(?:create|make|build|generate)\s+(?:a\s+)?(?:(\d+)[- ]?step\s+)?flowchart(?:\s+with\s+(\d+)\s+(?:step|stage|node)s?)?/);
   if (flowchartNumMatch) {
-    const stepCount = parseInt(flowchartNumMatch[1] || flowchartNumMatch[2] || '5', 10);
-    if (stepCount >= 2 && stepCount <= 20) {
-      return { type: 'numbered-flowchart', stepCount };
+    const afterMatch = lower.slice(flowchartNumMatch.index! + flowchartNumMatch[0].length).trim();
+    const hasTopicSuffix = /^(?:about|for|showing|on|of|to|that|with|describing|explaining)\s/i.test(afterMatch);
+    if (!hasTopicSuffix) {
+      const stepCount = parseInt(flowchartNumMatch[1] || flowchartNumMatch[2] || '5', 10);
+      if (stepCount >= 2 && stepCount <= 20) {
+        return { type: 'numbered-flowchart', stepCount };
+      }
     }
   }
 

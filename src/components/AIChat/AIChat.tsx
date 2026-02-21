@@ -79,7 +79,7 @@ export function AIChat({ boardId, isOpen, onClose, onObjectsCreated, selectedIds
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { messages, isLoading, error, progress, sendCommand, dismissError } = useAI(boardId, onObjectsCreated, selectedIds);
+  const { messages, isLoading, error, progress, sendCommand, cancelRequest, dismissError } = useAI(boardId, onObjectsCreated, selectedIds);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -185,16 +185,28 @@ export function AIChat({ boardId, isOpen, onClose, onObjectsCreated, selectedIds
             disabled={isLoading}
             className="flex-1 bg-white/50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-300 disabled:opacity-50 transition-all"
           />
-          <button
-            onClick={handleSubmit}
-            disabled={isLoading || !input.trim()}
-            className="w-9 h-9 rounded-xl bg-violet-500 text-white flex items-center justify-center flex-shrink-0 hover:shadow-lg disabled:opacity-40 disabled:hover:shadow-none transition-all duration-200"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13" />
-              <polygon points="22 2 15 22 11 13 2 9 22 2" />
-            </svg>
-          </button>
+          {isLoading ? (
+            <button
+              onClick={cancelRequest}
+              className="w-9 h-9 rounded-xl bg-red-500 text-white flex items-center justify-center flex-shrink-0 hover:bg-red-600 hover:shadow-lg transition-all duration-200"
+              title="Cancel request"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="4" y="4" width="16" height="16" rx="2" />
+              </svg>
+            </button>
+          ) : (
+            <button
+              onClick={handleSubmit}
+              disabled={!input.trim()}
+              className="w-9 h-9 rounded-xl bg-violet-500 text-white flex items-center justify-center flex-shrink-0 hover:shadow-lg disabled:opacity-40 disabled:hover:shadow-none transition-all duration-200"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13" />
+                <polygon points="22 2 15 22 11 13 2 9 22 2" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
     </div>

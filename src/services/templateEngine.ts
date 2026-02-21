@@ -167,12 +167,18 @@ export function detectTemplate(prompt: string): TemplateMatch | null {
     }
   }
 
-  // Numbered flowchart
+  // Numbered flowchart — only match generic requests (no topic/description after "flowchart")
+  // "create a flowchart" → template; "create a flowchart about sandwiches" → LLM
   const flowchartNumMatch = lower.match(/(?:create|make|build|generate)\s+(?:a\s+)?(?:(\d+)[- ]?step\s+)?flowchart(?:\s+with\s+(\d+)\s+(?:step|stage|node)s?)?/);
   if (flowchartNumMatch) {
-    const stepCount = parseInt(flowchartNumMatch[1] || flowchartNumMatch[2] || '5', 10);
-    if (stepCount >= 2 && stepCount <= 20) {
-      return { type: 'numbered-flowchart', stepCount };
+    // Check if there's a topic/description after the match — if so, let the LLM handle it
+    const afterMatch = lower.slice(flowchartNumMatch.index! + flowchartNumMatch[0].length).trim();
+    const hasTopicSuffix = /^(?:about|for|showing|on|of|to|that|with|describing|explaining)\s/i.test(afterMatch);
+    if (!hasTopicSuffix) {
+      const stepCount = parseInt(flowchartNumMatch[1] || flowchartNumMatch[2] || '5', 10);
+      if (stepCount >= 2 && stepCount <= 20) {
+        return { type: 'numbered-flowchart', stepCount };
+      }
     }
   }
 

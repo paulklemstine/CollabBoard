@@ -14,6 +14,7 @@ export async function sendAICommand(
   onProgress?: (progress: string) => void,
   selectedIds?: string[],
   viewport?: ViewportCenter,
+  signal?: AbortSignal,
 ): Promise<AICommandOutput> {
   const user = auth.currentUser;
   if (!user) {
@@ -71,5 +72,14 @@ export async function sendAICommand(
         reject(new Error(data.error || 'AI request failed'));
       }
     });
+
+    // Handle abort signal for cancellation
+    if (signal) {
+      signal.addEventListener('abort', () => {
+        clearTimeout(timeout);
+        unsub();
+        resolve({ response: 'Cancelled.', objectsCreated: [] });
+      }, { once: true });
+    }
   });
 }
